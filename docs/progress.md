@@ -27,17 +27,19 @@
 
 | ワーカー | ブランチ | 監査 | マージ | 公開確認 |
 |---|---|---|---|---|
-| w1-rpg | feat/w1-rpg（cae0f1c） | 合格（[audit](requests/audit/w1-rpg.md)） | ae15f48 | 確認中 |
+| w1-rpg | feat/w1-rpg（cae0f1c） | 合格（[audit](requests/audit/w1-rpg.md)） | ae15f48 | 200・ハブ掲載 OK |
 | w2-space | feat/w2-space（e0effad） | 合格（[audit](requests/audit/w2-space.md)） | 8673d59 | 200・ハブ掲載 OK |
-| w3-sports | feat/w3-sports | 作業中 | | |
+| w3-sports | feat/w3-sports（13ebcb8） | 合格（[audit](requests/audit/w3-sports.md)） | b1cdd98 | 200・ハブ掲載 OK |
 | w4-thief | feat/w4-thief（cdf2b2a） | 合格（[audit](requests/audit/w4-thief.md)） | 7f08ab2 | 200・ハブ掲載 OK |
 | w5-farm | feat/w5-farm（2ae5261） | 合格（[audit](requests/audit/w5-farm.md)） | e4b46bd | 200・ハブ掲載 OK |
 
-所有権違反：4本ともなし（games/<slug>/ 以外の変更は docs/requests/<名前>-shared.md の新規作成のみ）。マージ時の smoke：w5 後 OK 47／w4 後 OK 66／w2 後 OK 85／w1 後 OK 115、NG 0。
+所有権違反：5本ともなし（games/<slug>/ 以外の変更は docs/requests/<名前>-shared.md の新規作成のみ）。マージ時の smoke：w5 後 OK 47／w4 後 OK 66／w2 後 OK 85／w1 後 OK 115／w3 後 OK 137、NG 0。
+
+**フェーズ1完了（2026-11-10）**：5本とも監査合格・main にマージ・公開URLで 200 とハブ掲載を確認。まとめは [integration-report.md](integration-report.md)。
 
 ### 申し送り（フェーズ1後に判断）
 
 - **shared/ui.js の不具合**：オーバーレイのパネルに文字色が無く、見出し（h1/h2）が黒字になる（w4 報告）。全ゲームに影響、遊べなくなるほどではない。凍結解除後に修正候補
-- shared への要望：docs/requests/w1-rpg-shared.md・w2-space-shared.md・w4-thief-shared.md・w5-farm-shared.md（汎用メニュー／モーダル、トースト位置など共通の要望が多い）
+- shared への要望：docs/requests/w1-rpg-shared.md・w2-space-shared.md・w3-sports-shared.md・w4-thief-shared.md・w5-farm-shared.md（汎用メニュー／モーダル、トースト位置など共通の要望が多い）
 - 監査の軽微な指摘（差し戻し不要）：各 audit レポート参照。thief はステージ追加に stages/index.js への登録が必要、space は clear 音の二重再生の可能性、farm は一部数値が src/data 外、rpg はボス「魔弾の輪」2波目の予告が弱い・shared の「ハブへ戻る」が保存せず遷移
 - 手触り（FPS・難易度・テンポ）は自動操作のブラウザでは測れていない。人間が公開URLで確認する
