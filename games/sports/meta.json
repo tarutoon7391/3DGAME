@@ -1,1 +1,1 @@
-{ "slug": "sports", "title": "3Dスポーツ対戦", "description": "テニス・野球・アーチェリーで CPU と対戦", "controls": "競技ごとに異なる（マウス・WASD・Space）", "order": 3 }
+{ "slug": "sports", "title": "3Dスポーツ対戦", "description": "テニス・野球・アーチェリーの3競技で CPU と対戦（アーチェリーは2人交代プレイも可）", "controls": "テニス：WASD＋Space／野球・アーチェリー：マウス", "order": 3 }
