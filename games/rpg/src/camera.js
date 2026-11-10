@@ -1,56 +1,111 @@
-// 三人称カメラ：マウスで回転（ポインタロック中）、ホイールで距離。壁の手前に寄る簡易めり込み防止
+// カメラ：一人称（既定）と三人称を切り替える。どちらも入力は {dx, dy, wheel} のデータで受け取る
+// ヨーはゲーム共通の向き（正面ベクトルが (sin, cos)）。三人称はキャラの後ろから、一人称は目の高さから見る
 import { clamp } from './util.js';
+import { VIEW } from './data/view.js';
 
 export function createCameraRig(camera) {
+  camera.rotation.order = 'YXZ';
   const rig = {
-    yaw: 0, // カメラはターゲットから (sin yaw, cos yaw) 方向の後ろにいる
-    pitch: 0.42,
-    dist: 8,
-    curDist: 8,
-    sens: 0.0026,
-    /** 入力をデータで受け取る：{dx, dy, wheel} */
+    mode: VIEW.defaultMode,
+    // 一人称
+    yaw: Math.PI, // 向いている方向
+    look: 0, // 上下（正で上）
+    bobT: 0,
+    bobAmp: 0,
+    eyeDip: 0,
+    // 三人称（カメラはターゲットから見て yaw+π の方向の後ろ）
+    tps: { pitch: 0.42, dist: 8, curDist: 8 },
+    lastDx: 0,
+    lastDy: 0,
+
+    get fps() { return rig.mode === 'fps'; },
+
+    /** 視点を切り替える（向きは引き継ぐ） */
+    setMode(mode) {
+      rig.mode = mode;
+      camera.fov = mode === 'fps' ? VIEW.fov : VIEW.tpsFov;
+      camera.near = mode === 'fps' ? VIEW.near : 0.1;
+      camera.updateProjectionMatrix();
+    },
+    /** 三人称の見下ろし角（迷路では高め） */
+    setTpsPitch(p) { rig.tps.pitch = p; },
+
     input({ dx = 0, dy = 0, wheel = 0 }) {
-      rig.yaw -= dx * rig.sens;
-      rig.pitch = clamp(rig.pitch + dy * rig.sens, 0.08, 1.2);
-      rig.dist = clamp(rig.dist + wheel * 0.8, 4, 14);
-    },
-    /** カメラの正面方向（地面上）のヨー。正面ベクトルは (sin, cos) */
-    forwardYaw() {
-      return Math.atan2(-Math.sin(rig.yaw), -Math.cos(rig.yaw));
-    },
-    /** スティック入力（右・前）を地面上のベクトルに */
-    toWorld(right, fwd) {
-      const fx = -Math.sin(rig.yaw);
-      const fz = -Math.cos(rig.yaw);
-      const rx = Math.cos(rig.yaw);
-      const rz = -Math.sin(rig.yaw);
-      return { x: rx * right + fx * fwd, z: rz * right + fz * fwd };
-    },
-    /** 背後に回り込む（エリア遷移時） */
-    snapBehind(yaw) {
-      rig.yaw = yaw + Math.PI;
-    },
-    update(dt, target, world, shake) {
-      const tx = target.x;
-      const ty = target.y + 1.6;
-      const tz = target.z;
-      const cp = Math.cos(rig.pitch);
-      const dirX = Math.sin(rig.yaw) * cp;
-      const dirY = Math.sin(rig.pitch);
-      const dirZ = Math.cos(rig.yaw) * cp;
-      // 壁に当たる手前まで縮める
-      let want = rig.dist;
-      for (let s = 0.6; s <= rig.dist; s += 0.4) {
-        if (world && world.blocked(tx + dirX * s, tz + dirZ * s, true) && ty + dirY * s < world.wallH + 0.5) {
-          want = Math.max(1.5, s - 0.5);
-          break;
-        }
+      rig.lastDx = dx;
+      rig.lastDy = dy;
+      if (rig.fps) {
+        rig.yaw -= dx * VIEW.sens;
+        rig.look = clamp(rig.look - dy * VIEW.sens, -VIEW.pitchLimit, VIEW.pitchLimit);
+      } else {
+        rig.yaw -= dx * VIEW.tpsSens;
+        rig.tps.pitch = clamp(rig.tps.pitch + dy * VIEW.tpsSens, 0.08, 1.2);
+        rig.tps.dist = clamp(rig.tps.dist + wheel * 0.8, 4, 14);
       }
-      rig.curDist += (want - rig.curDist) * Math.min(1, dt * (want < rig.curDist ? 20 : 5));
-      const d = rig.curDist;
-      camera.position.set(tx + dirX * d + shake.x, Math.max(0.4, ty + dirY * d) + shake.y, tz + dirZ * d + shake.z);
-      camera.lookAt(tx + shake.x * 0.5, ty + shake.y * 0.5, tz + shake.z * 0.5);
+    },
+    /** 正面方向（地面上）のヨー */
+    forwardYaw() { return rig.yaw; },
+    /** 入力（右・前）を地面上のベクトルに */
+    toWorld(right, fwd) {
+      const s = Math.sin(rig.yaw);
+      const c = Math.cos(rig.yaw);
+      return { x: s * fwd - c * right, z: c * fwd + s * right };
+    },
+    /** yaw の方向を向く（エリア開始時） */
+    snapBehind(yaw) {
+      rig.yaw = yaw;
+      rig.look = 0;
+    },
+
+    /**
+     * @param me プレイヤー（pos・moving・dashing・action など）
+     * @param shake 画面揺れのずれ（Vector3）
+     */
+    update(dt, me, world, shake) {
+      if (rig.fps) updateFps(dt, me, shake);
+      else updateTps(dt, me.pos, world, shake);
     },
   };
+
+  function updateFps(dt, me, shake) {
+    // 歩くと少し上下に揺れる（VIEW.bob = 0 で無し）
+    const amp = me.walking ? (me.dashing ? VIEW.bobDash : VIEW.bob) : 0;
+    rig.bobAmp += (amp - rig.bobAmp) * Math.min(1, dt * 8);
+    const bob = Math.sin(me.walkPhase) * rig.bobAmp;
+    const dip = !me.alive ? VIEW.eyeHeight - 0.35 : me.action === 'dodge' ? VIEW.dodgeDip : 0; // やられたら倒れ込む
+    rig.eyeDip += (dip - rig.eyeDip) * Math.min(1, dt * (me.alive ? 14 : 3));
+    const k = VIEW.fpsShake;
+    camera.position.set(
+      me.pos.x + shake.x * k,
+      me.pos.y + VIEW.eyeHeight + bob - rig.eyeDip + shake.y * k,
+      me.pos.z + shake.z * k,
+    );
+    camera.rotation.set(rig.look, rig.yaw + Math.PI, me.alive ? 0 : Math.min(0.5, rig.eyeDip * 0.4));
+  }
+
+  function updateTps(dt, target, world, shake) {
+    const t = rig.tps;
+    const tx = target.x;
+    const ty = target.y + 1.6;
+    const tz = target.z;
+    const back = rig.yaw + Math.PI;
+    const cp = Math.cos(t.pitch);
+    const dirX = Math.sin(back) * cp;
+    const dirY = Math.sin(t.pitch);
+    const dirZ = Math.cos(back) * cp;
+    // 壁に当たる手前まで縮める
+    let want = t.dist;
+    for (let s = 0.6; s <= t.dist; s += 0.4) {
+      if (world && world.blocked(tx + dirX * s, tz + dirZ * s, true) && ty + dirY * s < world.wallH + 0.5) {
+        want = Math.max(1.5, s - 0.5);
+        break;
+      }
+    }
+    t.curDist += (want - t.curDist) * Math.min(1, dt * (want < t.curDist ? 20 : 5));
+    const d = t.curDist;
+    camera.position.set(tx + dirX * d + shake.x, Math.max(0.4, ty + dirY * d) + shake.y, tz + dirZ * d + shake.z);
+    camera.lookAt(tx + shake.x * 0.5, ty + shake.y * 0.5, tz + shake.z * 0.5);
+  }
+
+  rig.setMode(rig.mode);
   return rig;
 }

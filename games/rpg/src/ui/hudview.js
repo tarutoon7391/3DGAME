@@ -4,7 +4,8 @@ import { hud } from '/shared/ui.js';
 import { SKILLS, STAMINA } from '../data/player.js';
 import { BOSS } from '../data/enemies.js';
 import { nextSeal } from '../area.js';
-import { esc } from '../util.js';
+import { VIEW } from '../data/view.js';
+import { esc, angleDiff } from '../util.js';
 
 function el(cls, parent = document.body, tag = 'div') {
   const e = document.createElement(tag);
@@ -24,6 +25,19 @@ export function createHudView(game) {
   const hint = el('rpg-hint', root);
   hint.textContent = 'クリックで視点操作（マウスでカメラ）';
   const fade = el('rpg-fade', document.body);
+  // 一人称の見やすさ：照準・被弾の赤い縁・視界外からの攻撃方向・足元の予兆の警告
+  const cross = el('rpg-cross', root);
+  const vignette = el('rpg-vignette', root);
+  const danger = el('rpg-danger', root);
+  danger.innerHTML = '<span>⚠ 足元に攻撃の予兆！</span>';
+  const markers = [0, 1, 2, 3].map(() => {
+    const m = el('rpg-marker', root);
+    m.innerHTML = '<i></i>';
+    return { el: m, t: 0 };
+  });
+  let mNext = 0;
+  let hurtT = 0;
+  let fps = false;
   const mapWrap = el('rpg-map', root);
   const canvas = el('', mapWrap, 'canvas');
   const SIZE = 200;
@@ -142,6 +156,18 @@ export function createHudView(game) {
       g2.arc(X(bs.pos.x), Z(bs.pos.z), 5, 0, Math.PI * 2);
       g2.fill();
     }
+    // 一人称：見ている範囲（扇）
+    if (fps) {
+      const me = game.me();
+      const half = hfov() / 2;
+      const a = -me.yaw + Math.PI; // キャンバスの回転（三角と同じ向き）
+      g2.fillStyle = 'rgba(255,255,255,.16)';
+      g2.beginPath();
+      g2.moveTo(X(me.pos.x), Z(me.pos.z));
+      g2.arc(X(me.pos.x), Z(me.pos.z), 26, a - Math.PI / 2 - half, a - Math.PI / 2 + half);
+      g2.closePath();
+      g2.fill();
+    }
     // プレイヤー（向きつき三角）
     for (const p of game.players) {
       g2.save();
@@ -158,7 +184,30 @@ export function createHudView(game) {
     }
   }
 
+  /** 横の視野角（ラジアン） */
+  function hfov() {
+    const c = game.camera;
+    return 2 * Math.atan(Math.tan((c.fov * Math.PI) / 360) * c.aspect);
+  }
+
   return {
+    /** 一人称の表示（照準など）を出すか */
+    setFps(v) {
+      fps = v;
+      cross.style.display = v ? 'block' : 'none';
+      timer = 0;
+    },
+    /** 被弾：画面の縁を赤く。一人称で視界の外からなら方向マーカー（dirX,dirZ は攻撃してきた向き） */
+    hurt(dirX, dirZ) {
+      hurtT = VIEW.hurtFlash;
+      if (!fps) return;
+      const rel = angleDiff(game.cam.forwardYaw(), Math.atan2(dirX, dirZ));
+      if (Math.abs(rel) < hfov() / 2 - 0.1) return;
+      const m = markers[mNext];
+      mNext = (mNext + 1) % markers.length;
+      m.t = VIEW.hitMarker;
+      m.el.style.transform = `translate(-50%,-50%) rotate(${(-rel * 180) / Math.PI}deg)`;
+    },
     show(v) {
       root.style.display = v ? '' : 'none';
       if (!v) hud('');
@@ -178,6 +227,16 @@ export function createHudView(game) {
         bossBar.classList.toggle('raged', bs.raged);
       }
       hint.style.display = game.input.mouse.locked ? 'none' : 'block';
+      // 被弾の縁・方向マーカー・足元の予兆の警告
+      hurtT = Math.max(0, hurtT - dt);
+      vignette.style.opacity = String(Math.min(1, hurtT / VIEW.hurtFlash) * 0.9);
+      for (const m of markers) {
+        if (m.t <= 0) { m.el.style.opacity = '0'; continue; }
+        m.t -= dt;
+        m.el.style.opacity = String(Math.min(1, m.t / 0.4));
+      }
+      const me = game.me();
+      danger.style.display = fps && me.alive && game.fx.danger(me.pos.x, me.pos.z) ? 'flex' : 'none';
       if (bannerT > 0) {
         bannerT -= dt;
         banner.style.opacity = String(Math.min(1, bannerT));

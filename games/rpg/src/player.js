@@ -9,6 +9,7 @@ import { meleeArc, radiusHit } from './combat.js';
 export function emptyIntent(out = {}) {
   out.moveX = 0; out.moveZ = 0; out.aimYaw = 0;
   out.attack = false; out.dodge = false; out.dash = false; out.spin = false; out.wave = false; out.interact = false;
+  out.lockYaw = false; // true なら体の向きを常に aimYaw（一人称：カメラの水平方向）に合わせる
   return out;
 }
 
@@ -44,6 +45,10 @@ export function createPlayer(game, index = 0) {
     cd: { spin: 0, wave: 0 },
     walkPhase: 0,
     flash: 0,
+    walking: false, // 歩いている（視点・ビューモデルの揺れ用）
+    hideBody: false, // 一人称の自分は体を描かない
+    waveT: 0, // 衝撃波を撃ってからの残り演出時間
+    hurtT: 0, // 被弾してからの残り演出時間
 
     /** 全回復して置く（エリア開始・復活時） */
     reset(x, z, yaw = Math.PI) {
@@ -66,7 +71,9 @@ export function createPlayer(game, index = 0) {
       p.knockX = dx * 7;
       p.knockZ = dz * 7;
       p.flash = 0.25;
+      p.hurtT = 0.3;
       if (p.action === 'attack') p.action = 'none';
+      game.onPlayerHurt?.(p, -dx, -dz); // 攻撃してきた方向（画面の縁のマーカー用）
     },
 
     /** スタミナを使う。足りなくても使えるが 0 になったらバテる */
@@ -85,6 +92,8 @@ export function createPlayer(game, index = 0) {
       p.dodgeCd = Math.max(0, p.dodgeCd - dt);
       p.cd.spin = Math.max(0, p.cd.spin - dt);
       p.cd.wave = Math.max(0, p.cd.wave - dt);
+      p.waveT = Math.max(0, p.waveT - dt);
+      p.hurtT = Math.max(0, p.hurtT - dt);
       if (!p.alive) return;
 
       const mlen = Math.hypot(intent.moveX, intent.moveZ);
@@ -101,7 +110,7 @@ export function createPlayer(game, index = 0) {
         p.dodgeZ = Math.cos(y);
         p.invuln = Math.max(p.invuln, PLAYER.dodgeInvuln);
         p.dodgeCd = PLAYER.dodgeCd + PLAYER.dodgeTime;
-        if (moving) p.yaw = y;
+        if (moving && !intent.lockYaw) p.yaw = y;
         p.useStamina(STAMINA.dodgeCost);
         game.sound.se('dodge');
         game.fx.burst(p.pos.x, 0.3, p.pos.z, 0xd7ccc8, 8, { speed: 2, up: 1, life: 0.4 });
@@ -122,6 +131,7 @@ export function createPlayer(game, index = 0) {
           p.actT = PLAYER.combo[2].hit; // 振り下ろしの姿勢から
           p.didHit = true;
           p.queued = false;
+          p.waveT = 0.4;
           game.projectiles.playerWave(p, p.yaw);
           game.sound.se('wave');
         }
@@ -189,8 +199,9 @@ export function createPlayer(game, index = 0) {
         const sp = PLAYER.speed * speedMul * Math.min(1, mlen);
         vx = (intent.moveX / mlen) * sp;
         vz = (intent.moveZ / mlen) * sp;
-        if (p.action === 'none') p.yaw = lerpAngle(p.yaw, moveYaw, Math.min(1, dt * 14));
+        if (p.action === 'none' && !intent.lockYaw) p.yaw = lerpAngle(p.yaw, moveYaw, Math.min(1, dt * 14));
       }
+      if (intent.lockYaw) p.yaw = intent.aimYaw; // 一人称：攻撃も移動も視点の向きが基準
       vx += p.knockX;
       vz += p.knockZ;
       p.knockX *= Math.max(0, 1 - dt * 8);
@@ -202,10 +213,11 @@ export function createPlayer(game, index = 0) {
       // ---- 見た目 ----
       model.group.rotation.y = p.yaw;
       p.walkPhase += dt * (moving ? 11 * (p.dashing ? 1.4 : p.tired ? 0.7 : 1) : 0);
+      p.walking = moving && p.action !== 'dodge';
       animate(dt, moving && p.action === 'none' ? 1 : moving ? 0.4 : 0);
       p.flash = Math.max(0, p.flash - dt);
       const blink = p.invuln > 0 && p.action !== 'dodge' && Math.floor(p.invuln * 20) % 2 === 0;
-      model.group.visible = !blink;
+      model.group.visible = !blink && !p.hideBody; // 一人称では自分の体を描かない
       model.armorMat.emissive.setHex(p.flash > 0 ? 0x880000 : 0x000000);
     },
   };
@@ -216,8 +228,8 @@ export function createPlayer(game, index = 0) {
     p.actT = 0;
     p.didHit = false;
     p.queued = false;
-    // 入力方向、無ければカメラの向きへ振る
-    p.yaw = Math.hypot(intent.moveX, intent.moveZ) > 0.01 ? Math.atan2(intent.moveX, intent.moveZ) : intent.aimYaw;
+    // 一人称は視点の向き、三人称は入力方向（無ければカメラの向き）へ振る
+    p.yaw = !intent.lockYaw && Math.hypot(intent.moveX, intent.moveZ) > 0.01 ? Math.atan2(intent.moveX, intent.moveZ) : intent.aimYaw;
     game.sound.se('swing');
   }
 
