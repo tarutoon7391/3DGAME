@@ -1,8 +1,10 @@
-// 3DGAME サーバー：静的配信と games 一覧 API のみ（ビルド工程なし）
+// 3DGAME サーバー：静的配信・games 一覧 API・オンライン用ルーム中継（ビルド工程なし）
 import express from 'express';
+import http from 'node:http';
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { attachRooms } from './server/rooms.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const GAMES_DIR = path.join(__dirname, 'games');
@@ -26,7 +28,8 @@ export async function listGames() {
   return games;
 }
 
-export function createServer() {
+/** Express アプリ（HTTP ルートのみ） */
+export function createApp() {
   const app = express();
   app.disable('x-powered-by');
 
@@ -46,11 +49,21 @@ export function createServer() {
   app.use('/vendor/three/addons', express.static(path.join(__dirname, 'node_modules/three/examples/jsm')));
   app.use('/vendor/three', express.static(path.join(__dirname, 'node_modules/three/build')));
 
+  // Socket.io クライアント（shared/net.js が読み込む）
+  app.use('/vendor/socket.io', express.static(path.join(__dirname, 'node_modules/socket.io/client-dist')));
+
   app.use('/shared', express.static(path.join(__dirname, 'shared')));
   app.use('/games', express.static(GAMES_DIR));
   app.use('/', express.static(path.join(__dirname, 'public')));
 
   return app;
+}
+
+/** HTTP サーバー＋ルーム中継。listen() はまだしない */
+export function createServer() {
+  const server = http.createServer(createApp());
+  attachRooms(server);
+  return server;
 }
 
 // 直接起動されたときだけ listen する（smoke からの import にも対応）

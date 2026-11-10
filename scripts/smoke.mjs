@@ -1,4 +1,4 @@
-// スモークテスト：サーバー応答・JS 構文・import 解決先の存在を確認する
+// スモークテスト：サーバー応答・JS 構文・import 解決先の存在・オンラインのルーム中継を確認する
 // 使い方: npm run smoke            （全ゲーム）
 //         npm run smoke -- rpg      （指定スラッグのみ。複数可）
 import { spawnSync } from 'node:child_process';
@@ -53,6 +53,7 @@ function urlToFile(url) {
   const map = [
     ['/vendor/three/addons/', 'node_modules/three/examples/jsm/'],
     ['/vendor/three/', 'node_modules/three/build/'],
+    ['/vendor/socket.io/', 'node_modules/socket.io/client-dist/'],
     ['/shared/', 'shared/'],
     ['/games/', 'games/'],
   ];
@@ -85,7 +86,7 @@ async function checkHttp() {
     }
   };
   try {
-    const targets = ['/', '/healthz', '/vendor/three/three.module.js', '/shared/engine.js'];
+    const targets = ['/', '/healthz', '/vendor/three/three.module.js', '/vendor/socket.io/socket.io.esm.min.js', '/shared/engine.js', '/shared/net.js'];
     for (const t of targets) {
       const r = await get(t);
       r.status === 200 ? ok(`GET ${t} → 200`) : ng(`GET ${t} → ${r.status}`);
@@ -143,9 +144,90 @@ function checkSyntaxAndImports() {
   }
 }
 
+/** オンライン：shared/net.js を実際に使ってルーム作成〜参加〜中継〜ホスト交代を確認 */
+async function checkOnline() {
+  console.log('\n[3] オンライン（ルーム中継）');
+  const server = createServer().listen(0);
+  await new Promise((r) => server.once('listening', r));
+  const url = `http://127.0.0.1:${server.address().port}`;
+  // ブラウザ用の ESM クライアントを Node で読み込む（client-dist は type:module でないため data URL 経由）
+  const clientSrc = readFileSync(path.join(ROOT, 'node_modules/socket.io/client-dist/socket.io.esm.min.js'), 'utf8');
+  const { io } = await import('data:text/javascript;base64,' + Buffer.from(clientSrc).toString('base64'));
+  const { createNet } = await import('../shared/net.js');
+
+  const wait = (fn, ms = 3000) => new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('タイムアウト')), ms);
+    fn((v) => { clearTimeout(t); resolve(v); });
+  });
+  const step = async (label, fn) => {
+    try { await fn(); ok(label); } catch (e) { ng(`${label}：${e.message}`); throw e; }
+  };
+  const nets = [];
+  const mk = (name) => { const n = createNet('smoke', { name, url, io }); nets.push(n); return n; };
+
+  try {
+    const a = mk('A');
+    const b = mk('B');
+    const c = mk('C');
+    let code;
+    await step('ルーム作成（ホストになる）', async () => {
+      ({ code } = await a.createRoom({ maxPlayers: 2 }));
+      if (!/^[A-Z0-9]{4}$/.test(code) || !a.isHost || a.players.length !== 1) throw new Error('作成結果が不正');
+    });
+    await step('合言葉で参加（小文字でも可）・参加通知', async () => {
+      const joined = wait((done) => a.onPlayerJoin(done));
+      await b.joinRoom(code.toLowerCase());
+      const p = await joined;
+      if (p.name !== 'B' || b.isHost || b.myIndex !== 1) throw new Error('参加結果が不正');
+      await wait((done) => { if (a.players.length === 2) done(); else a.onRoomChange((r) => r.players.length === 2 && done()); });
+    });
+    await step('満員・存在しない合言葉は参加できない', async () => {
+      const fails = async (p) => { try { await p; return false; } catch { return true; } };
+      if (!(await fails(c.joinRoom(code)))) throw new Error('満員なのに参加できた');
+      if (!(await fails(c.joinRoom('ZZZZZZ')))) throw new Error('無い合言葉で参加できた');
+    });
+    await step('全員へ中継（送信者には届かない）', async () => {
+      let echoed = false;
+      a.onMessage('state', () => { echoed = true; });
+      const got = wait((done) => b.onMessage('state', (data, from) => done({ data, from })));
+      a.send('state', { tick: 1, players: [{ x: 1 }] });
+      const m = await got;
+      if (m.data.tick !== 1 || m.from !== a.myId) throw new Error('受信内容が不正');
+      if (echoed) throw new Error('送信者にも届いた');
+    });
+    await step('相手指定で中継', async () => {
+      const got = wait((done) => a.onMessage('input', (data, from) => done({ data, from })));
+      b.send('input', { keys: ['KeyW'] }, { to: a.myId });
+      const m = await got;
+      if (m.data.keys[0] !== 'KeyW' || m.from !== b.myId) throw new Error('受信内容が不正');
+    });
+    await step('ホスト切断でホスト交代・退出通知', async () => {
+      const left = wait((done) => b.onPlayerLeave(done));
+      const host = wait((done) => b.onHostChange(done));
+      a.leaveRoom();
+      await left;
+      const h = await host;
+      if (!h.isHost || !b.isHost) throw new Error('ホストが引き継がれていない');
+    });
+    await step('最後の1人が抜けるとルームが消える', async () => {
+      const gone = wait((done) => b.onDisconnect(done));
+      b.leaveRoom();
+      await gone;
+      const fails = await c.joinRoom(code).then(() => false, () => true);
+      if (!fails) throw new Error('空のルームに参加できた');
+    });
+  } catch {
+    // 失敗内容は step で記録済み
+  } finally {
+    nets.forEach((n) => n.leaveRoom());
+    server.close();
+  }
+}
+
 console.log(`smoke 対象: ${slugs.join(', ')}`);
 await checkHttp();
 checkSyntaxAndImports();
+await checkOnline();
 
 console.log(`\n結果: OK ${passed} 件 / NG ${errors.length} 件`);
 if (errors.length) {
