@@ -12,6 +12,8 @@ import { createProjectiles } from './projectiles.js';
 import { createEffects } from './effects.js';
 import { createSound } from './sound.js';
 import { createCameraRig } from './camera.js';
+import { createViewModel } from './viewmodel.js';
+import { VIEW } from './data/view.js';
 import { createHudView } from './ui/hudview.js';
 import { createModalHost, createDialog } from './ui/dialog.js';
 import { createLights, loadArea, updateAreaLogic, checkSeals } from './area.js';
@@ -20,11 +22,12 @@ import { fmtTime } from './util.js';
 
 const TITLE = '3DRPG 〜魔窟の主〜';
 const CONTROLS = [
-  'WASD：移動　Shift：ダッシュ　マウス：カメラ（クリックで視点ロック／右ドラッグでも可）',
+  'WASD：移動　Shift：ダッシュ　マウス：視点（画面クリックで視点ロック／右ドラッグでも可）',
+  'V：一人称／三人称の切り替え（はじめは一人称）',
   '左クリック：攻撃（連打で3段コンボ）　Space：回避（無敵時間あり）',
   'Q：回転斬り　E：衝撃波（クールダウンあり）　F：看板を調べる',
   'ダッシュと回避はスタミナを使う。0 になるとバテて、満タンに戻るまで使えない',
-  'ホイール：カメラ距離　Esc：ポーズ',
+  'ホイール：カメラ距離（三人称）　Esc：ポーズ',
 ].join('\n');
 
 export function createGame() {
@@ -35,6 +38,8 @@ export function createGame() {
   const saveData = store.load({ records: { clears: 0, bestTime: 0 }, progress: null });
   if (!saveData.records) saveData.records = { clears: 0, bestTime: 0 };
   saveData.progress = migrateProgress(saveData.progress); // 旧形式（レベル制）は到達エリアだけ引き継ぐ
+  // 設定（視点）は進行とは別に保存する（クリアしても消えない）
+  if (!saveData.settings || !['fps', 'tps'].includes(saveData.settings.view)) saveData.settings = { view: VIEW.defaultMode };
 
   const game = {
     scene, camera, renderer, input, audio,
@@ -52,6 +57,8 @@ export function createGame() {
   };
   game.fx = createEffects(scene, camera);
   game.cam = createCameraRig(camera);
+  scene.add(camera); // ビューモデルをカメラの子として描くため
+  game.vm = createViewModel(renderer, camera);
   game.lights = createLights(scene);
   game.enemies = createEnemies(game);
   game.projectiles = createProjectiles(game);
@@ -70,6 +77,24 @@ export function createGame() {
     toast(msg, ms);
   };
   game.onEnemyKilled = () => checkSeals(game);
+  game.onPlayerHurt = (p, dirX, dirZ) => {
+    if (p === game.me()) game.hudView.hurt(dirX, dirZ);
+  };
+
+  // ---- 視点（一人称／三人称）。V で切り替え、選んだ方を保存 ----
+  game.setView = (mode, announce = false) => {
+    const fps = mode === 'fps';
+    game.cam.setMode(mode);
+    game.players.forEach((p) => { p.hideBody = fps && p === game.me(); });
+    game.hudView.setFps(fps);
+    game.fx.setTeleOpacity(fps ? VIEW.teleBoost : null);
+    if (saveData.settings.view !== mode) {
+      saveData.settings.view = mode;
+      store.save(saveData);
+    }
+    if (announce) game.toastOnce(fps ? '一人称視点（V で三人称）' : '三人称視点（V で一人称）', 1600);
+  };
+  game.setView(saveData.settings.view);
 
   // ---- セーブ（到達したエリアと記録だけ。つづきからはそのエリアの入口から） ----
   game.autosave = () => {
@@ -225,6 +250,7 @@ export function createGame() {
     it.moveX = v.x;
     it.moveZ = v.z;
     it.aimYaw = game.cam.forwardYaw();
+    it.lockYaw = game.cam.fps; // 一人称：体の向き＝視点の水平方向
     it.attack = input.wasPressed('Mouse0');
     it.dodge = input.wasPressed('Space');
     it.dash = k('ShiftLeft') || k('ShiftRight');
@@ -267,6 +293,7 @@ export function createGame() {
       } else pause();
     }
     const active = game.playing && !isPaused() && !game.modal.open && !isOverlayOpen();
+    if (active && !game.down && input.wasPressed('KeyV')) game.setView(game.cam.fps ? 'tps' : 'fps', true);
 
     // カメラ操作（ロック中、または右ドラッグ）
     if (active && (input.mouse.locked || input.isDown('Mouse2'))) {
@@ -305,7 +332,9 @@ export function createGame() {
       if (active) game.fx.update(dt);
       const me = game.me();
       game.lights.follow(me.pos);
-      game.cam.update(dt, me.pos, game.world, game.fx.shakeOffset);
+      game.cam.update(dt, me, game.world, game.fx.shakeOffset);
+      game.vm.setVisible(game.cam.fps && me.alive);
+      game.vm.update(dt, me, game.cam);
       ui.update(dt);
     }
     input.endFrame();
@@ -313,8 +342,8 @@ export function createGame() {
 
   // タイトル背景用に村を表示しておく
   loadArea(game, AREA_ORDER[0]);
-  game.cam.yaw = 0.6;
-  game.cam.update(0.016, game.me().pos, game.world, game.fx.shakeOffset);
+  game.vm.setVisible(false);
+  game.cam.update(0.016, game.me(), game.world, game.fx.shakeOffset);
   title();
   // ?debug：自動テスト用（ロック解除でポーズしない・window.rpg で操作できる）
   if (new URLSearchParams(location.search).has('debug')) {

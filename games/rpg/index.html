@@ -38,6 +38,15 @@
     .rpg-boss-track{height:14px;background:#000b;border:1px solid #ff8a65;border-radius:7px;overflow:hidden;margin-top:3px}
     .rpg-boss-fill{height:100%;background:linear-gradient(90deg,#b71c1c,#ff5252);transition:width .2s}
     .rpg-boss.raged .rpg-boss-track{box-shadow:0 0 12px #ff1744}
+    .rpg-cross{display:none;position:absolute;left:50%;top:50%;width:14px;height:14px;transform:translate(-50%,-50%)}
+    .rpg-cross::before,.rpg-cross::after{content:"";position:absolute;background:#ffffffd0;box-shadow:0 0 2px #000}
+    .rpg-cross::before{left:6px;top:0;width:2px;height:14px}
+    .rpg-cross::after{left:0;top:6px;width:14px;height:2px}
+    .rpg-vignette{position:absolute;inset:0;opacity:0;box-shadow:inset 0 0 120px 40px #ff1744;pointer-events:none}
+    .rpg-danger{display:none;position:absolute;inset:0;box-shadow:inset 0 0 60px 14px #ff9100;animation:rpgblink .4s infinite;align-items:flex-end;justify-content:center;padding-bottom:150px;box-sizing:border-box}
+    .rpg-danger span{background:#000a;border:1px solid #ff9100;border-radius:8px;padding:4px 14px;color:#ffcc80;font-weight:bold}
+    .rpg-marker{position:absolute;left:50%;top:50%;width:0;height:0;opacity:0}
+    .rpg-marker i{position:absolute;left:-16px;top:-190px;width:0;height:0;border-left:16px solid transparent;border-right:16px solid transparent;border-bottom:26px solid #ff1744;filter:drop-shadow(0 0 4px #000)}
     .rpg-fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:15}
     .rpg-dmg-layer{position:fixed;inset:0;pointer-events:none;z-index:11;overflow:hidden}
     .rpg-dmg{position:absolute;left:0;top:0;font:bold 19px system-ui,sans-serif;text-shadow:0 0 3px #000,0 2px 4px #000;white-space:nowrap}

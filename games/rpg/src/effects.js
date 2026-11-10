@@ -113,6 +113,9 @@ export function createEffects(scene, camera) {
     t.outer.scale.set(t.sx, 1, t.sz);
     const handle = {
       follow(nx, nz, na = angle) {
+        t.x = nx;
+        t.z = nz;
+        t.angle = na;
         t.outer.position.set(nx, 0.04, nz);
         t.inner.position.set(nx, 0.05, nz);
         t.outer.rotation.y = t.inner.rotation.y = na;
@@ -125,6 +128,38 @@ export function createEffects(scene, camera) {
     t.handle = handle;
     handle.follow(x, z, angle);
     return handle;
+  }
+
+  /** (x,z) がいま出ている予兆の範囲内か（一人称で足元の予兆が見えないときの警告用） */
+  function danger(x, z, pad = 0.4) {
+    for (const t of teles) {
+      if (!t.active) continue;
+      const dx = x - t.x;
+      const dz = z - t.z;
+      if (t.kind === 'circle') {
+        if (dx * dx + dz * dz < (t.sx + pad) ** 2) return true;
+      } else if (t.kind === 'sector') {
+        const d = Math.hypot(dx, dz);
+        if (d > t.sx + pad) continue;
+        let da = Math.atan2(dx, dz) - t.angle;
+        da = Math.atan2(Math.sin(da), Math.cos(da));
+        if (d < pad + 0.6 || Math.abs(da) < t.arc / 2) return true;
+      } else {
+        const s = Math.sin(t.angle);
+        const c = Math.cos(t.angle);
+        const along = dx * s + dz * c;
+        const side = dx * c - dz * s;
+        if (along > -pad && along < t.sz + pad && Math.abs(side) < t.sx / 2 + pad) return true;
+      }
+    }
+    return false;
+  }
+
+  const teleBase = { outer: teleMatOuter.opacity, inner: teleMatInner.opacity };
+  /** 予兆の濃さ（一人称では濃くする）。null で元に戻す */
+  function setTeleOpacity(o) {
+    teleMatOuter.opacity = o ? o.outer : teleBase.outer;
+    teleMatInner.opacity = o ? o.inner : teleBase.inner;
   }
 
   // ---- 画面揺れ・ヒットストップ ----
@@ -208,6 +243,8 @@ export function createEffects(scene, camera) {
     burst,
     text,
     telegraph,
+    danger,
+    setTeleOpacity,
     update,
     clear,
     shakeOffset,

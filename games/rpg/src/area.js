@@ -66,7 +66,7 @@ export function loadArea(game, id) {
   game.players.forEach((p, i) => p.reset(sp.x + i * 1.2, sp.z, Math.PI));
   game.state.progress.area = id;
   game.cam.snapBehind(Math.PI);
-  if (def.camPitch) game.cam.pitch = def.camPitch;
+  if (def.camPitch) game.cam.setTpsPitch(def.camPitch);
   game.sound.bgm(def.bgm);
   game.hudView.banner(def.name);
   game.hudView.refresh();
