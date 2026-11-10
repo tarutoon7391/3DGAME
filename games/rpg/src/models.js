@@ -94,9 +94,10 @@ export function animateWalk(m, phase, amount, withRightArm = true) {
 }
 
 // ---------------- 主人公 ----------------
-export function makeHero() {
-  const swordMat = new THREE.MeshStandardMaterial({ color: 0x9c6b3c, metalness: 0.5, roughness: 0.35, flatShading: true, emissive: 0x000000 });
-  const armorMat = new THREE.MeshStandardMaterial({ color: 0x5d7fa8, roughness: 0.7, flatShading: true, emissive: 0x000000 });
+/** look: { swordColor, swordLen, armorColor }（装備は固定） */
+export function makeHero(look) {
+  const swordMat = new THREE.MeshStandardMaterial({ color: look.swordColor, metalness: 0.5, roughness: 0.35, flatShading: true, emissive: 0x000000 });
+  const armorMat = new THREE.MeshStandardMaterial({ color: look.armorColor, roughness: 0.7, flatShading: true, emissive: 0x000000 });
   const h = humanoid({ clothMat: armorMat, pants: 0x3e2f23 });
   const hair = mat(0x5a3a1a);
   part(box(0.56, 0.16, 0.56), hair, 0, 2.13, -0.02, h.root);
@@ -111,38 +112,12 @@ export function makeHero() {
   part(box(0.1, 0.22, 0.1), mat(0x4e342e), 0, -0.04, 0, sword);
   part(box(0.36, 0.06, 0.12), mat(0x8d6e63), 0, -0.16, 0, sword);
   const blade = part(box(0.08, 1, 0.18), swordMat, 0, -0.7, 0, sword);
+  blade.scale.y = look.swordLen;
+  blade.position.y = -0.2 - 0.5 * look.swordLen;
   // 盾
   part(box(0.08, 0.55, 0.46), armorMat, -0.14, -0.42, 0.05, h.armL);
   h.armR.rotation.x = -0.9;
-  return {
-    ...h,
-    sword,
-    blade,
-    swordMat,
-    armorMat,
-    setWeapon(def) {
-      swordMat.color.setHex(def.color);
-      blade.scale.y = def.len;
-      blade.position.y = -0.2 - 0.5 * def.len;
-    },
-    setArmor(def) {
-      armorMat.color.setHex(def.color);
-    },
-  };
-}
-
-// ---------------- NPC ----------------
-export function makeNpc(def) {
-  const h = humanoid({ cloth: def.cloth, skin: def.skin });
-  if (def.hat) {
-    part(cyl(0.34, 0.36, 0.12, 8), mat(def.hat), 0, 2.13, 0, h.root);
-    part(cyl(0.22, 0.26, 0.24, 8), mat(def.hat), 0, 2.28, 0, h.root);
-  } else {
-    part(box(0.56, 0.18, 0.56), mat(0x3e2723), 0, 2.13, -0.02, h.root);
-  }
-  if (def.beard) part(box(0.42, 0.3, 0.1), mat(0xeeeeee), 0, 1.66, 0.27, h.root);
-  if (def.small) h.group.scale.setScalar(0.72);
-  return h;
+  return { ...h, sword, blade, swordMat, armorMat };
 }
 
 // ---------------- 敵 ----------------

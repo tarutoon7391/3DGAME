@@ -1,8 +1,8 @@
 // ダメージ計算と、攻撃の当たり判定（プレイヤー→敵、敵→プレイヤー）
 import { angleDiff, yawTo } from './util.js';
-import { PLAYER } from './data/levels.js';
+import { PLAYER } from './data/player.js';
 
-/** 攻撃力×倍率 − 防御÷2 に ±10% のぶれ。最低1 */
+/** 攻撃力×倍率 − 防御÷2 に ±10% のぶれ。最低1（プレイヤー→敵） */
 export function calcDamage(atk, mult, def) {
   const base = atk * mult - def * 0.5;
   return Math.max(1, Math.round(base * (0.9 + Math.random() * 0.2)));
@@ -17,9 +17,8 @@ export function forEachTarget(game, fn) {
 
 /** プレイヤーの攻撃を1体に当てる */
 export function strike(game, pl, target, mult, { knock = 1, color = 0xffffff } = {}) {
-  const d = game.state.derived();
-  const crit = Math.random() < 0.1;
-  const dmg = calcDamage(d.atk, mult * (crit ? 1.5 : 1), target.defense);
+  const crit = Math.random() < PLAYER.critRate;
+  const dmg = calcDamage(PLAYER.atk, mult * (crit ? PLAYER.critMul : 1), target.defense);
   const dx = target.pos.x - pl.pos.x;
   const dz = target.pos.z - pl.pos.z;
   const len = Math.hypot(dx, dz) || 1;
@@ -59,22 +58,21 @@ export function radiusHit(game, pl, mult, radius) {
 
 /**
  * 敵の攻撃をプレイヤーに当てる。無敵中は false
- * @param {number} atk 攻撃側の攻撃力
+ * @param {number} frac 最大 HP に対する割合（data/player.js の HIT）
  */
-export function hurtPlayer(game, pl, atk, mult, fromX, fromZ) {
+export function hurtPlayer(game, pl, frac, fromX, fromZ) {
   if (!pl.alive || pl.invuln > 0) return false;
-  const st = game.state;
-  const dmg = calcDamage(atk, mult, st.derived().def);
-  st.progress.hp = Math.max(0, st.progress.hp - dmg);
+  const dmg = Math.ceil(pl.maxHp * frac);
+  pl.hp = Math.max(0, pl.hp - dmg);
   const dx = pl.pos.x - fromX;
   const dz = pl.pos.z - fromZ;
   const len = Math.hypot(dx, dz) || 1;
   pl.onHurt(dx / len, dz / len);
-  game.fx.text(pl.pos.x, 2.3, pl.pos.z, String(dmg), '#ff5252', dmg >= 30);
+  game.fx.text(pl.pos.x, 2.3, pl.pos.z, String(dmg), '#ff5252', frac >= 0.3);
   game.fx.burst(pl.pos.x, 1.2, pl.pos.z, 0xff1744, 10, { speed: 4, life: 0.4 });
-  game.fx.shake(Math.min(0.9, 0.3 + dmg / 60));
+  game.fx.shake(0.5 + frac);
   game.sound.se('hurt');
-  if (st.progress.hp <= 0) game.onPlayerDown(pl);
+  if (pl.hp <= 0) game.onPlayerDown(pl);
   return true;
 }
 

@@ -5,30 +5,26 @@ import { createInput } from '/shared/input.js';
 import { createAudio } from '/shared/audio.js';
 import { showTitle, showPause, hidePause, isPaused, showResult, toast, isOverlayOpen } from '/shared/ui.js';
 import { createSave } from '/shared/save.js';
-import { createState, newProgress } from './state.js';
+import { createState, newProgress, migrateProgress } from './state.js';
 import { createPlayer, emptyIntent } from './player.js';
 import { createEnemies } from './enemies.js';
 import { createProjectiles } from './projectiles.js';
-import { createPickups } from './pickups.js';
 import { createEffects } from './effects.js';
 import { createSound } from './sound.js';
 import { createCameraRig } from './camera.js';
 import { createHudView } from './ui/hudview.js';
 import { createModalHost, createDialog } from './ui/dialog.js';
-import { createLights, loadArea, updateAreaLogic } from './area.js';
-import { installActions } from './actions.js';
-import { AREAS } from './data/areas.js';
-import { DEATH_GOLD_LOSS } from './data/levels.js';
-import { BOSS } from './data/enemies.js';
+import { createLights, loadArea, updateAreaLogic, checkSeals } from './area.js';
+import { AREAS, AREA_ORDER } from './data/areas.js';
 import { fmtTime } from './util.js';
 
 const TITLE = '3DRPG 〜魔窟の主〜';
 const CONTROLS = [
-  'WASD：移動　マウス：カメラ（クリックで視点ロック／右ドラッグでも可）',
+  'WASD：移動　Shift：ダッシュ　マウス：カメラ（クリックで視点ロック／右ドラッグでも可）',
   '左クリック：攻撃（連打で3段コンボ）　Space：回避（無敵時間あり）',
-  'Q：回転斬り　E：衝撃波（MP 消費・クールダウンあり）',
-  'F：話す・調べる　Tab：メニュー（装備・持ち物・クエスト）',
-  '1：回復薬　2：魔力水　ホイール：カメラ距離　Esc：ポーズ',
+  'Q：回転斬り　E：衝撃波（クールダウンあり）　F：看板を調べる',
+  'ダッシュと回避はスタミナを使う。0 になるとバテて、満タンに戻るまで使えない',
+  'ホイール：カメラ距離　Esc：ポーズ',
 ].join('\n');
 
 export function createGame() {
@@ -37,6 +33,8 @@ export function createGame() {
   const audio = createAudio();
   const store = createSave('rpg');
   const saveData = store.load({ records: { clears: 0, bestTime: 0 }, progress: null });
+  if (!saveData.records) saveData.records = { clears: 0, bestTime: 0 };
+  saveData.progress = migrateProgress(saveData.progress); // 旧形式（レベル制）は到達エリアだけ引き継ぐ
 
   const game = {
     scene, camera, renderer, input, audio,
@@ -57,28 +55,31 @@ export function createGame() {
   game.lights = createLights(scene);
   game.enemies = createEnemies(game);
   game.projectiles = createProjectiles(game);
-  game.pickups = createPickups(game);
   game.hudView = createHudView(game);
   game.modal = createModalHost(game);
   game.dialog = createDialog(game, game.modal);
   game.ui = { dialog: game.dialog };
-  installActions(game);
   game.players.push(createPlayer(game, 0));
 
-  // ---- セーブ ----
+  // 同じ文を短時間に何度も出さないトースト
+  const toastTimes = new Map();
+  game.toastOnce = (msg, ms = 2000) => {
+    const now = performance.now();
+    if (now - (toastTimes.get(msg) || 0) < ms + 400) return;
+    toastTimes.set(msg, now);
+    toast(msg, ms);
+  };
+  game.onEnemyKilled = () => checkSeals(game);
+
+  // ---- セーブ（到達したエリアと記録だけ。つづきからはそのエリアの入口から） ----
   game.autosave = () => {
-    if (!game.playing || game.down) return;
-    const pr = game.state.progress;
-    const me = game.me();
-    pr.x = Math.round(me.pos.x * 10) / 10;
-    pr.z = Math.round(me.pos.z * 10) / 10;
-    // ボス戦中に保存した場合は、ボス部屋の手前から再開
-    if (game.boss && game.boss.active) pr.z = Math.max(pr.z, -10);
-    saveData.progress = pr;
+    if (!game.playing) return;
+    saveData.progress = game.state.progress;
     store.save(saveData);
   };
-
-  game.gateOpen = (g) => !g.requires || game.state.progress.quests[g.requires].status !== 'none';
+  // ハブへ戻る・タブを閉じる・裏に回ったときもプレイ時間などを保存
+  addEventListener('pagehide', () => game.autosave());
+  document.addEventListener('visibilitychange', () => { if (document.hidden) game.autosave(); });
 
   // ---- ポインタロックとモーダル ----
   let expectUnlock = false;
@@ -122,12 +123,10 @@ export function createGame() {
     });
   }
 
-  // ---- 暗転・遷移 ----
-  let flashT = 0;
-  game.flashFade = () => { flashT = 1.2; };
-  game.startTransition = (to, x, z, yaw) => {
+  // ---- 暗転・遷移（次のステージへ） ----
+  game.startTransition = (to) => {
     if (game.trans) return;
-    game.trans = { t: 0, phase: 'out', to, x, z, yaw };
+    game.trans = { t: 0, phase: 'out', to };
     game.sound.se('gate');
   };
 
@@ -142,23 +141,19 @@ export function createGame() {
 
   function finishDown() {
     const pr = game.state.progress;
-    const loss = Math.floor(pr.gold * DEATH_GOLD_LOSS);
-    pr.gold -= loss;
     pr.stats.deaths++;
+    game.autosave();
     expectUnlock = true;
     input.unlockPointer();
     game.hudView.show(false);
     showResult({
-      title: '全滅してしまった……',
-      lines: [`${loss}G を落としてしまった（所持金 ${pr.gold}G）`, '村の宿屋の前で目を覚ます。装備・レベル・クエストはそのまま。'],
-      retryLabel: '村で目覚める',
+      title: 'やられてしまった……',
+      lines: [`${AREAS[pr.area].name} の入口からやり直す（HP は全快、魔物は元に戻る）。`, `プレイ時間 ${fmtTime(pr.stats.time)}　やられた回数 ${pr.stats.deaths}`],
+      retryLabel: '入口からやり直す',
       onRetry: () => {
         game.down = null;
-        game.state.healFull();
-        const r = AREAS.village.respawn;
-        loadArea(game, 'village', r.x, r.z, Math.PI);
+        loadArea(game, pr.area);
         game.hudView.show(true);
-        game.autosave();
         input.lockPointer();
       },
     });
@@ -166,9 +161,6 @@ export function createGame() {
 
   game.onBossDefeated = () => {
     const pr = game.state.progress;
-    pr.quests.boss.status = 'cleared';
-    pr.gold += BOSS.gold;
-    game.state.gainExp(BOSS.exp);
     game.playing = false;
     expectUnlock = true;
     input.unlockPointer();
@@ -185,8 +177,8 @@ export function createGame() {
       title: 'クリア！ 魔窟の主を討ち取った！',
       lines: [
         `プレイ時間 ${fmtTime(time)}${best ? '（ベスト更新！）' : `（ベスト ${fmtTime(rec.bestTime)}）`}`,
-        `レベル ${pr.level}　撃破数 ${pr.stats.kills}　全滅 ${pr.stats.deaths} 回`,
-        `所持金 ${pr.gold}G　クリア回数 ${rec.clears}`,
+        `撃破数 ${pr.stats.kills}　やられた回数 ${pr.stats.deaths}`,
+        `クリア回数 ${rec.clears}`,
       ],
       retryLabel: 'はじめから遊ぶ',
       onRetry: () => begin(newProgress()),
@@ -196,17 +188,15 @@ export function createGame() {
   // ---- 開始 ----
   function begin(progress) {
     game.state = createState(progress);
-    game.state.normalize();
     game.down = null;
     game.trans = null;
     game.playing = true;
-    game.players.forEach((p) => p.applyEquipment());
     const pr = game.state.progress;
-    loadArea(game, pr.area, pr.x, pr.z, Math.PI);
+    loadArea(game, pr.area);
     game.hudView.show(true);
     game.autosave();
     input.lockPointer();
-    if (pr.quests.hunt.status === 'none') setTimeout(() => toast('まずは村長（黄色い帽子）に話しかけてみよう', 3500), 800);
+    if (pr.area === AREA_ORDER[0]) setTimeout(() => toast('迷路を抜けて北の出口へ。赤い結界は番人を全部倒すと消える', 4000), 800);
   }
 
   function title() {
@@ -215,7 +205,7 @@ export function createGame() {
     const recLine = rec.clears ? `　クリア ${rec.clears} 回／ベスト ${fmtTime(rec.bestTime)}` : '';
     showTitle({
       title: TITLE,
-      desc: `村で準備し、草原とダンジョンを抜けて魔窟の主を倒すアクションRPG（約30分）。${recLine}`,
+      desc: `迷路を進みながら魔物と戦い、魔窟の主を倒せばクリア。育成も収集もない3ステージのアクション。${recLine}`,
       controls: CONTROLS,
       onStart: () => begin(newProgress()),
       startLabel: has ? 'はじめから' : 'はじめる',
@@ -224,23 +214,23 @@ export function createGame() {
   }
 
   // ---- 入力 → intent（データ） ----
+  const myIntent = emptyIntent();
+  const idleIntent = emptyIntent(); // 操作していないプレイヤー用（毎フレーム作らない）
   function readIntent() {
     const k = (c) => input.isDown(c);
     const right = (k('KeyD') || k('ArrowRight') ? 1 : 0) - (k('KeyA') || k('ArrowLeft') ? 1 : 0);
     const fwd = (k('KeyW') || k('ArrowUp') ? 1 : 0) - (k('KeyS') || k('ArrowDown') ? 1 : 0);
     const v = game.cam.toWorld(right, fwd);
-    const it = emptyIntent();
+    const it = myIntent;
     it.moveX = v.x;
     it.moveZ = v.z;
     it.aimYaw = game.cam.forwardYaw();
     it.attack = input.wasPressed('Mouse0');
     it.dodge = input.wasPressed('Space');
+    it.dash = k('ShiftLeft') || k('ShiftRight');
     it.spin = input.wasPressed('KeyQ');
     it.wave = input.wasPressed('KeyE');
     it.interact = input.wasPressed('KeyF');
-    it.menu = input.wasPressed('Tab');
-    it.potion = input.wasPressed('Digit1');
-    it.ether = input.wasPressed('Digit2');
     return it;
   }
 
@@ -249,17 +239,14 @@ export function createGame() {
   function step(dt, time) {
     const intent = readIntent();
     const pr = game.state.progress;
-    if (intent.menu) { game.openMenu(); return; }
-    if (intent.potion) game.useItem('potion');
-    if (intent.ether) game.useItem('ether');
 
     if (game.fx.consumeStop(dt)) return; // ヒットストップ
     pr.stats.time += dt;
-    game.players.forEach((p, i) => p.update(dt, i === game.localIndex ? intent : emptyIntent()));
+    game.players.forEach((p, i) => p.update(dt, i === game.localIndex ? intent : idleIntent));
+    game.world.update(dt, time);
     game.enemies.update(dt, time);
     if (game.boss) game.boss.update(dt, time);
     game.projectiles.update(dt);
-    game.pickups.update(dt, time);
     if (!game.down) updateAreaLogic(game, intent);
     saveTimer += dt;
     if (saveTimer > 45 && !game.boss?.active) {
@@ -292,7 +279,7 @@ export function createGame() {
       if (tr.phase === 'out') {
         ui.fade(Math.min(1, tr.t / 0.35));
         if (tr.t >= 0.4) {
-          loadArea(game, tr.to, tr.x, tr.z, tr.yaw);
+          loadArea(game, tr.to); // 次のステージ：HP・スタミナ全回復
           tr.phase = 'in';
           tr.t = 0;
           game.autosave();
@@ -313,10 +300,6 @@ export function createGame() {
     } else if (active) {
       step(dt, time);
     }
-    if (flashT > 0) {
-      flashT -= dt;
-      ui.fade(Math.max(0, Math.sin(Math.min(1, flashT / 1.2) * Math.PI)));
-    }
 
     if (game.playing) {
       if (active) game.fx.update(dt);
@@ -329,7 +312,7 @@ export function createGame() {
   });
 
   // タイトル背景用に村を表示しておく
-  loadArea(game, 'village', 0, 6, Math.PI);
+  loadArea(game, AREA_ORDER[0]);
   game.cam.yaw = 0.6;
   game.cam.update(0.016, game.me().pos, game.world, game.fx.shakeOffset);
   title();

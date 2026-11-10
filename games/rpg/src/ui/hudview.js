@@ -1,9 +1,9 @@
-// HUD：HP/MP バー・レベル・ゴールド・クエスト進行（左上 = shared の hud()）、
+// HUD：HP・スタミナ・目標（左上 = shared の hud()）、
 // スキル欄・ミニマップ・ボス HP・調べるの案内・エリア名・暗転（自前 DOM）
 import { hud } from '/shared/ui.js';
-import { SKILLS, expToNext, MAX_LEVEL } from '../data/levels.js';
+import { SKILLS, STAMINA } from '../data/player.js';
 import { BOSS } from '../data/enemies.js';
-import { questLines } from '../questlog.js';
+import { nextSeal } from '../area.js';
 import { esc } from '../util.js';
 
 function el(cls, parent = document.body, tag = 'div') {
@@ -26,10 +26,16 @@ export function createHudView(game) {
   const fade = el('rpg-fade', document.body);
   const mapWrap = el('rpg-map', root);
   const canvas = el('', mapWrap, 'canvas');
-  const SIZE = 168;
+  const SIZE = 200;
   canvas.width = SIZE;
   canvas.height = SIZE;
   const g2 = canvas.getContext('2d');
+  // 壁は動かないので、エリアごとに1回だけ下絵に描いておく
+  const base = document.createElement('canvas');
+  base.width = SIZE;
+  base.height = SIZE;
+  const b2 = base.getContext('2d');
+  let baseWorld = null;
   root.style.display = 'none';
 
   let timer = 0;
@@ -37,73 +43,91 @@ export function createHudView(game) {
   let lastPrompt = null;
   let bannerT = 0;
 
-  function bar(cur, max, color, w = 180) {
+  function bar(cur, max, color, w = 180, cls = '') {
     const r = Math.max(0, Math.min(1, cur / max));
-    return `<div class="rpg-bar" style="width:${w}px"><div style="width:${(r * 100).toFixed(1)}%;background:${color}"></div></div>`;
+    return `<div class="rpg-bar ${cls}" style="width:${w}px"><div style="width:${(r * 100).toFixed(1)}%;background:${color}"></div></div>`;
+  }
+
+  function goal() {
+    const w = game.world;
+    if (!w) return '';
+    if (w.def.boss) return game.boss?.active ? `${BOSS.name}を倒せ！` : '最深部のボス部屋へ進め';
+    const s = nextSeal(game);
+    if (!s) return '';
+    if (s.done) return '結界はすべて消えた。北の出口へ！';
+    return `結界 ${s.opened}/${s.total} 解除　次の結界の番人：あと ${s.left} 体`;
   }
 
   function drawHud() {
-    const st = game.state;
-    const pr = st.progress;
-    const d = st.derived();
-    const expMax = pr.level >= MAX_LEVEL ? 1 : expToNext(pr.level);
-    const ql = questLines(st)
-      .map((q) => `<div class="rpg-q ${q.done ? 'done' : ''}">◆ ${esc(q.name)}：${esc(q.prog)}</div>`)
-      .join('');
+    const me = game.me();
+    const tired = me.tired;
+    const stColor = tired ? '#ff7043' : me.stamina < STAMINA.max * 0.3 ? '#ffca28' : '#ffee58';
     hud(`<div class="rpg-status">
-      <div><b class="rpg-lv">Lv ${pr.level}</b> <span class="rpg-area">${esc(game.world?.def.name || '')}</span></div>
-      <div class="rpg-row"><span>HP</span>${bar(pr.hp, d.maxHp, pr.hp / d.maxHp < 0.3 ? '#ff5252' : '#66bb6a')}<span>${Math.ceil(pr.hp)}/${d.maxHp}</span></div>
-      <div class="rpg-row"><span>MP</span>${bar(pr.mp, d.maxMp, '#42a5f5')}<span>${Math.floor(pr.mp)}/${d.maxMp}</span></div>
-      <div class="rpg-row"><span>EX</span>${bar(pr.exp, expMax, '#ffca28', 120)}<span class="rpg-gold">${pr.gold} G</span></div>
-      ${ql ? `<div class="rpg-quests"><div class="rpg-qtitle">クエスト</div>${ql}</div>` : ''}
+      <div><b class="rpg-lv">${esc(game.world?.def.name || '')}</b></div>
+      <div class="rpg-row"><span>HP</span>${bar(me.hp, me.maxHp, me.hp / me.maxHp < 0.3 ? '#ff5252' : '#66bb6a')}<span>${Math.ceil(me.hp)}/${me.maxHp}</span></div>
+      <div class="rpg-row"><span>ST</span>${bar(me.stamina, STAMINA.max, stColor, 180, tired ? 'tired' : '')}<span class="${tired ? 'rpg-tired' : ''}">${tired ? 'バテ！' : Math.floor(me.stamina)}</span></div>
+      <div class="rpg-goal">◆ ${esc(goal())}</div>
     </div>`);
 
-    const pl = game.me();
-    const mpNow = pr.mp;
     const sk = (id) => {
       const s = SKILLS[id];
-      const cd = pl.cd[id];
-      const off = cd > 0 || mpNow < s.mp;
-      return `<div class="rpg-skill ${off ? 'off' : ''}"><b>${s.label}</b><span>${s.name}</span><small>MP${s.mp}</small>${cd > 0 ? `<i>${cd.toFixed(1)}</i>` : ''}</div>`;
+      const cd = me.cd[id];
+      return `<div class="rpg-skill ${cd > 0 ? 'off' : ''}"><b>${s.label}</b><span>${s.name}</span><small>CD ${s.cd}秒</small>${cd > 0 ? `<i>${cd.toFixed(1)}</i>` : ''}</div>`;
     };
     const html = `${sk('spin')}${sk('wave')}
-      <div class="rpg-skill ${pl.dodgeCd > 0 ? 'off' : ''}"><b>Space</b><span>回避</span></div>
-      <div class="rpg-skill ${st.count('potion') ? '' : 'off'}"><b>1</b><span>回復薬</span><small>×${st.count('potion')}</small></div>
-      <div class="rpg-skill ${st.count('ether') ? '' : 'off'}"><b>2</b><span>魔力水</span><small>×${st.count('ether')}</small></div>`;
+      <div class="rpg-skill ${me.dodgeCd > 0 || tired ? 'off' : ''}"><b>Space</b><span>回避</span><small>ST${STAMINA.dodgeCost}</small></div>
+      <div class="rpg-skill ${tired ? 'off' : ''} ${me.dashing ? 'on' : ''}"><b>Shift</b><span>ダッシュ</span><small>ST消費</small></div>`;
     if (html !== lastSkills) {
       lastSkills = html;
       skills.innerHTML = html;
     }
   }
 
+  function mapper(w) {
+    const b = w.def.bounds;
+    const s = Math.min(SIZE / (b.maxX - b.minX), SIZE / (b.maxZ - b.minZ));
+    const ox = (SIZE - (b.maxX - b.minX) * s) / 2;
+    const oz = (SIZE - (b.maxZ - b.minZ) * s) / 2;
+    return { s, X: (x) => ox + (x - b.minX) * s, Z: (z) => oz + (z - b.minZ) * s, b };
+  }
+
+  function drawBase(w) {
+    baseWorld = w;
+    const { s, X, Z, b } = mapper(w);
+    b2.clearRect(0, 0, SIZE, SIZE);
+    b2.fillStyle = w.def.dark ? 'rgba(40,34,48,.85)' : 'rgba(30,50,30,.82)';
+    b2.fillRect(X(b.minX), Z(b.minZ), (b.maxX - b.minX) * s, (b.maxZ - b.minZ) * s);
+    b2.fillStyle = 'rgba(215,215,200,.75)';
+    for (const c of w.colliders) {
+      if (c.seal || c.off) continue;
+      b2.fillRect(X(c.minX), Z(c.minZ), Math.max(1, (c.maxX - c.minX) * s), Math.max(1, (c.maxZ - c.minZ) * s));
+    }
+  }
+
   function drawMap() {
     const w = game.world;
     if (!w) return;
-    const b = w.def.bounds;
-    const sx = SIZE / (b.maxX - b.minX);
-    const sz = SIZE / (b.maxZ - b.minZ);
-    const s = Math.min(sx, sz);
-    const ox = (SIZE - (b.maxX - b.minX) * s) / 2;
-    const oz = (SIZE - (b.maxZ - b.minZ) * s) / 2;
-    const X = (x) => ox + (x - b.minX) * s;
-    const Z = (z) => oz + (z - b.minZ) * s;
+    if (baseWorld !== w) drawBase(w);
+    const { X, Z } = mapper(w);
     g2.clearRect(0, 0, SIZE, SIZE);
-    g2.fillStyle = w.def.dark ? 'rgba(40,34,48,.85)' : 'rgba(40,70,40,.8)';
-    g2.fillRect(X(b.minX), Z(b.minZ), (b.maxX - b.minX) * s, (b.maxZ - b.minZ) * s);
-    g2.fillStyle = 'rgba(200,200,200,.55)';
-    for (const c of w.colliders) {
-      if (c.off) continue;
-      g2.fillRect(X(c.minX), Z(c.minZ), Math.max(1, (c.maxX - c.minX) * s), Math.max(1, (c.maxZ - c.minZ) * s));
+    g2.drawImage(base, 0, 0);
+    // 結界（閉じているものだけ）
+    g2.fillStyle = '#ff1744';
+    for (const sl of w.extra.seals || []) {
+      if (sl.open) continue;
+      const c = sl.col;
+      g2.fillRect(X(c.minX) - 1, Z(c.minZ) - 1, Math.max(3, X(c.maxX) - X(c.minX) + 2), Math.max(3, Z(c.maxZ) - Z(c.minZ) + 2));
     }
+    // 出口
     for (const gt of w.gates) {
-      g2.fillStyle = gt.requires && !game.gateOpen(gt) ? '#ff5252' : '#4fc3f7';
-      g2.fillRect(X(gt.x) - 5, Z(gt.z) - 3, 10, 6);
+      g2.fillStyle = '#4fc3f7';
+      g2.fillRect(X(gt.x) - 6, Z(gt.z) - 3, 12, 6);
     }
     for (const it of w.interactables) {
       if (!it.active) continue;
-      g2.fillStyle = it.npc ? '#ffee58' : it.herb ? '#76ff03' : '#ffab40';
+      g2.fillStyle = '#ffab40';
       g2.beginPath();
-      g2.arc(X(it.x), Z(it.z), it.npc ? 3 : 2, 0, Math.PI * 2);
+      g2.arc(X(it.x), Z(it.z), 2, 0, Math.PI * 2);
       g2.fill();
     }
     g2.fillStyle = '#ff5252';
@@ -120,10 +144,8 @@ export function createHudView(game) {
     }
     // プレイヤー（向きつき三角）
     for (const p of game.players) {
-      const px = X(p.pos.x);
-      const pz = Z(p.pos.z);
       g2.save();
-      g2.translate(px, pz);
+      g2.translate(X(p.pos.x), Z(p.pos.z));
       g2.rotate(-p.yaw + Math.PI);
       g2.fillStyle = p === game.me() ? '#ffffff' : '#80d8ff';
       g2.beginPath();

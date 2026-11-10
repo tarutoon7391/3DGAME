@@ -1,18 +1,19 @@
-// プレイヤー：移動・3段コンボ・回避（無敵）・スキル2つ
+// プレイヤー：移動・ダッシュ・3段コンボ・回避（無敵）・スキル2つ・スタミナ
 // 入力は直接読まず、game.js が作る intent（データ）を受け取って状態を更新する
 import { makeHero, animateWalk } from './models.js';
-import { PLAYER, SKILLS } from './data/levels.js';
-import { WEAPONS, ARMORS } from './data/items.js';
+import { PLAYER, SKILLS, STAMINA } from './data/player.js';
 import { lerpAngle } from './util.js';
 import { meleeArc, radiusHit } from './combat.js';
 
 /** 空の入力（何も押していない） */
-export function emptyIntent() {
-  return { moveX: 0, moveZ: 0, aimYaw: 0, attack: false, dodge: false, spin: false, wave: false };
+export function emptyIntent(out = {}) {
+  out.moveX = 0; out.moveZ = 0; out.aimYaw = 0;
+  out.attack = false; out.dodge = false; out.dash = false; out.spin = false; out.wave = false; out.interact = false;
+  return out;
 }
 
 export function createPlayer(game, index = 0) {
-  const model = makeHero();
+  const model = makeHero(PLAYER.look);
   model.group.traverse((o) => { if (o.isMesh) o.castShadow = true; });
   game.scene.add(model.group);
 
@@ -21,6 +22,12 @@ export function createPlayer(game, index = 0) {
     model,
     pos: model.group.position,
     radius: PLAYER.radius,
+    maxHp: PLAYER.maxHp,
+    hp: PLAYER.maxHp,
+    stamina: STAMINA.max,
+    tired: false, // バテ状態（満タンに戻るまで回避・ダッシュ不可、足が遅い）
+    staminaWait: 0, // 回復が始まるまでの残り秒
+    dashing: false,
     yaw: Math.PI,
     alive: true,
     invuln: 0,
@@ -38,18 +45,20 @@ export function createPlayer(game, index = 0) {
     walkPhase: 0,
     flash: 0,
 
-    applyEquipment() {
-      const pr = game.state.progress;
-      model.setWeapon(WEAPONS[pr.weapon] || WEAPONS.w1);
-      model.setArmor(ARMORS[pr.armor] || ARMORS.a1);
-    },
-
-    place(x, z, yaw = Math.PI) {
+    /** 全回復して置く（エリア開始・復活時） */
+    reset(x, z, yaw = Math.PI) {
       p.pos.set(x, 0, z);
       p.yaw = yaw;
       model.group.rotation.y = yaw;
+      model.root.rotation.set(0, 0, 0);
       p.action = 'none';
       p.knockX = p.knockZ = 0;
+      p.alive = true;
+      p.hp = p.maxHp;
+      p.stamina = STAMINA.max;
+      p.tired = false;
+      p.invuln = 0;
+      p.cd.spin = p.cd.wave = 0;
     },
 
     onHurt(dx, dz) {
@@ -60,23 +69,31 @@ export function createPlayer(game, index = 0) {
       if (p.action === 'attack') p.action = 'none';
     },
 
+    /** スタミナを使う。足りなくても使えるが 0 になったらバテる */
+    useStamina(n) {
+      p.stamina = Math.max(0, p.stamina - n);
+      p.staminaWait = STAMINA.regenDelay;
+      if (p.stamina <= 0 && !p.tired) {
+        p.tired = true;
+        game.sound.se('tired');
+        if (p === game.me()) game.toastOnce('バテた！ スタミナが満タンに戻るまで回避・ダッシュできない');
+      }
+    },
+
     update(dt, intent) {
-      const st = game.state;
-      const pr = st.progress;
-      const d = st.derived();
       p.invuln = Math.max(0, p.invuln - dt);
       p.dodgeCd = Math.max(0, p.dodgeCd - dt);
       p.cd.spin = Math.max(0, p.cd.spin - dt);
       p.cd.wave = Math.max(0, p.cd.wave - dt);
-      pr.mp = Math.min(d.maxMp, pr.mp + PLAYER.mpRegen * dt);
       if (!p.alive) return;
 
       const mlen = Math.hypot(intent.moveX, intent.moveZ);
       const moving = mlen > 0.01;
       const moveYaw = moving ? Math.atan2(intent.moveX, intent.moveZ) : p.yaw;
+      const canStamina = !p.tired && p.stamina > 0;
 
       // ---- 行動の開始 ----
-      if (intent.dodge && p.dodgeCd <= 0 && p.action !== 'dodge') {
+      if (intent.dodge && p.dodgeCd <= 0 && p.action !== 'dodge' && canStamina) {
         const y = moving ? moveYaw : p.yaw + Math.PI;
         p.action = 'dodge';
         p.actT = 0;
@@ -85,8 +102,11 @@ export function createPlayer(game, index = 0) {
         p.invuln = Math.max(p.invuln, PLAYER.dodgeInvuln);
         p.dodgeCd = PLAYER.dodgeCd + PLAYER.dodgeTime;
         if (moving) p.yaw = y;
+        p.useStamina(STAMINA.dodgeCost);
         game.sound.se('dodge');
         game.fx.burst(p.pos.x, 0.3, p.pos.z, 0xd7ccc8, 8, { speed: 2, up: 1, life: 0.4 });
+      } else if (intent.dodge && p.tired && p === game.me()) {
+        game.toastOnce('バテていて回避できない！');
       } else if (intent.spin && p.action !== 'dodge' && p.action !== 'spin') {
         if (trySkill('spin')) {
           p.action = 'spin';
@@ -118,30 +138,46 @@ export function createPlayer(game, index = 0) {
         speedMul = 0.2;
         if (!p.didHit && p.actT >= c.hit) {
           p.didHit = true;
-          meleeArc(game, p, p.yaw, c.mult * (p.combo === 2 ? 1 : 1), PLAYER.attackRange + (p.combo === 2 ? 0.4 : 0));
+          meleeArc(game, p, p.yaw, c.mult, PLAYER.attackRange + (p.combo === 2 ? PLAYER.heavyRangeBonus : 0));
           // 剣の軌跡
           const sx = p.pos.x + Math.sin(p.yaw) * 1.6;
           const sz = p.pos.z + Math.cos(p.yaw) * 1.6;
-          game.fx.burst(sx, 1.2, sz, WEAPONS[pr.weapon].color, 5, { speed: 2, up: 1, life: 0.25, size: 0.1, grav: 0 });
+          game.fx.burst(sx, 1.2, sz, PLAYER.look.swordColor, 5, { speed: 2, up: 1, life: 0.25, size: 0.1, grav: 0 });
         }
         if (p.actT >= c.dur) {
           if (p.queued && p.combo < 2) startCombo(p.combo + 1, intent);
-          else if (p.actT >= c.dur + (p.queued ? 0 : 0)) p.action = 'none';
+          else p.action = 'none';
         }
       } else if (p.action === 'dodge') {
         p.actT += dt;
         if (p.actT >= PLAYER.dodgeTime) p.action = 'none';
       } else if (p.action === 'spin') {
+        const sk = SKILLS.spin;
         p.actT += dt;
         speedMul = 0.5;
-        if (!p.didHit && p.actT >= 0.15) {
+        if (!p.didHit && p.actT >= sk.hitAt) {
           p.didHit = true;
-          radiusHit(game, p, SKILLS.spin.mult, SKILLS.spin.radius);
+          radiusHit(game, p, sk.mult, sk.radius);
           game.fx.burst(p.pos.x, 1, p.pos.z, 0x80d8ff, 30, { speed: 9, up: 1.5, life: 0.45, size: 0.14, grav: 2 });
           game.fx.shake(0.25);
         }
-        if (p.actT >= 0.5) p.action = 'none';
+        if (p.actT >= sk.dur) p.action = 'none';
       }
+
+      // ---- ダッシュとスタミナ ----
+      p.dashing = intent.dash && moving && p.action === 'none' && canStamina;
+      if (p.dashing) {
+        speedMul *= PLAYER.dashMul;
+        p.useStamina(STAMINA.dashPerSec * dt);
+        if (Math.random() < 0.3) game.fx.burst(p.pos.x, 0.15, p.pos.z, 0xd7ccc8, 1, { speed: 1, up: 0.6, life: 0.3 });
+      } else if (p.action !== 'dodge') {
+        p.staminaWait = Math.max(0, p.staminaWait - dt);
+        if (p.staminaWait <= 0) {
+          p.stamina = Math.min(STAMINA.max, p.stamina + (p.tired ? STAMINA.tiredRegenPerSec : STAMINA.regenPerSec) * dt);
+          if (p.tired && p.stamina >= STAMINA.max) p.tired = false;
+        }
+      }
+      if (p.tired) speedMul *= PLAYER.tiredMul;
 
       // ---- 移動 ----
       let vx = 0;
@@ -165,7 +201,7 @@ export function createPlayer(game, index = 0) {
 
       // ---- 見た目 ----
       model.group.rotation.y = p.yaw;
-      p.walkPhase += dt * (moving ? 11 : 0);
+      p.walkPhase += dt * (moving ? 11 * (p.dashing ? 1.4 : p.tired ? 0.7 : 1) : 0);
       animate(dt, moving && p.action === 'none' ? 1 : moving ? 0.4 : 0);
       p.flash = Math.max(0, p.flash - dt);
       const blink = p.invuln > 0 && p.action !== 'dodge' && Math.floor(p.invuln * 20) % 2 === 0;
@@ -186,23 +222,15 @@ export function createPlayer(game, index = 0) {
   }
 
   function trySkill(id) {
-    const sk = SKILLS[id];
-    const pr = game.state.progress;
     if (p.cd[id] > 0) return false;
-    if (pr.mp < sk.mp) {
-      game.toastOnce('MP が足りない！');
-      game.sound.se('error');
-      return false;
-    }
-    pr.mp -= sk.mp;
-    p.cd[id] = sk.cd;
+    p.cd[id] = SKILLS[id].cd;
     return true;
   }
 
   function animate(dt, walk) {
     const m = model;
     m.root.rotation.y = 0;
-    m.root.rotation.x = 0;
+    m.root.rotation.x = p.tired && walk ? 0.18 : 0; // バテ中は前かがみ
     if (p.action === 'attack') {
       animateWalk(m, p.walkPhase, walk * 0.3, false);
       const c = PLAYER.combo[p.combo];
@@ -217,18 +245,18 @@ export function createPlayer(game, index = 0) {
       }
     } else if (p.action === 'spin') {
       m.armR.rotation.set(-Math.PI / 2, -Math.PI / 2, 0);
-      m.root.rotation.y = -(p.actT / 0.5) * Math.PI * 2;
+      m.root.rotation.y = -(p.actT / SKILLS.spin.dur) * Math.PI * 2;
     } else if (p.action === 'dodge') {
       m.armR.rotation.set(-0.5, 0, 0);
       m.root.rotation.x = 0.5;
       m.root.position.y = Math.sin((p.actT / PLAYER.dodgeTime) * Math.PI) * 0.4;
     } else {
-      animateWalk(m, p.walkPhase, walk, false);
+      animateWalk(m, p.walkPhase, walk * (p.dashing ? 1.3 : 1), false);
       m.armR.rotation.set(-0.9 + Math.sin(p.walkPhase) * 0.2 * walk, 0, 0);
+      if (p.dashing) m.root.rotation.x = 0.25;
       if (!walk) m.root.position.y = 0;
     }
   }
 
-  p.applyEquipment();
   return p;
 }
