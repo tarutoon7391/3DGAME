@@ -1,0 +1,19 @@
+{
+  "name": "3dgame",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ブラウザで遊べる3Dミニゲーム集（ハブ＋5本）",
+  "type": "module",
+  "main": "server.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "dependencies": {
+    "express": "4.21.2",
+    "three": "0.170.0"
+  }
+}
