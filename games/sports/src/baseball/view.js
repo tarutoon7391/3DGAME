@@ -30,7 +30,7 @@ export function createBaseballView({ field, pl, director }) {
       director.set([0.45, 1.75, 3.4], [0, -0.6, -18], { snap, speed: 6 });
       director.setFov(40, snap);
     } else if (m === 'pitch') {
-      director.set([0.6, 2.8, MOUND_Z - 6], [0, 0.9, 0], { snap, speed: 6 });
+      director.set([1.6, 3.6, MOUND_Z - 7], [0, 0.6, 0], { snap, speed: 6 }); // 投手の右後ろ・高め（本塁が隠れない）
       director.setFov(34, snap);
     }
   }
