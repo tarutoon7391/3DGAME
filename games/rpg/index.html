@@ -7,7 +7,65 @@
   <script type="importmap">
     { "imports": { "three": "/vendor/three/three.module.js", "three/addons/": "/vendor/three/addons/" } }
   </script>
-  <style>html,body{margin:0;height:100%;background:#0d1117;overflow:hidden}</style>
+  <style>
+    html,body{margin:0;height:100%;background:#0d1117;overflow:hidden}
+    /* ---- HUD（左上は shared の hud()） ---- */
+    .rpg-status{background:#0b0f16b0;border:1px solid #30363d;border-radius:10px;padding:8px 12px;min-width:250px}
+    .rpg-lv{color:#ffd54f;font-size:17px}
+    .rpg-area{color:#9fb1c2;font-size:13px;margin-left:6px}
+    .rpg-row{display:flex;align-items:center;gap:6px;font-size:13px;margin-top:3px}
+    .rpg-row>span:first-child{width:22px;color:#9fb1c2}
+    .rpg-bar{height:10px;background:#000a;border-radius:5px;overflow:hidden;border:1px solid #ffffff22}
+    .rpg-bar>div{height:100%;transition:width .15s}
+    .rpg-gold{color:#ffd54f;font-weight:bold}
+    .rpg-quests{margin-top:6px;border-top:1px solid #30363d;padding-top:4px;font-size:13px}
+    .rpg-qtitle{color:#9fb1c2;font-size:12px}
+    .rpg-q.done{color:#69f0ae}
+    .rpg-hud-root{position:fixed;inset:0;pointer-events:none;z-index:12;font-family:system-ui,"Segoe UI","Hiragino Sans","Yu Gothic UI",sans-serif;color:#f0f4f8;text-shadow:0 1px 3px #000c}
+    .rpg-skills{position:absolute;left:12px;bottom:12px;display:flex;gap:8px}
+    .rpg-skill{position:relative;width:70px;height:58px;background:#0b0f16c8;border:1px solid #58a6ff88;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:12px;overflow:hidden}
+    .rpg-skill b{font-size:14px;color:#ffd54f}
+    .rpg-skill small{color:#9fb1c2;font-size:11px}
+    .rpg-skill.off{opacity:.45}
+    .rpg-skill i{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#000a;font-style:normal;font-size:18px;font-weight:bold}
+    .rpg-map{position:absolute;right:12px;bottom:12px;border:2px solid #30363d;border-radius:10px;background:#0b0f16a0;padding:4px;line-height:0}
+    .rpg-prompt{display:none;position:absolute;left:50%;bottom:110px;transform:translateX(-50%);background:#0b0f16d0;border:1px solid #ffd54f88;border-radius:8px;padding:6px 14px;font-size:15px}
+    .rpg-prompt b{display:inline-block;background:#ffd54f;color:#000;border-radius:4px;padding:0 6px;margin-right:6px;text-shadow:none}
+    .rpg-banner{position:absolute;left:50%;top:18%;transform:translateX(-50%);font-size:34px;font-weight:bold;letter-spacing:.2em;opacity:0;color:#fff;text-shadow:0 2px 10px #000}
+    .rpg-hint{position:absolute;left:50%;top:50%;transform:translate(-50%,40px);font-size:13px;color:#ffffffaa;display:none}
+    .rpg-boss{display:none;position:absolute;left:50%;top:14px;transform:translateX(-50%);width:min(520px,60vw);text-align:center}
+    .rpg-boss-name{font-weight:bold;font-size:16px;color:#ffccbc}
+    .rpg-boss-track{height:14px;background:#000b;border:1px solid #ff8a65;border-radius:7px;overflow:hidden;margin-top:3px}
+    .rpg-boss-fill{height:100%;background:linear-gradient(90deg,#b71c1c,#ff5252);transition:width .2s}
+    .rpg-boss.raged .rpg-boss-track{box-shadow:0 0 12px #ff1744}
+    .rpg-fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:15}
+    .rpg-dmg-layer{position:fixed;inset:0;pointer-events:none;z-index:11;overflow:hidden}
+    .rpg-dmg{position:absolute;left:0;top:0;font:bold 19px system-ui,sans-serif;text-shadow:0 0 3px #000,0 2px 4px #000;white-space:nowrap}
+    /* ---- モーダル（会話・店・メニュー） ---- */
+    .rpg-modal{position:fixed;z-index:18;font-family:system-ui,"Segoe UI","Hiragino Sans","Yu Gothic UI",sans-serif;color:#f0f4f8}
+    .rpg-talk{left:50%;bottom:24px;transform:translateX(-50%);width:min(720px,92vw);background:#0d1424ee;border:2px solid #c9a227;border-radius:12px;padding:14px 20px;cursor:pointer;box-shadow:0 8px 30px #000a}
+    .rpg-talk-name{color:#ffd54f;font-weight:bold;margin-bottom:6px}
+    .rpg-talk-text{font-size:17px;line-height:1.7;min-height:3em}
+    .rpg-talk-next{text-align:right;color:#9fb1c2;font-size:12px;animation:rpgblink 1s infinite}
+    @keyframes rpgblink{50%{opacity:.4}}
+    .rpg-choices{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .rpg-window{left:50%;top:50%;transform:translate(-50%,-50%);width:min(820px,94vw);max-height:86vh;overflow:auto;background:#0d1424f4;border:2px solid #c9a227;border-radius:12px;padding:16px 22px;box-shadow:0 10px 40px #000c}
+    .rpg-window h3{margin:0 0 10px;display:flex;justify-content:space-between}
+    .rpg-window h4{margin:10px 0 4px;color:#9fb1c2}
+    .rpg-window table{width:100%;border-collapse:collapse;font-size:14px}
+    .rpg-window td{padding:5px 6px;border-bottom:1px solid #ffffff14;vertical-align:middle}
+    .rpg-window td small{display:block;color:#9fb1c2;font-size:12px}
+    .rpg-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    @media (max-width:700px){.rpg-cols{grid-template-columns:1fr}}
+    .rpg-tabs{display:flex;gap:6px;margin-bottom:8px}
+    .rpg-tab{font:inherit;padding:6px 14px;border-radius:6px;border:1px solid #30363d;background:transparent;color:#c9d1d9;cursor:pointer}
+    .rpg-tab.on{background:#c9a227;color:#000;border-color:#c9a227}
+    .rpg-foot{display:flex;justify-content:space-between;align-items:center;margin-top:12px;color:#9fb1c2;gap:10px}
+    .rpg-btn{font:inherit;font-size:14px;padding:5px 14px;border-radius:6px;border:1px solid #58a6ff;background:#1f6feb;color:#fff;cursor:pointer}
+    .rpg-btn.sub{background:transparent;color:#c9d1d9;border-color:#30363d}
+    .rpg-btn:disabled{opacity:.4;cursor:default}
+    .rpg-btn:hover:not(:disabled){filter:brightness(1.15)}
+  </style>
 </head>
 <body>
   <canvas id="game"></canvas>
