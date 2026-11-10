@@ -3,6 +3,7 @@ import { BOSS } from './data/enemies.js';
 import { makeBossModel } from './models.js';
 import { angleDiff, lerpAngle, yawTo, rand } from './util.js';
 import { hurtPlayer, nearestPlayer } from './combat.js';
+import { HIT } from './data/player.js';
 
 export function createBoss(game, x, z) {
   const m = makeBossModel(BOSS.color);
@@ -114,7 +115,7 @@ export function createBoss(game, x, z) {
     const p = P.ring;
     for (let i = 0; i < count; i++) {
       const a = offset + (i / count) * Math.PI * 2;
-      game.projectiles.enemyShot(cx + Math.sin(a) * 2, cz + Math.cos(a) * 2, a, p.speed * (b.raged ? 1.15 : 1), BOSS.atk, p.color, p.mult);
+      game.projectiles.enemyShot(cx + Math.sin(a) * 2, cz + Math.cos(a) * 2, a, p.speed * (b.raged ? p.rageSpeedMul : 1), HIT.boss, p.color);
     }
     game.sound.se('shoot');
   }
@@ -126,7 +127,7 @@ export function createBoss(game, x, z) {
       for (const pl of game.players) {
         const d = Math.hypot(pl.pos.x - b.pos.x, pl.pos.z - b.pos.z);
         const ang = Math.abs(angleDiff(b.yaw, yawTo(b.pos.x, b.pos.z, pl.pos.x, pl.pos.z)));
-        if (d < p.range + 0.5 + pl.radius && (ang < p.arc / 2 || d < b.radius + 0.5)) hurtPlayer(game, pl, BOSS.atk, p.mult, b.pos.x, b.pos.z);
+        if (d < p.range + 0.5 + pl.radius && (ang < p.arc / 2 || d < b.radius + 0.5)) hurtPlayer(game, pl, HIT.boss, b.pos.x, b.pos.z);
       }
       game.fx.shake(0.4);
       game.sound.se('swing');
@@ -138,7 +139,7 @@ export function createBoss(game, x, z) {
       b.t = 0;
     } else if (name === 'ring') {
       ring(b.pos.x, b.pos.z, p.count, rand(0, 1));
-      if (b.raged) b.pending = 0.45; // 時間差でもう1波
+      if (b.raged) b.pending = p.secondWave; // 時間差でもう1波
       b.state = 'act';
       b.t = 0;
     }
@@ -182,11 +183,11 @@ export function createBoss(game, x, z) {
         // 怒り中は手下を呼ぶ
         if (b.raged) {
           b.summonT -= dt;
-          if (b.summonT <= 0 && game.enemies.aliveCount() < 3) {
+          if (b.summonT <= 0 && game.enemies.aliveCount() < BOSS.rage.summonMax) {
             b.summonT = BOSS.rage.summonEvery;
             for (const s of [-1, 1]) {
-              const ex = b.pos.x + s * 4;
-              const ez = b.pos.z + 2;
+              const ex = b.pos.x + s * BOSS.rage.summonOffset[0];
+              const ez = b.pos.z + BOSS.rage.summonOffset[1];
               game.enemies.spawn(BOSS.rage.summon, ex, ez).state = 'chase';
               game.fx.burst(ex, 1, ez, 0x7e57c2, 20, { speed: 4, up: 4, life: 0.6 });
             }
@@ -219,19 +220,19 @@ export function createBoss(game, x, z) {
             const k = Math.min(1, (b.t - dur) / (p.air * wm()));
             b.pos.x = j.sx + (j.tx - j.sx) * k;
             b.pos.z = j.sz + (j.tz - j.sz) * k;
-            b.pos.y = Math.sin(k * Math.PI) * 7;
+            b.pos.y = Math.sin(k * Math.PI) * p.height;
             b.yaw = yawTo(j.sx, j.sz, j.tx, j.tz);
             if (k >= 1) {
               b.pos.y = 0;
               b.tele?.end();
               b.tele = null;
               for (const pl of game.players) {
-                if (Math.hypot(pl.pos.x - b.pos.x, pl.pos.z - b.pos.z) < p.radius + pl.radius) hurtPlayer(game, pl, BOSS.atk, p.mult, b.pos.x, b.pos.z);
+                if (Math.hypot(pl.pos.x - b.pos.x, pl.pos.z - b.pos.z) < p.radius + pl.radius) hurtPlayer(game, pl, HIT.boss, b.pos.x, b.pos.z);
               }
               game.fx.shake(1);
               game.sound.se('slam');
               game.fx.burst(b.pos.x, 0.3, b.pos.z, 0xa1887f, 40, { speed: 10, up: 5, life: 0.8, size: 0.25 });
-              if (b.raged) ring(b.pos.x, b.pos.z, 10, rand(0, 1));
+              if (b.raged) ring(b.pos.x, b.pos.z, p.rageRing, rand(0, 1));
               b.state = 'act';
               b.t = 0;
             }

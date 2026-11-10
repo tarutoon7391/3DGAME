@@ -1,14 +1,12 @@
 // エリアの共通組み立て：地面・ゲート・看板・当たり判定・破棄
-// エリア固有の形は village.js / field.js / dungeon.js が ctx に追加する
+// エリア固有の形は maze.js（ステージ1・2）/ dungeon.js（ステージ3）が ctx に追加する
 import * as THREE from 'three';
 import { AREAS } from '../data/areas.js';
 import { SIGNS } from '../data/dialogs.js';
 import { clamp } from '../util.js';
-import { buildVillage } from './village.js';
-import { buildField } from './field.js';
+import { buildMaze } from './maze.js';
 import { buildDungeon } from './dungeon.js';
-
-const BUILDERS = { village: buildVillage, field: buildField, dungeon: buildDungeon };
+import { createGrid } from './grid.js';
 
 /**
  * エリアを作って scene に追加する。
@@ -27,7 +25,8 @@ export function createWorld(areaId, game) {
     interactables: [], // { x, z, r, label, action(game), active }
     updaters: [], // (dt, time) => void
     gates: [], // { ...gateDef, portalMat }
-    extra: {}, // エリア固有の状態（ダンジョンの扉など）
+    extra: {}, // エリア固有の状態（ダンジョンの扉・迷路の結界など）
+    extraDispose: [], // エリア破棄時に呼ぶ後片付け
     /** エリア内で使い回す material（dispose はエリア破棄時にまとめて） */
     mat(color, opts = null) {
       const key = color + (opts ? JSON.stringify(opts) : '');
@@ -69,25 +68,27 @@ export function createWorld(areaId, game) {
   };
 
   buildGround(ctx);
-  BUILDERS[areaId](ctx);
+  if (def.maze) buildMaze(ctx);
+  else buildDungeon(ctx);
   (def.gates || []).forEach((g) => buildGate(ctx, g));
-  (def.signs || []).forEach((s) => buildSign(ctx, s));
+  (def.signs || []).forEach((s) => buildSign(ctx, s.x === undefined ? { ...s, x: def.spawn.x + s.dx, z: def.spawn.z + s.dz } : s));
 
   game.scene.add(group);
   const b = def.bounds;
+  const grid = createGrid(b, ctx.colliders);
 
   /** 円（半径 r）を壁の外へ押し出す。p は x,z を持つ（Vector3 可） */
   function collide(p, r) {
     p.x = clamp(p.x, b.minX + r, b.maxX - r);
     p.z = clamp(p.z, b.minZ + r, b.maxZ - r);
-    for (const c of ctx.colliders) {
-      if (c.off) continue;
+    grid.each(p.x - r, p.z - r, p.x + r, p.z + r, (c) => {
+      if (c.off) return;
       const nx = clamp(p.x, c.minX, c.maxX);
       const nz = clamp(p.z, c.minZ, c.maxZ);
       const dx = p.x - nx;
       const dz = p.z - nz;
       const d2 = dx * dx + dz * dz;
-      if (d2 >= r * r) continue;
+      if (d2 >= r * r) return;
       if (d2 > 1e-8) {
         const d = Math.sqrt(d2);
         p.x = nx + (dx / d) * r;
@@ -104,17 +105,30 @@ export function createWorld(areaId, game) {
         else if (m === t) p.z = c.minZ - r;
         else p.z = c.maxZ + r;
       }
-    }
+    });
   }
 
   /** 点が壁の中か（弾・カメラ用）。ignoreLow で低い障害物を無視 */
   function blocked(x, z, ignoreLow = false) {
     if (x < b.minX || x > b.maxX || z < b.minZ || z > b.maxZ) return true;
-    for (const c of ctx.colliders) {
+    const list = grid.at(x, z);
+    for (let i = 0; i < list.length; i++) {
+      const c = list[i];
       if (c.off || (ignoreLow && c.low)) continue;
       if (x > c.minX && x < c.maxX && z > c.minZ && z < c.maxZ) return true;
     }
     return false;
+  }
+
+  /** a から b が壁にさえぎられずに見えるか（0.5m 刻みで調べる） */
+  function sight(ax, az, bx, bz) {
+    const d = Math.hypot(bx - ax, bz - az);
+    const n = Math.ceil(d / 0.5);
+    for (let i = 1; i < n; i++) {
+      const k = i / n;
+      if (blocked(ax + (bx - ax) * k, az + (bz - az) * k, true)) return false;
+    }
+    return true;
   }
 
   function update(dt, time) {
@@ -127,12 +141,13 @@ export function createWorld(areaId, game) {
     (function walk(o) {
       if (o.userData.keep) return; // 共有キャッシュを使うモデル（NPC など）
       if (o.geometry) geos.add(o.geometry);
+      if (o.isInstancedMesh) o.dispose(); // インスタンス行列のバッファも解放
       if (o.isLight && o.shadow?.map) o.shadow.map.dispose();
       o.children.forEach(walk);
     })(group);
     geos.forEach((g) => g.dispose());
     matCache.forEach((m) => m.dispose());
-    (ctx.extraDispose || []).forEach((fn) => fn());
+    ctx.extraDispose.forEach((fn) => fn());
   }
 
   return {
@@ -143,8 +158,10 @@ export function createWorld(areaId, game) {
     interactables: ctx.interactables,
     gates: ctx.gates,
     extra: ctx.extra,
+    wallH: def.wallH ?? 6,
     collide,
     blocked,
+    sight,
     update,
     dispose,
   };
@@ -170,11 +187,10 @@ function buildGate(ctx, g) {
   ctx.box(g.x - w / 2, 0, g.z, 0.8, 4.2, 0.8, stone, { collide: true });
   ctx.box(g.x + w / 2, 0, g.z, 0.8, 4.2, 0.8, stone, { collide: true });
   ctx.box(g.x, 4.2, g.z, w + 1.4, 0.7, 1, stone);
-  const portalMat = new THREE.MeshBasicMaterial({ color: g.requires ? 0xff5252 : 0x4fc3f7, transparent: true, opacity: 0.45, side: THREE.DoubleSide, depthWrite: false });
+  const portalMat = new THREE.MeshBasicMaterial({ color: 0x4fc3f7, transparent: true, opacity: 0.45, side: THREE.DoubleSide, depthWrite: false });
   const portal = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.8, 4.1), portalMat);
   portal.position.set(g.x, 2.05, g.z);
   ctx.group.add(portal);
-  ctx.extraDispose = ctx.extraDispose || [];
   ctx.extraDispose.push(() => portalMat.dispose());
   // ゲート名の光る足元
   const ring = new THREE.Mesh(new THREE.RingGeometry(1.2, 1.6, 24), portalMat);

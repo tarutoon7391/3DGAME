@@ -1,16 +1,17 @@
 // 雑魚敵：近接・遠距離・突進の3系統AI。予備動作（赤く光る＋地面の予兆）を見せてから攻撃する
-import { ENEMIES } from './data/enemies.js';
+import { ENEMIES, AI } from './data/enemies.js';
+import { HIT } from './data/player.js';
 import { makeEnemyModel, animateWalk } from './models.js';
-import { angleDiff, lerpAngle, yawTo, rand, randInt } from './util.js';
+import { angleDiff, lerpAngle, yawTo, rand } from './util.js';
 import { hurtPlayer, nearestPlayer } from './combat.js';
 import { createBars } from './ui/bars.js';
-import { onKill } from './questlog.js';
 
 export function createEnemies(game) {
   const list = [];
   const bars = createBars(game.scene);
 
-  function spawn(type, x, z) {
+  /** 雑魚を出す。sealId を付けると、その結界の番人になる */
+  function spawn(type, x, z, sealId = -1) {
     const def = ENEMIES[type];
     const m = makeEnemyModel(def.model, def.color);
     m.group.position.set(x, 0, z);
@@ -20,18 +21,18 @@ export function createEnemies(game) {
       yaw: rand(0, Math.PI * 2), hp: def.hp, maxHp: def.hp, defense: def.def,
       radius: def.radius, hpY: def.hpY, alive: true, removed: false,
       state: 'idle', t: rand(0, 2), home: { x, z }, target: null,
-      cd: rand(0.5, 1.5), flash: 0, kx: 0, kz: 0, tele: null, dirX: 0, dirZ: 0, hitDone: false,
+      cd: rand(AI.firstCd[0], AI.firstCd[1]), sealId, seen: false, sightT: rand(0, AI.sightEvery), lostT: 0, lastX: x, lastZ: z, flash: 0, kx: 0, kz: 0, tele: null, dirX: 0, dirZ: 0, hitDone: false,
       wander: { x, z }, phase: rand(0, 6), deadT: 0, baseScale: m.group.scale.x,
       bar: bars.add(def.hpY),
       takeHit(g, dmg, dx, dz, knock) {
         e.hp -= dmg;
         e.flash = 0.12;
-        const heavy = def.model === 'golem' ? 0.25 : 1;
+        const heavy = def.heavy ? AI.heavyKnock : 1;
         if (e.state !== 'charge') {
-          e.kx += dx * 6 * knock * heavy;
-          e.kz += dz * 6 * knock * heavy;
+          e.kx += dx * AI.knock * knock * heavy;
+          e.kz += dz * AI.knock * knock * heavy;
         }
-        if (e.state === 'idle') e.state = 'chase';
+        if (e.state === 'idle') { e.state = 'chase'; e.lostT = 0; }
         if (e.hp <= 0) kill(e);
       },
     };
@@ -49,13 +50,8 @@ export function createEnemies(game) {
     const d = e.def;
     game.fx.burst(e.pos.x, 0.8, e.pos.z, d.color, 22, { speed: 6, up: 5, life: 0.7, size: 0.2 });
     game.sound.se('die');
-    const pr = game.state.progress;
-    pr.stats.kills++;
-    game.giveExp(d.exp);
-    game.fx.text(e.pos.x, d.hpY + 0.4, e.pos.z, `+${d.exp} EXP`, '#b9f6ca');
-    game.pickups.spawn('gold', randInt(d.gold[0], d.gold[1]), e.pos.x, e.pos.z);
-    for (const [id, ch] of d.drops) if (Math.random() < ch) game.pickups.spawn(id, 1, e.pos.x + rand(-0.6, 0.6), e.pos.z + rand(-0.6, 0.6));
-    onKill(game, game.world.id);
+    game.state.progress.stats.kills++;
+    game.onEnemyKilled?.(e);
   }
 
   function removeModel(e) {
@@ -90,9 +86,9 @@ export function createEnemies(game) {
     e.yaw = yawTo(e.pos.x, e.pos.z, tgt.pos.x, tgt.pos.z);
     game.sound.se('windup');
     if (d.ai === 'melee') {
-      e.tele = game.fx.telegraph('sector', { x: e.pos.x, z: e.pos.z, r: d.range + 0.5, arc: 1.8, angle: e.yaw, dur: d.windup });
+      e.tele = game.fx.telegraph('sector', { x: e.pos.x, z: e.pos.z, r: d.range + 0.5, arc: AI.meleeTeleArc, angle: e.yaw, dur: d.windup });
     } else if (d.ai === 'ranged') {
-      e.tele = game.fx.telegraph('rect', { x: e.pos.x, z: e.pos.z, len: 12, width: 0.5, angle: e.yaw, dur: d.windup });
+      e.tele = game.fx.telegraph('rect', { x: e.pos.x, z: e.pos.z, len: AI.rangedTeleLen, width: 0.5, angle: e.yaw, dur: d.windup });
     } else {
       e.dirX = Math.sin(e.yaw);
       e.dirZ = Math.cos(e.yaw);
@@ -104,24 +100,38 @@ export function createEnemies(game) {
     const d = e.def;
     e.t += dt;
     e.cd -= dt;
-    // 標的の選択（近い順。離れすぎたら諦めて帰る）
+    // 標的の選択（近い順）。壁越しには気づかない。見失って一定時間たつか、持ち場から離れすぎたら諦める
     const engaged = e.state !== 'idle';
-    const tgt = nearestPlayer(game, e.pos.x, e.pos.z, engaged ? d.aggro * 1.8 : d.aggro);
+    const tgt = nearestPlayer(game, e.pos.x, e.pos.z, engaged ? d.aggro * AI.chaseAggroMul : d.aggro);
+    e.sightT -= dt;
+    if (e.sightT <= 0) {
+      e.sightT = AI.sightEvery;
+      e.seen = !!tgt && game.world.sight(e.pos.x, e.pos.z, tgt.pos.x, tgt.pos.z);
+    }
+    if (!tgt) e.seen = false;
+    if (e.seen) { e.lastX = tgt.pos.x; e.lastZ = tgt.pos.z; e.lostT = 0; } else e.lostT += dt;
     const homeD = Math.hypot(e.pos.x - e.home.x, e.pos.z - e.home.z);
-    if ((!tgt || homeD > 28) && (e.state === 'chase')) e.state = 'idle';
-    if (tgt && e.state === 'idle' && homeD < 28) e.state = 'chase';
+    if (e.state === 'chase' && (!tgt || homeD > AI.leash || e.lostT > AI.loseSight)) {
+      e.state = 'idle';
+      e.home.x = e.pos.x; // 諦めたその場を新しい持ち場にする
+      e.home.z = e.pos.z;
+    }
+    if (tgt && e.seen && e.state === 'idle') { e.state = 'chase'; e.lostT = 0; }
 
     let walking = false;
-    const dist = tgt ? Math.hypot(tgt.pos.x - e.pos.x, tgt.pos.z - e.pos.z) : 99;
-    const toT = tgt ? yawTo(e.pos.x, e.pos.z, tgt.pos.x, tgt.pos.z) : 0;
+    // 見えていれば標的へ、見えなければ最後に見た場所へ向かう
+    const gx = e.seen ? tgt.pos.x : e.lastX;
+    const gz = e.seen ? tgt.pos.z : e.lastZ;
+    const dist = tgt ? Math.hypot(gx - e.pos.x, gz - e.pos.z) : 99;
+    const toT = tgt ? yawTo(e.pos.x, e.pos.z, gx, gz) : 0;
 
     switch (e.state) {
       case 'idle': {
         // 家の周りをうろつく
         if (e.t > 3) {
           e.t = 0;
-          e.wander.x = e.home.x + rand(-4, 4);
-          e.wander.z = e.home.z + rand(-4, 4);
+          e.wander.x = e.home.x + rand(-AI.wander, AI.wander);
+          e.wander.z = e.home.z + rand(-AI.wander, AI.wander);
         }
         const wd = Math.hypot(e.wander.x - e.pos.x, e.wander.z - e.pos.z);
         if (wd > 0.5) {
@@ -135,6 +145,11 @@ export function createEnemies(game) {
       case 'chase': {
         if (!tgt) break;
         face(e, toT, 8, dt);
+        if (!e.seen) {
+          // 見失った：最後に見た場所まで行く
+          if (dist > 0.8) { move(e, e.yaw, d.speed, dt); walking = true; }
+          break;
+        }
         if (d.ai === 'melee') {
           if (dist > d.range * 0.85) { move(e, e.yaw, d.speed, dt); walking = true; }
           else if (e.cd <= 0) startWindup(e, tgt);
@@ -144,7 +159,7 @@ export function createEnemies(game) {
           else { move(e, toT + Math.PI / 2 * Math.sign(Math.sin(time * 0.7 + e.phase)), d.speed * 0.4, dt); walking = true; }
           if (e.cd <= 0 && dist < d.aggro) startWindup(e, tgt);
         } else {
-          if (dist > 9) { move(e, e.yaw, d.speed, dt); walking = true; }
+          if (dist > d.chargeFrom) { move(e, e.yaw, d.speed, dt); walking = true; }
           else if (e.cd <= 0) startWindup(e, tgt);
           else { move(e, e.yaw, d.speed * 0.4, dt); walking = true; }
         }
@@ -166,15 +181,15 @@ export function createEnemies(game) {
             for (const p of game.players) {
               const pd = Math.hypot(p.pos.x - e.pos.x, p.pos.z - e.pos.z);
               const ang = Math.abs(angleDiff(e.yaw, yawTo(e.pos.x, e.pos.z, p.pos.x, p.pos.z)));
-              if (pd < d.range + 0.5 + p.radius && (ang < 0.95 || pd < 0.9)) hurtPlayer(game, p, d.atk, 1, e.pos.x, e.pos.z);
+              if (pd < d.range + 0.5 + p.radius && (ang < AI.meleeArc || pd < 0.9)) hurtPlayer(game, p, HIT.enemy, e.pos.x, e.pos.z);
             }
             game.fx.burst(e.pos.x + Math.sin(e.yaw) * 1.2, 0.5, e.pos.z + Math.cos(e.yaw) * 1.2, 0xffffff, 6, { speed: 3, life: 0.3 });
           } else if (d.ai === 'ranged') {
             e.state = 'recover';
             const n = d.burst || 1;
             for (let i = 0; i < n; i++) {
-              const a = e.yaw + (i - (n - 1) / 2) * 0.22;
-              game.projectiles.enemyShot(e.pos.x + Math.sin(a) * 0.6, e.pos.z + Math.cos(a) * 0.6, a, d.shotSpeed, d.atk, d.shotColor);
+              const a = e.yaw + (i - (n - 1) / 2) * AI.shotSpread;
+              game.projectiles.enemyShot(e.pos.x + Math.sin(a) * 0.6, e.pos.z + Math.cos(a) * 0.6, a, d.shotSpeed, HIT.enemy, d.shotColor);
             }
             game.sound.se('shoot');
           } else {
@@ -193,7 +208,7 @@ export function createEnemies(game) {
         if (!e.hitDone) {
           for (const p of game.players) {
             if (Math.hypot(p.pos.x - e.pos.x, p.pos.z - e.pos.z) < e.radius + p.radius + 0.2) {
-              if (hurtPlayer(game, p, d.atk, 1, e.pos.x, e.pos.z)) e.hitDone = true;
+              if (hurtPlayer(game, p, HIT.enemy, e.pos.x, e.pos.z)) e.hitDone = true;
             }
           }
         }
@@ -207,12 +222,12 @@ export function createEnemies(game) {
         break;
       }
       case 'stun':
-        if (e.t >= d.stun) { e.state = 'chase'; e.cd = rand(1, 2); }
+        if (e.t >= d.stun) { e.state = 'chase'; e.cd = rand(AI.meleeCd[0] * 2, AI.meleeCd[1] * 2); }
         break;
       case 'recover':
         if (e.t >= (d.recover ?? 0.6)) {
           e.state = 'chase';
-          e.cd = d.ai === 'ranged' ? d.cooldown : rand(0.4, 1.0);
+          e.cd = d.ai === 'ranged' ? d.cooldown : rand(AI.meleeCd[0], AI.meleeCd[1]);
         }
         break;
       default:

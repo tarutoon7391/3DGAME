@@ -1,94 +1,38 @@
 // 進行データ（セーブ対象）。progress は素の JSON で、Three.js のオブジェクトは含めない
-import { START_KIT, WEAPONS, ARMORS } from './data/items.js';
-import { statsAt, expToNext, MAX_LEVEL } from './data/levels.js';
-import { QUESTS } from './data/quests.js';
-import { AREAS } from './data/areas.js';
+// 育成・所持品はないので、保存するのは「到達したエリア」と記録用の統計だけ
+import { AREAS, AREA_ORDER, OLD_AREA_MAP } from './data/areas.js';
+
+export const PROGRESS_VERSION = 2;
 
 /** ニューゲームの進行データ */
 export function newProgress() {
-  const st = statsAt(1);
-  const quests = {};
-  for (const id of Object.keys(QUESTS)) quests[id] = { status: 'none', count: 0 }; // none / active / done / cleared
   return {
-    version: 1,
-    level: 1,
-    exp: 0,
-    hp: st.maxHp,
-    mp: st.maxMp,
-    gold: START_KIT.gold,
-    items: { ...START_KIT.items },
-    weapons: [...START_KIT.weapons],
-    armors: [...START_KIT.armors],
-    weapon: START_KIT.weapon,
-    armor: START_KIT.armor,
-    quests,
-    area: 'village',
-    x: AREAS.village.spawn.x,
-    z: AREAS.village.spawn.z,
-    dungeon: { levers: [false, false, false], chest: false },
+    version: PROGRESS_VERSION,
+    area: AREA_ORDER[0],
     stats: { kills: 0, deaths: 0, time: 0 },
   };
 }
 
-/** 進行データを包んで、よく使う操作を生やす */
+/**
+ * セーブデータを今の形にそろえる。壊れていたり読めなければ null（＝つづきからなし）
+ * version 1（レベル制のころ）は、いたエリアを新しいステージに置き換えて引き継ぐ
+ */
+export function migrateProgress(p) {
+  if (!p || typeof p !== 'object') return null;
+  const out = newProgress();
+  if (p.version === PROGRESS_VERSION) {
+    if (AREAS[p.area]) out.area = p.area;
+  } else if (p.version === 1 || p.version === undefined) {
+    out.area = OLD_AREA_MAP[p.area] || AREA_ORDER[0];
+  } else {
+    return null; // 知らない新しい形式は触らない
+  }
+  const s = p.stats || {};
+  for (const k of Object.keys(out.stats)) if (Number.isFinite(s[k])) out.stats[k] = s[k];
+  return out;
+}
+
+/** 進行データを包む（オンライン化しても progress を送れば同期できる形） */
 export function createState(progress = newProgress()) {
-  const s = {
-    progress,
-    /** レベル＋装備込みの能力値 */
-    derived() {
-      const p = s.progress;
-      const b = statsAt(p.level);
-      const w = WEAPONS[p.weapon] || WEAPONS.w1;
-      const a = ARMORS[p.armor] || ARMORS.a1;
-      return { maxHp: b.maxHp, maxMp: b.maxMp, atk: b.atk + w.atk, def: b.def + a.def, baseAtk: b.atk, baseDef: b.def };
-    },
-    count(id) {
-      return s.progress.items[id] || 0;
-    },
-    addItem(id, n = 1) {
-      s.progress.items[id] = (s.progress.items[id] || 0) + n;
-    },
-    removeItem(id, n = 1) {
-      const c = s.count(id);
-      if (c < n) return false;
-      if (c - n <= 0) delete s.progress.items[id];
-      else s.progress.items[id] = c - n;
-      return true;
-    },
-    /** EXP を得る。上がったレベル数を返す（上がったら全回復） */
-    gainExp(n) {
-      const p = s.progress;
-      p.exp += n;
-      let ups = 0;
-      while (p.level < MAX_LEVEL && p.exp >= expToNext(p.level)) {
-        p.exp -= expToNext(p.level);
-        p.level++;
-        ups++;
-      }
-      if (p.level >= MAX_LEVEL) p.exp = 0;
-      if (ups) {
-        const d = s.derived();
-        p.hp = d.maxHp;
-        p.mp = d.maxMp;
-      }
-      return ups;
-    },
-    healFull() {
-      const d = s.derived();
-      s.progress.hp = d.maxHp;
-      s.progress.mp = d.maxMp;
-    },
-    /** 古いセーブや欠けたキーを補う */
-    normalize() {
-      const base = newProgress();
-      const p = s.progress;
-      for (const k of Object.keys(base)) if (p[k] === undefined) p[k] = base[k];
-      for (const id of Object.keys(base.quests)) if (!p.quests[id]) p.quests[id] = base.quests[id];
-      if (!AREAS[p.area]) p.area = 'village';
-      const d = s.derived();
-      p.hp = Math.min(Math.max(1, p.hp), d.maxHp);
-      p.mp = Math.min(Math.max(0, p.mp), d.maxMp);
-    },
-  };
-  return s;
+  return { progress };
 }

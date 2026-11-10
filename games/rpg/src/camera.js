@@ -41,7 +41,7 @@ export function createCameraRig(camera) {
       // 壁に当たる手前まで縮める
       let want = rig.dist;
       for (let s = 0.6; s <= rig.dist; s += 0.4) {
-        if (world && world.blocked(tx + dirX * s, tz + dirZ * s, true) && ty + dirY * s < 6.5) {
+        if (world && world.blocked(tx + dirX * s, tz + dirZ * s, true) && ty + dirY * s < world.wallH + 0.5) {
           want = Math.max(1.5, s - 0.5);
           break;
         }

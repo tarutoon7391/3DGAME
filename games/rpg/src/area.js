@@ -39,10 +39,9 @@ export function createLights(scene) {
   };
 }
 
-/** エリアを作り直してプレイヤーを置く */
-export function loadArea(game, id, x, z, yaw = Math.PI) {
+/** エリアを作り直してプレイヤーを入口に置く（HP・スタミナは全回復） */
+export function loadArea(game, id) {
   game.enemies.clear();
-  game.pickups.clear();
   game.projectiles.clear();
   game.fx.clear();
   if (game.boss) {
@@ -55,44 +54,57 @@ export function loadArea(game, id, x, z, yaw = Math.PI) {
   game.world = createWorld(id, game);
   game.lights.apply(def);
   for (const [type, ex, ez] of def.enemies || []) game.enemies.spawn(type, ex, ez);
-  if (def.boss && game.state.progress.quests.boss.status !== 'cleared') {
-    game.boss = createBoss(game, def.boss.x, def.boss.z);
+  // 迷路：番人と雑魚
+  const seals = game.world.extra.seals || [];
+  for (const [type, ex, ez, sealId] of game.world.extra.spawns || []) {
+    const e = game.enemies.spawn(type, ex, ez, sealId);
+    if (sealId >= 0) seals[sealId].guards.push(e);
   }
-  // 自分以外のプレイヤーも同じ場所の近くへ
-  game.players.forEach((p, i) => {
-    p.alive = true;
-    p.place(x + i * 1.2, z, yaw);
-  });
-  const pr = game.state.progress;
-  pr.area = id;
-  pr.x = x;
-  pr.z = z;
-  game.cam.snapBehind(yaw);
+  if (def.boss) game.boss = createBoss(game, def.boss.x, def.boss.z);
+  // 自分以外のプレイヤーも入口の近くへ
+  const sp = def.spawn;
+  game.players.forEach((p, i) => p.reset(sp.x + i * 1.2, sp.z, Math.PI));
+  game.state.progress.area = id;
+  game.cam.snapBehind(Math.PI);
+  if (def.camPitch) game.cam.pitch = def.camPitch;
   game.sound.bgm(def.bgm);
   game.hudView.banner(def.name);
   game.hudView.refresh();
+}
+
+/** 結界：番人が全滅したら開く（雑魚を倒すたびに呼ぶ） */
+export function checkSeals(game) {
+  for (const s of game.world.extra.seals || []) {
+    if (s.open || s.guards.some((e) => e.alive)) continue;
+    s.open = true;
+    s.col.off = true;
+    game.sound.se('seal');
+    game.fx.burst(s.x, 1.5, s.z, 0xff8a80, 30, { speed: 5, up: 4, life: 0.8 });
+    const left = game.world.extra.seals.filter((o) => !o.open).length;
+    game.toast(left ? `結界が消えた！（残り ${left}）` : '最後の結界が消えた！ 出口へ急げ', 2400);
+  }
+}
+
+/** 次の結界（まだ閉じているもののうち、正解ルートで一番手前）と残りの番人の数 */
+export function nextSeal(game) {
+  const seals = game.world?.extra.seals;
+  if (!seals) return null;
+  const s = seals.find((o) => !o.open);
+  if (!s) return { done: true, total: seals.length };
+  return { done: false, left: s.guards.filter((e) => e.alive).length, opened: seals.filter((o) => o.open).length, total: seals.length };
 }
 
 /** 毎フレーム：ゲート・調べる・ボス部屋 */
 export function updateAreaLogic(game, intent) {
   const me = game.me();
   const w = game.world;
-  // ゲート
+  // ゲート（次のステージへ）
   for (const g of w.gates) {
-    const d = Math.hypot(me.pos.x - g.x, me.pos.z - g.z);
-    if (d > 2.1) continue;
-    if (!game.gateOpen(g)) {
-      game.toastOnce('魔物の気配が強すぎる……。村長の話を聞いてからにしよう');
-      const dz = Math.sign(me.pos.z - g.z) || 1;
-      me.pos.z = g.z + dz * 2.3;
-      continue;
-    }
-    // 到着側のゲートに背を向けて立つ
-    const back = AREAS[g.to].gates.find((o) => o.to === w.id);
-    game.startTransition(g.to, g.toX, g.toZ, back && back.z > g.toZ ? Math.PI : 0);
+    if (Math.hypot(me.pos.x - g.x, me.pos.z - g.z) > 2.1) continue;
+    game.startTransition(g.to);
     return;
   }
-  // 調べる・話す（一番近いもの）
+  // 調べる（看板）
   let best = null;
   let bd = Infinity;
   for (const it of w.interactables) {

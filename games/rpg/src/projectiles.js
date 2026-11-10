@@ -1,6 +1,6 @@
 // 弾：敵の魔弾（オブジェクトプール）と、プレイヤーの衝撃波（貫通）
 import * as THREE from 'three';
-import { SKILLS } from './data/levels.js';
+import { SKILLS } from './data/player.js';
 import { hurtPlayer, forEachTarget, strike } from './combat.js';
 
 const MAX_SHOTS = 120;
@@ -13,7 +13,7 @@ export function createProjectiles(game) {
     const m = new THREE.Mesh(shotGeo, shotMat(0xffa726));
     m.visible = false;
     game.scene.add(m);
-    shots.push({ mesh: m, active: false, x: 0, z: 0, vx: 0, vz: 0, life: 0, atk: 0, mult: 1 });
+    shots.push({ mesh: m, active: false, x: 0, z: 0, vx: 0, vz: 0, life: 0, frac: 0 });
   }
   function shotMat(color) {
     let m = shotMats.get(color);
@@ -24,8 +24,8 @@ export function createProjectiles(game) {
     return m;
   }
 
-  /** 敵の弾（yaw 方向へ直進） */
-  function enemyShot(x, z, yaw, speed, atk, color = 0xffa726, mult = 1) {
+  /** 敵の弾（yaw 方向へ直進）。frac は当たったときに削る最大 HP の割合 */
+  function enemyShot(x, z, yaw, speed, frac, color = 0xffa726) {
     const s = shots.find((o) => !o.active);
     if (!s) return;
     s.active = true;
@@ -34,8 +34,7 @@ export function createProjectiles(game) {
     s.vx = Math.sin(yaw) * speed;
     s.vz = Math.cos(yaw) * speed;
     s.life = 4;
-    s.atk = atk;
-    s.mult = mult;
+    s.frac = frac;
     s.color = color;
     s.mesh.material = shotMat(color);
     s.mesh.visible = true;
@@ -84,7 +83,7 @@ export function createProjectiles(game) {
         for (const p of game.players) {
           if (!p.alive) continue;
           if ((p.pos.x - s.x) ** 2 + (p.pos.z - s.z) ** 2 < (p.radius + 0.3) ** 2) {
-            if (hurtPlayer(game, p, s.atk, s.mult, s.x - s.vx, s.z - s.vz)) dead = true;
+            if (hurtPlayer(game, p, s.frac, s.x - s.vx, s.z - s.vz)) dead = true;
           }
         }
       }
