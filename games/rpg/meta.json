@@ -1,1 +1,1 @@
-{ "slug": "rpg", "title": "3DRPG", "description": "村・草原・ダンジョンを冒険してボスを倒すアクションRPG", "controls": "WASD 移動／マウス カメラ／クリック 攻撃", "order": 1 }
+{ "slug": "rpg", "title": "3DRPG 〜魔窟の主〜", "description": "村で準備し、草原とダンジョンを抜けてボスを倒す三人称アクションRPG（約30分）", "controls": "WASD 移動／マウス カメラ／左クリック 攻撃／Space 回避／Q・E スキル／F 話す／Tab メニュー／Esc ポーズ", "order": 1 }
