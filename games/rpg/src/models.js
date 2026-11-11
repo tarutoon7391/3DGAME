@@ -2,6 +2,9 @@
 // geometry と共通 material はキャッシュして全体で使い回す（dispose しない）。
 // 個体ごとに色を変える material（被弾フラッシュ・予備動作の発光用）は ownMat で作り、消すときに dispose する。
 import * as THREE from 'three';
+import { buildWeapon, WEAPONS } from './weaponmodel.js';
+
+const WEAPON_SCALE = 1.45; // 一人称の武器の大きさ → 体に持たせる大きさ
 
 const geos = new Map();
 const mats = new Map();
@@ -117,12 +120,40 @@ export function makeHero(look) {
   if (look.mask) part(box(0.52, 0.18, 0.06), mat(0x212121), 0, 1.78, 0.25, h.root); // 忍者の覆面
   // マント
   part(box(0.66, 0.9, 0.06), mat(cape), 0, 1.1, -0.26, h.root);
+  // 腕の左右：前を向いた体の右手は -X 側。武器を持つ armR を体の右側へ置く
+  h.armR.position.x = -0.47;
+  h.armL.position.x = 0.47;
   // 武器（右腕の延長方向に伸びる）
   const sword = new THREE.Group();
   sword.position.set(0, -0.72, 0);
   h.armR.add(sword);
   let blade;
-  if (weapon === 'staff') {
+  if (look.jobId && WEAPONS[look.jobId]) {
+    // 一人称と同じ武器の形（weaponmodel.js）を、手の先から腕の向きへ伸ばす
+    const colors = { metal: look.swordColor, accent: look.accent ?? 0xffd54f, armor: look.armorColor };
+    const mk = (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.55, metalness: 0.2, flatShading: true });
+    const put = (arm, mirror) => {
+      const w = buildWeapon(look.jobId, colors, mk);
+      const g = w.group;
+      g.scale.setScalar(WEAPON_SCALE);
+      if (mirror) g.scale.x *= -1;
+      // up（剣・杖など）：刃は +Y → 腕の先（-Y）へ / aim（銃・弓）：銃口は -Z → 腕の先へ / fist（籠手）：手にかぶせる
+      if (w.hold === 'aim') g.rotation.x = -Math.PI / 2;
+      else g.rotation.x = Math.PI;
+      const holder = new THREE.Group();
+      holder.position.set(0, w.hold === 'fist' ? 0.05 : 0.04, 0);
+      holder.add(g);
+      if (arm === h.armR) sword.add(holder);
+      else {
+        holder.position.y = -0.68;
+        arm.add(holder);
+      }
+      return w;
+    };
+    const w = put(h.armR, false);
+    if (w.dual) put(h.armL, true); // 二刀流・両拳は左手にも
+    blade = w.group;
+  } else if (weapon === 'staff') {
     blade = part(box(0.07, 1.6, 0.07), mat(0x6d4c41), 0, -0.5, 0, sword);
     part(sphere(0.16, 8, 6), swordMat, 0, -1.3, 0, sword);
     swordMat.emissive.setHex(0x000000);
@@ -165,8 +196,8 @@ export function makeHero(look) {
   }
   // 盾（重騎士は大盾。飛び道具の職業は持たない）
   let shield = null;
-  if (look.bigShield) shield = part(box(0.1, 1.0, 0.7), armorMat, -0.16, -0.5, 0.05, h.armL);
-  else if (weapon === 'sword' || weapon === 'mace' || weapon === 'spear') shield = part(box(0.08, 0.55, 0.46), armorMat, -0.14, -0.42, 0.05, h.armL);
+  if (look.bigShield) shield = part(box(0.1, 1.0, 0.7), armorMat, 0.16, -0.5, 0.05, h.armL);
+  else if (weapon === 'sword' || weapon === 'mace' || weapon === 'spear') shield = part(box(0.08, 0.55, 0.46), armorMat, 0.14, -0.42, 0.05, h.armL);
   h.armR.rotation.x = -0.9;
   return { ...h, sword, blade, swordMat, armorMat, shield }; // shield：盾（聖騎士の神の盾で大きくなる）
 }

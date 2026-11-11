@@ -37,7 +37,10 @@ export function createSkillVis({ game, add, mesh, slash, column, slam, streak })
       dist = 6;
     }
     if (at === 'aim' && d?.tx !== undefined) return { x: d.tx, z: d.tz, y: 1 };
-    if (at === 'front') return { x: p.pos.x + Math.sin(yaw) * dist, z: p.pos.z + Math.cos(yaw) * dist, y: 1.2 };
+    if (at === 'front') {
+      const side = c.side ?? 0; // 横へのずれ（m。正で画面の右）
+      return { x: p.pos.x + Math.sin(yaw) * dist - Math.cos(yaw) * side, z: p.pos.z + Math.cos(yaw) * dist + Math.sin(yaw) * side, y: 1.2 };
+    }
     return { x: p.pos.x, z: p.pos.z, y: 1.2 };
   }
 
@@ -112,6 +115,7 @@ export function createSkillVis({ game, add, mesh, slash, column, slam, streak })
     const [type, o = {}] = s;
     if (typeof o.at === 'number' && o.at > 0) return later(o.at, () => step(c, [type, { ...o, at: 0 }])); // at：何秒後に出すか
     const { p } = c;
+    if (o.side !== undefined) c = { ...c, side: o.side }; // front の横ずれ
     const col = o.color ?? c.sk.color ?? 0xffffff;
     switch (type) {
       case 'vm':
@@ -124,9 +128,11 @@ export function createSkillVis({ game, add, mesh, slash, column, slam, streak })
         slash(p.pos.x, p.pos.z, yaw, r, o.arc ?? 2.4, col, { y: o.y ?? 1.2, roll: o.roll ?? 0, dur: o.dur ?? 0.3, sweep: o.sweep ?? 1 });
         break;
       }
-      case 'ring':
-        fx().iconRing?.(p, o.r ?? c.sk.radius ?? 8, col, o.tex === 'shield' ? shieldIconTexture() : o.tex === 'coin' ? coinIconTexture() : o.tex === 'wing' ? wingIconTexture() : o.glyph ? glyphTexture(o.glyph) : starTexture(), o.n ?? 10, o.dur ?? 1.2, o.rise ?? 0.5);
+      case 'ring': {
+        const w = where(c, o.where ?? 'self', o.dist);
+        fx().iconRing?.(o.where && o.where !== 'self' ? { pos: { x: w.x, z: w.z } } : p, o.r ?? c.sk.radius ?? 8, col, o.tex === 'shield' ? shieldIconTexture() : o.tex === 'coin' ? coinIconTexture() : o.tex === 'wing' ? wingIconTexture() : o.glyph ? glyphTexture(o.glyph) : starTexture(), o.n ?? 10, o.dur ?? 1.2, o.rise ?? 0.5);
         break;
+      }
       case 'song':
         fx().songRing?.(p.pos.x, p.pos.z, o.r ?? c.sk.radius ?? 10, col, o.mood ?? 'hype');
         break;
@@ -173,7 +179,7 @@ export function createSkillVis({ game, add, mesh, slash, column, slam, streak })
         break;
       }
       case 'streak': {
-        const w = where(c, o.where ?? 'target');
+        const w = where(c, o.where ?? 'target', o.dist);
         streak(p.pos.x, p.pos.z, w.x, w.z, o.w ?? 0.7, col, o.dur ?? 0.3, o.y ?? 1.3);
         break;
       }

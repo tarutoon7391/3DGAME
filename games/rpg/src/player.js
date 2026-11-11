@@ -22,7 +22,7 @@ export function emptyIntent(out = {}) {
  */
 export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = false, id = 'local', name = '' } = {}) {
   const J = JOBS[job] || JOBS[DEFAULT_JOB];
-  const model = makeHero(J.look);
+  const model = makeHero({ ...J.look, jobId: job in JOBS ? job : DEFAULT_JOB, accent: parseInt(String(J.color || '#ffd54f').replace('#', ''), 16) }); // 一人称と同じ武器を右手に
   model.group.traverse((o) => { if (o.isMesh) o.castShadow = true; });
   game.scene.add(model.group);
 
