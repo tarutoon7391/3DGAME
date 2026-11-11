@@ -61,9 +61,10 @@ export const JOBS = {
     stats: { hp: 115, atk: 11, speed: 6.4 },
     basic: { type: 'shot', cd: 0.55, speed: 18, mult: 0.75, color: 0xfff59d, size: 0.28, range: 22 },
     q: { id: 'heal', name: '癒しの光', desc: '周囲8mの味方（自分も）の HP を最大の 40% 回復', cd: 10, radius: 8, amount: 0.4 },
-    e: { id: 'prayer', name: '女神の祈り', desc: '全員を全回復し、倒れた味方を蘇生。3秒間 無敵', invuln: 3 },
-    trait: '蘇生が2倍速。周囲6mの味方は毎秒 HP 1% 回復',
-    reviveMul: 2, auraRegen: 0.01, auraRadius: 6, breakMul: 1,
+    // 蘇生できる必殺技は強すぎるので、1回の挑戦（進行）で1度だけ。全滅してやり直しても戻らない
+    e: { id: 'prayer', name: '女神の祈り', desc: '全員を全回復し、倒れた味方を蘇生。3秒間 無敵（1回の挑戦で1度だけ）', invuln: 3, oncePerRun: true },
+    trait: '周囲6mの味方は毎秒 HP 1% 回復',
+    auraRegen: 0.01, auraRadius: 6, breakMul: 1,
     look: { armorColor: 0xeceff1, swordColor: 0xffe082, swordLen: 0.9, cape: 0xffd54f, weapon: 'staff', hat: 0xeceff1 },
   },
   archer: {

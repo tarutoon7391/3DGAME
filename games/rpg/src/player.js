@@ -217,10 +217,15 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
           p.cd.q = J.q.cd;
         }
       } else if (intent.skillE && !busy) {
-        if (p.gauge < GAUGE.max) {
+        const once = J.e.oncePerRun;
+        const used = once && game.state.progress.usedOnce?.[J.e.id];
+        if (used) {
+          if (p === game.me()) game.toastOnce(`${J.e.name}はこの挑戦ではもう使った（1度だけ）`, 1600);
+        } else if (p.gauge < GAUGE.max) {
           if (p === game.me()) game.toastOnce('必殺ゲージが足りない（通常攻撃を当てて溜める。近接ほど早く溜まる）', 1600);
         } else if (castE(game, p, intent)) {
           p.gauge = 0;
+          if (once) game.state.progress.usedOnce = { ...(game.state.progress.usedOnce || {}), [J.e.id]: true };
         }
       } else if (intent.attack && !busy) {
         if (J.basic.type === 'melee') {

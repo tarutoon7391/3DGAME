@@ -569,7 +569,7 @@ export function createGame() {
     game.toast(`回復薬で全回復！（残り ${pr.potions}）`, 1500);
   }
 
-  /** 倒れた仲間のそばに立つと蘇生（僧侶は2倍速） */
+  /** 倒れた仲間のそばに立つと蘇生（だれでも同じ速さ） */
   const reviving = new Map();
   function updateRevive(dt, me) {
     if (!me.alive) return;
@@ -582,7 +582,7 @@ export function createGame() {
         reviving.delete(p.id);
         continue;
       }
-      const t = (reviving.get(p.id) || 0) + dt * (me.job.reviveMul || 1);
+      const t = (reviving.get(p.id) || 0) + dt;
       reviving.set(p.id, t);
       game.hudView.setPrompt(`${p.name || '仲間'}を蘇生中… ${Math.min(100, Math.floor((t / REVIVE.time) * 100))}%`, null);
       if (t >= REVIVE.time) {

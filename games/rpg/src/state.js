@@ -32,6 +32,8 @@ export function migrateProgress(p) {
   }
   const s = p.stats || {};
   for (const k of Object.keys(out.stats)) if (Number.isFinite(s[k])) out.stats[k] = s[k];
+  // 1度だけの必殺技（僧侶の女神の祈り）を使ったか。つづきからでも戻らない
+  if (p.usedOnce && typeof p.usedOnce === 'object') out.usedOnce = { ...p.usedOnce };
   return out;
 }
 
