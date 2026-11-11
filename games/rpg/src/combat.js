@@ -170,6 +170,7 @@ export function hurtPlayer(game, pl, frac, fromX, fromZ) {
       const d = Math.hypot(e.pos.x - pl.pos.x, e.pos.z - pl.pos.z) - e.radius;
       if (d < bd) { bd = d; best = e; }
     });
+    game.skillFx?.counterHit?.(pl, best && bd < c.range ? best : null); // 鞘から右へ抜き斬る派手な一閃
     if (best && bd < c.range) strike(game, pl, best, c.mult, { melee: true, crit: true, gauge: 15, knock: 2 });
     return false;
   }

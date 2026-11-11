@@ -9,6 +9,7 @@ import { VIEW } from './data/view.js';
 import { DEFAULT_JOB } from './data/jobs.js';
 import { buildWeapon, HOLD_ROT, HOLD_POS } from './weaponmodel.js';
 import { animateSpecial } from './vmanim.js';
+import { createBladeAura } from './vmaura.js';
 
 const ORDER = 10000; // 透明物よりも後に描く
 const LEFT_X = -0.72; // 左手の肩（右手の肩から見た位置）
@@ -75,6 +76,7 @@ export function createViewModel(renderer, camera) {
   const Gh = makeArm(ghostArmMat, ghostArmMat, -0.3, 0.03, 0.05); // 影分身の薄い左手
   L.off.visible = false;
   Gh.off.visible = false;
+  const aura = createBladeAura(R, ORDER); // 魔力付与の紫のオーラ
 
   let weapon = null; // 右手の武器 { group, style, dual, flashMats, mats }
   let flashMats = [];
@@ -130,18 +132,6 @@ export function createViewModel(renderer, camera) {
   let swayY = 0;
   let spinVis = 0;
   // 見切りのときだけ見える、左下の鞘
-  const sheath = new THREE.Group();
-  sheath.position.set(-0.42, -0.2, -0.38);
-  sheath.rotation.set(-1.2, 0, 0.9);
-  root.add(sheath);
-  const sheathMat = vmMat(0x212121);
-  const sheathTrim = vmMat(0xb71c1c);
-  mats.push(sheathMat, sheathTrim);
-  add(new THREE.BoxGeometry(0.06, 0.62, 0.04), sheathMat, 0, 0.31, 0, sheath);
-  add(new THREE.BoxGeometry(0.075, 0.05, 0.055), sheathTrim, 0, 0.02, 0, sheath);
-  add(new THREE.BoxGeometry(0.075, 0.03, 0.055), sheathTrim, 0, 0.3, 0, sheath);
-  sheath.visible = false;
-  let sheathVis = false;
   const history = []; // 右手の動きの記録（影分身の手が少し遅れてまねる）
   let clock = 0;
 
@@ -255,12 +245,10 @@ export function createViewModel(renderer, camera) {
 
     // ---- 技ごとの特別な動き（src/vmanim.js） ----
     const V = p.vmAnim;
-    sheathVis = false;
     if (V) {
       V.t += dt;
       const r = animateSpecial(V, clamp01(V.t / V.dur), Rp, Lp, setFlash);
       if (r?.spin) spinVis = 1;
-      sheathVis = !!r?.sheath;
       if (V.t >= V.dur) p.vmAnim = null;
     }
   }
@@ -294,7 +282,8 @@ export function createViewModel(renderer, camera) {
         if (p.tired) { P.y -= 0.1; P.rx -= 0.25; } // バテ：腕が下がる
         if (p.hurtT > 0) { const k = p.hurtT / 0.3; P.y -= 0.05 * k; P.rx += 0.4 * k; }
       }
-      setFlash(spinVis > 0 ? 0x1f4f6f : 0x000000); // 光らせる動きは animate の中で上書き
+      const ench = p.buffs?.enchant?.t > 0;
+      setFlash(spinVis > 0 ? 0x1f4f6f : ench ? (Math.sin(performance.now() / 120) > 0 ? 0x3a1470 : 0x24104a) : 0x000000); // 光らせる動きは animate の中で上書き
       animate(p, dt, Rp, Lp);
       // 矢の雨など：真上へ向けて放つ（p.aimUpT 秒）
       if (p.aimUpT > 0) {
@@ -308,7 +297,7 @@ export function createViewModel(renderer, camera) {
       R.off.position.set(Rp.x, Rp.y, Rp.z);
       R.pivot.rotation.set(Rp.rx, Rp.ry, Rp.rz, 'YXZ');
       R.twist.rotation.y = Rp.twist;
-      sheath.visible = sheathVis;
+      aura.update(dt, ench);
       if (Rp.aim) R.holder.rotation.set(AIM_ROT[0], AIM_ROT[1], AIM_ROT[2]);
       else if (R.baseRot) R.holder.rotation.copy(R.baseRot);
       // 左手（両手の拳の職業だけ。大盤振る舞いの両手の振り上げでも出す）。左右反転して置く
@@ -344,6 +333,7 @@ export function createViewModel(renderer, camera) {
       geos.forEach((g) => g.dispose());
       mats.forEach((m) => m.dispose());
       for (const A of [R, L, Gh]) A.weapon?.mats.forEach((m) => m.dispose());
+      aura.dispose();
     },
   };
   return vm;

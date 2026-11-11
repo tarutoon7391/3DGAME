@@ -33,10 +33,10 @@ export function animateSpecial(V, k, Rp, Lp, setFlash) {
     vertical(Rp, smooth(0, 0.35, k), smooth(0.4, 0.6, k));
     if (k > 0.35 && k < 0.75) setFlash(0x6a6a6a);
   } else if (V.kind === 'sheathe') {
-    // 見切り：左下の鞘へ刀を納めて構え、終わったら素早く抜いて戻す
+    // 見切り：左下の（見えない）鞘へ刀をゆっくり納めて構え、終わったら抜いて戻す
     const t = V.t;
-    const inK = smooth(0, 0.15, t); // 納める
-    const outK = smooth(V.dur - 0.1, V.dur, t); // 抜き戻す
+    const inK = smooth(0, 0.45, t); // ゆっくり納める
+    const outK = smooth(V.dur - 0.22, V.dur, t); // 抜き戻す
     const s = inK * (1 - outK);
     Rp.x += -0.55 * s;
     Rp.y += -0.12 * s;
@@ -44,7 +44,6 @@ export function animateSpecial(V, k, Rp, Lp, setFlash) {
     Rp.rx += -1.25 * s;
     Rp.ry += 0.5 * s;
     Rp.rz += 0.9 * s;
-    out.sheath = s > 0.05;
     if (outK > 0 && outK < 1) setFlash(0x8a8a8a);
   } else if (V.kind === 'tsubame') {
     // 燕返し：少し溜める → 左右に高速で斬る → もう一度溜めて縦に振り下ろす
@@ -99,6 +98,46 @@ export function animateSpecial(V, k, Rp, Lp, setFlash) {
       Rp.z = 0.05 - 0.15 * (f > 0.5 ? (f - 0.5) * 2 : 0);
       Rp.x = -0.1 + (i % 2 ? -0.08 : 0.04);
       Rp.ry = (i % 2 ? 0.25 : -0.15);
+    }
+  } else if (V.kind === 'drawcut') {
+    // 見切り成功：鞘に納めた左下から、右へ向かって思い切り抜き斬る
+    const t = V.t;
+    const sw = smooth(0.06, 0.24, t); // 振り抜き
+    const back = smooth(0.42, V.dur, t); // 構えに戻る
+    const from = { x: -0.25, y: 0.12, z: 0.06, rx: -1.05, ry: 1.3, rz: -0.45 }; // 左下（鞘の口）
+    const to = { x: -0.15, y: 0.24, z: 0, rx: -1.05, ry: -1.4, rz: -0.45 }; // 右へ振り抜く
+    for (const key of ['x', 'y', 'z', 'rx', 'ry', 'rz']) Rp[key] = (from[key] + (to[key] - from[key]) * sw) * (1 - back);
+    Rp.twist = 0;
+    if (t > 0.04 && t < 0.4) {
+      out.spin = true;
+      setFlash(0x8a8a8a);
+    }
+  } else if (V.kind === 'raise') {
+    // 魔力付与：剣を真上に掲げて紫の魔力をまとう
+    const t = V.t;
+    const up = smooth(0, 0.25, t) * (1 - smooth(V.dur - 0.25, V.dur, t));
+    Rp.rx += 0.7 * up;
+    Rp.y += 0.2 * up;
+    Rp.x += -0.14 * up;
+    Rp.z += 0.04 * up;
+    Rp.ry *= 1 - up;
+    Rp.rz *= 1 - up;
+    if (up > 0.5) setFlash(0x4a1a8a);
+  } else if (V.kind === 'arcane') {
+    // 魔剣解放：剣を掲げて V.w 秒 魔力を溜め、一気に斬り下ろす
+    const t = V.t;
+    if (t < V.w) {
+      const u = ease(Math.min(1, t / 0.3));
+      Rp.rx = 0.7 * u;
+      Rp.y = 0.2 * u + Math.sin(t * 40) * 0.006 * u; // 魔力で小刻みに震える
+      Rp.x = -0.14 * u;
+      Rp.z = 0.05 * u;
+      Rp.ry = 0;
+      Rp.rz = 0;
+      setFlash(Math.sin(t * 18) > 0 ? 0x6a2adf : 0x3a1a8a);
+    } else {
+      vertical(Rp, 1, smooth(V.w, V.w + 0.12, t));
+      if (t < V.w + 0.3) setFlash(0x6a2adf);
     }
   } else if (V.kind === 'plant') {
     // 結界の衝撃：杖をそのままの向きで真上へ持ち上げ、地面へまっすぐ落とす（V.hit 秒で地面）
