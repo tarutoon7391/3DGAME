@@ -5,22 +5,22 @@ import * as THREE from 'three';
 import { forEachTarget, strike, radiusHit } from './combat.js';
 import { hurtPlayer } from './combat.js';
 import { shotMult, addDot } from './jobs.js';
-import { GAUGE } from './data/jobs.js';
+import { GAUGE, JOBS } from './data/jobs.js';
+import { createShotRenderer } from './shotmodel.js';
+import { ENEMY_SHOTS } from './data/enemyshots.js';
+import { ENEMY_SHOT_SIZE } from './data/enemyfx.js';
+import { pickShotLook } from './data/shots_map.js';
+import { slashTexture } from './fxtex.js';
 
 const MAX_SHOTS = 360; // ステージ2の弾幕に足りる数
 const MAX_PSHOTS = 120;
 
 export function createProjectiles(game) {
   // ---------------- 敵弾 ----------------
-  const shotGeo = new THREE.IcosahedronGeometry(0.28, 0);
-  const shotMesh = new THREE.InstancedMesh(shotGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }), MAX_SHOTS);
-  shotMesh.frustumCulled = false; // 弾は部屋じゅうに散るので個別の判定はしない
-  shotMesh.count = 0;
-  game.scene.add(shotMesh);
-  const tmpColor = new THREE.Color();
-  const tmpObj = new THREE.Object3D();
+  // 見た目はボスのテーマ（炎・氷・冥界…）の形（src/enemyfx.js・src/data/enemyshots.js）。当たりの大きさは今まで通り
+  const enemyDraw = createShotRenderer(game.scene, MAX_SHOTS, ENEMY_SHOTS);
   const shots = [];
-  for (let i = 0; i < MAX_SHOTS; i++) shots.push({ active: false, x: 0, z: 0, vx: 0, vz: 0, life: 0, frac: 0, color: 0, spin: 0 });
+  for (let i = 0; i < MAX_SHOTS; i++) shots.push({ active: false, x: 0, z: 0, vx: 0, vz: 0, life: 0, frac: 0, color: 0, spin: 0, look: 'orb', lscale: 1 });
   /** 空き番号の山（find で毎回探さない） */
   const free = [];
   for (let i = MAX_SHOTS - 1; i >= 0; i--) free.push(i);
@@ -38,23 +38,18 @@ export function createProjectiles(game) {
     s.frac = frac;
     s.color = color;
     s.spin = Math.random() * 6;
+    const L = game.enemyFx?.shotLook(color);
+    s.look = L?.look || 'orb';
+    s.lscale = L?.scale || 1;
   }
 
   function drawShots() {
-    let n = 0;
+    enemyDraw.begin();
     for (const s of shots) {
       if (!s.active) continue;
-      tmpObj.position.set(s.x, 1.1, s.z);
-      tmpObj.rotation.set(0, s.spin, 0);
-      tmpObj.scale.setScalar(1);
-      tmpObj.updateMatrix();
-      shotMesh.setMatrixAt(n, tmpObj.matrix);
-      shotMesh.setColorAt(n, tmpColor.setHex(s.color));
-      n++;
+      enemyDraw.add(s.look, s.x, 1.1, s.z, Math.atan2(s.vx, s.vz), s.spin / 8, ENEMY_SHOT_SIZE * s.lscale, s.color);
     }
-    shotMesh.count = n;
-    shotMesh.instanceMatrix.needsUpdate = true;
-    if (shotMesh.instanceColor) shotMesh.instanceColor.needsUpdate = true;
+    enemyDraw.end();
   }
   function killShot(i) {
     shots[i].active = false;
@@ -62,15 +57,14 @@ export function createProjectiles(game) {
   }
 
   // ---------------- プレイヤーの飛び道具 ----------------
-  const pGeo = new THREE.OctahedronGeometry(1, 0);
-  const pMesh = new THREE.InstancedMesh(pGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }), MAX_PSHOTS);
-  pMesh.frustumCulled = false;
-  pMesh.count = 0;
-  game.scene.add(pMesh);
+  // 見た目は職業・技ごとの形（src/shotmodel.js）。形は撃つときに決める（look。省略時は職業と弾の色から）
+  const shotDraw = createShotRenderer(game.scene, MAX_PSHOTS);
+  /** 撃った人の職業 id（召喚物の「攻撃者」は jobId を持たないので職業データから探す） */
+  const jobIdOf = (pl) => pl?.jobId ?? Object.keys(JOBS).find((k) => JOBS[k] === pl?.job);
   const pshots = [];
 
   /**
-   * プレイヤーの弾。o: { speed, mult, color, size, range, pierce, explode（爆発半径）, wobble, local, gauge }
+   * プレイヤーの弾。o: { speed, mult, color, size, range, pierce, explode（爆発半径）, wobble, local, gauge, look（形の名前） }
    * local でなければ見た目だけ（他の人の弾）
    */
   function playerShot(pl, x, z, yaw, o) {
@@ -82,6 +76,7 @@ export function createProjectiles(game) {
       pierce: !!o.pierce, explode: o.explode || 0, wobble: !!o.wobble, local: o.local !== false,
       gauge: o.gauge, basic: !!o.basic, hit: new Set(), onHit: o.onHit || null, dot: o.dot || null,
       split: o.split || null, boomerang: !!o.boomerang, back: false,
+      look: o.look || pickShotLook(jobIdOf(pl), o),
     });
   }
 
@@ -95,7 +90,7 @@ export function createProjectiles(game) {
   }
 
   function updatePlayerShots(dt) {
-    let n = 0;
+    shotDraw.begin();
     for (let i = pshots.length - 1; i >= 0; i--) {
       const s = pshots[i];
       s.age += dt;
@@ -149,28 +144,28 @@ export function createProjectiles(game) {
         continue;
       }
       const y = 1.1 + (s.wobble ? Math.sin(s.age * 18) * 0.25 : 0);
-      tmpObj.position.set(s.x, y, s.z);
-      tmpObj.rotation.set(s.age * 9, s.yaw, 0);
-      tmpObj.scale.set(s.size, s.size, s.size * (s.pierce ? 3 : 1.4));
-      tmpObj.updateMatrix();
-      pMesh.setMatrixAt(n, tmpObj.matrix);
-      pMesh.setColorAt(n, tmpColor.setHex(s.color));
-      n++;
+      // 向きは今の進み方から（ブーメランの帰りは逆を向く）
+      shotDraw.add(s.look, s.x, y, s.z, Math.atan2(s.vx, s.vz), s.age, s.size, s.color);
     }
-    pMesh.count = n;
-    pMesh.instanceMatrix.needsUpdate = true;
-    if (pMesh.instanceColor) pMesh.instanceColor.needsUpdate = true;
+    shotDraw.end();
   }
 
   // ---------------- 斬撃の波（剣士の E） ----------------
-  const waveGeo = new THREE.TorusGeometry(1.1, 0.16, 4, 12, Math.PI);
-  waveGeo.rotateX(Math.PI / 2); // 弧が +Z（進行方向）に膨らむ向き
+  // 三日月の刃（外側の縁ほど明るい扇）。水平と縦の2枚を十字に重ね、一人称でも横から見ても見える
+  const waveGeo = new THREE.CircleGeometry(1.4, 40, -Math.PI / 2 - 1.2, 2.4).rotateX(-Math.PI / 2).translate(0, 0, -0.7);
   const waves = [];
 
   /** o: { mult, range, radius, scale, color, local, melee } */
   function playerWave(pl, yaw, o) {
-    const mat = new THREE.MeshBasicMaterial({ color: o.color ?? 0x80d8ff, transparent: true, opacity: 0.85 });
-    const mesh = new THREE.Mesh(waveGeo, mat);
+    const mat = new THREE.MeshBasicMaterial({
+      color: o.color ?? 0x80d8ff, map: slashTexture(), transparent: true, opacity: 1, depthWrite: false,
+      side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
+    });
+    const mesh = new THREE.Group();
+    const flat = new THREE.Mesh(waveGeo, mat);
+    const upright = new THREE.Mesh(waveGeo, mat);
+    upright.rotation.z = Math.PI / 2;
+    mesh.add(flat, upright);
     mesh.scale.setScalar(o.scale || 1);
     mesh.rotation.y = yaw;
     game.scene.add(mesh);
@@ -238,7 +233,8 @@ export function createProjectiles(game) {
     shots.forEach((s, i) => { if (s.active) killShot(i); });
     drawShots();
     pshots.length = 0;
-    pMesh.count = 0;
+    shotDraw.begin();
+    shotDraw.end();
     for (const w of waves) {
       game.scene.remove(w.mesh);
       w.mat.dispose();

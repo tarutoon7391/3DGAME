@@ -377,6 +377,7 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
           const sx = p.pos.x + Math.sin(p.yaw) * 1.6;
           const sz = p.pos.z + Math.cos(p.yaw) * 1.6;
           game.fx.burst(sx, 1.2, sz, J.look.swordColor, 5, { speed: 2, up: 1, life: 0.25, size: 0.1, grav: 0 });
+          game.skillFx?.swing(p, p.combo, last, J.basic.range + (last ? J.basic.heavyBonus : 0), J.basic.arc, parseInt(J.color.slice(1), 16)); // 剣の軌跡（src/skillfx.js）
         }
         if (p.actT >= c.dur) {
           if (p.queued && !last) startCombo(p.combo + 1, intent);

@@ -89,6 +89,7 @@ export function strike(game, pl, target, mult, opts = {}) {
   }
   game.fx.text(target.pos.x, target.hpY ?? 2, target.pos.z, crit ? `${dmg}!` : String(dmg), clone ? '#ce93d8' : crit ? '#ffd54f' : '#ffffff', crit);
   game.fx.burst(target.pos.x, 1, target.pos.z, color, crit ? 14 : 8, { speed: 5, up: 3, life: 0.4 });
+  game.skillFx?.hit(target, color, crit, pl); // 当たったときの光（src/skillfx.js）
   game.sound.se(crit ? 'crit' : 'hit');
   if (melee) game.fx.hitstop(crit ? 0.07 : 0.04);
   // 魔剣士の魔力付与：近接が当たると小さな爆発（爆発そのものは付与を起こさない）

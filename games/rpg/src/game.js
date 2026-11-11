@@ -10,6 +10,9 @@ import { createState, newProgress, migrateProgress } from './state.js';
 import { createPlayer, emptyIntent } from './player.js';
 import { createEnemies } from './enemies.js';
 import { createProjectiles } from './projectiles.js';
+import { createAuras } from './auras.js';
+import { createEnemyFx } from './enemyfx.js';
+import { createSkillFx } from './skillfx.js';
 import { createAllies } from './allies.js';
 import { createHazards } from './hazards.js';
 import { createEffects } from './effects.js';
@@ -96,6 +99,9 @@ export function createGame() {
   game.lights = createLights(scene);
   game.enemies = createEnemies(game);
   game.projectiles = createProjectiles(game);
+  game.auras = createAuras(game); // 回復・強化のオーラとエリアの見た目
+  game.enemyFx = createEnemyFx(game); // 敵の攻撃の見た目（弾の形・衝撃波・壁）
+  game.skillFx = createSkillFx(game); // 味方の技エフェクト（斬撃・突進・光線・強化など）
   game.allies = createAllies(game);
   game.hazards = createHazards(game);
   game.hudView = createHudView(game);
@@ -127,7 +133,7 @@ export function createGame() {
     game.localIndex = Math.max(0, game.players.findIndex((p) => !p.remote));
     const me = game.me();
     if (me.jobId === 'shifter') me.shift = { t: JOBS.shifter.shiftEvery };
-    game.vm.setLook(me.job.look);
+    game.vm.setLook(me.job.look, me.jobId, me.job.color);
     game.setView?.(saveData.settings.view);
   }
 
@@ -154,7 +160,7 @@ export function createGame() {
       store.save(saveData);
       if (job === 'shifter') np.shift = { t: JOBS.shifter.shiftEvery };
     }
-    game.vm.setLook(np.job.look);
+    game.vm.setLook(np.job.look, np.jobId, np.job.color);
     game.setView(saveData.settings.view);
     game.toast(shift ? `変化！ ${np.job.name}になった` : `${np.job.name}に転職した！`, 1800);
   }
@@ -874,6 +880,9 @@ export function createGame() {
     }
     if (game.isClient && !game.down) updateAreaLogic(game, intent); // 看板だけ
     game.projectiles.update(dt);
+    game.auras.update(dt);
+    game.enemyFx.update(dt);
+    game.skillFx.update(dt);
     game.hazards.update(dt);
     updateJobZones(game, dt);
     if (game.raid) {

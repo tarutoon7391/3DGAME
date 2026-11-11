@@ -119,7 +119,10 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
     },
     dispose() {
       cancelAll();
-      for (const n of b.novas) game.scene.remove(n.mesh);
+      for (const n of b.novas) {
+        n.fx?.remove();
+        game.scene.remove(n.mesh);
+      }
       b.novas.length = 0;
       game.scene.remove(m.group);
       m.bodyMat.dispose();
@@ -199,6 +202,7 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
         b.stalkers.splice(i, 1);
         hitAll(inCircle(st.x, st.z, st.r), meleeHit, st.x, st.z);
         game.fx.burst(st.x, 0.5, st.z, st.color, 30, { speed: 5, up: 11, life: 0.7, size: 0.24 });
+        game.enemyFx?.impact(st.x, st.z, st.r, st.color);
         game.sound.se('slam');
       }
     }
@@ -300,7 +304,9 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
     mesh.position.set(x, 0.15, z);
     mesh.scale.setScalar(0.5);
     game.scene.add(mesh);
-    b.novas.push({ x, z, r: 0.5, max, speed, width, hit: new Set(), mesh });
+    const fx = game.enemyFx?.nova(x, z, color ?? 0xffffff); // テーマの見た目（src/enemyfx.js）
+    if (fx) mesh.visible = false;
+    b.novas.push({ x, z, r: 0.5, max, speed, width, hit: new Set(), mesh, fx });
   }
 
   function updateNovas(dt) {
@@ -308,6 +314,7 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
       const n = b.novas[i];
       n.r += n.speed * dt;
       n.mesh.scale.set(n.r, 1 + n.width * 3, n.r);
+      n.fx?.set(n.r, n.width);
       // 当たり判定は自分のブラウザのプレイヤーだけ（弾と同じ）。輪の幅のところにいたら当たる。回避の無敵でくぐれる
       for (const pl of game.players) {
         if (!pl.alive || pl.remote || n.hit.has(pl)) continue;
@@ -319,6 +326,7 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
       }
       if (!puppet) game.allies?.hitBy((x, z) => Math.abs(Math.hypot(x - n.x, z - n.z) - n.r) < n.width + 0.6, meleeHit);
       if (n.r >= n.max) {
+        n.fx?.remove();
         game.scene.remove(n.mesh);
         b.novas.splice(i, 1);
       }
@@ -549,6 +557,7 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
         emit(p.dur, 1, 1, () => {
           hitAll(inCircle(b.pos.x, b.pos.z, p.radius), meleeHit, b.pos.x, b.pos.z);
           game.fx.burst(b.pos.x, 0.8, b.pos.z, p.color, 70, { speed: 12, up: 6, life: 0.8, size: 0.3 });
+          game.enemyFx?.impact(b.pos.x, b.pos.z, p.radius, p.color);
           game.fx.shake(1);
           game.sound.se('slam');
         });
@@ -598,6 +607,7 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
       b.zones.splice(i, 1);
       hitAll(inCircle(zn.x, zn.z, zn.r), meleeHit, zn.x, zn.z);
       game.fx.burst(zn.x, 0.4, zn.z, zn.color, zn.burst ? 18 : 26, { speed: 6, up: zn.burst ? 6 : 10, life: 0.6, size: 0.22 });
+      game.enemyFx?.impact(zn.x, zn.z, zn.r, zn.color);
       game.sound.se('slam');
       // 着弾点からまわりに弾を散らす
       const n = Math.round((zn.burst || 0) * cm());
@@ -736,6 +746,7 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
               game.fx.shake(1);
               game.sound.se('slam');
               game.fx.burst(b.pos.x, 0.3, b.pos.z, 0xa1887f, 40, { speed: 10, up: 5, life: 0.8, size: 0.25 });
+              game.enemyFx?.impact(b.pos.x, b.pos.z, p.radius, p.color ?? C.color);
               // 着地で弾の輪（怒り中は rageRing をそのまま使う）
               const n = b.raged && p.rageRing !== undefined ? p.rageRing : Math.round((p.ring || 0) * cm());
               if (n > 0) ring(b.pos.x, b.pos.z, n, rand(0, 1), 8, p.color);

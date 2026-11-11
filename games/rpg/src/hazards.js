@@ -28,6 +28,7 @@ export function createHazards(game) {
     group.rotation.y = d.yaw;
     game.scene.add(group);
     walls.push({ ...d, off: 0, hit: new Set(), group, mat, age: 0 });
+    game.enemyFx?.dressWall(walls[walls.length - 1]); // テーマの見た目（src/enemyfx.js）
   }
 
   /** ドーナツ型の範囲（rIn より内側は安全）。dur 秒だけ見せる */
