@@ -101,7 +101,7 @@ export const SKILL_VIS = {
   reloadroll: { cast: [['burst', { color: 0xbdbdbd, n: 16 }]] },
   gatling: { cast: [['akimbo', { dur: 4.3 }], ...[0, 0.6, 1.2, 1.8, 2.4, 3, 3.6].map((t) => ['shake', { amt: 0.15, at: t }])] }, // 左手にも同じ銃（二丁持ち）
   // ---- 火炎放射兵 ----
-  napalm: { cast: [['lob', { glyph: '●', color: 0xff5722, to: 'aim', time: 0.4 }]], zone: { loop: { type: 'rise', tex: 'smoke', color: 0xff5722, every: 0.02, h: 2.4, size: 1.1, grow: 1.6, life: 0.7 } } },
+  napalm: { zone: { loop: { type: 'rise', tex: 'smoke', color: 0xff5722, every: 0.02, h: 2.4, size: 1.1, grow: 1.6, life: 0.7 } } },
   flameburst: { tick: () => [['explode', { r: 3.5, color: 0xff7043 }], ['burst', { color: 0xffca28, n: 40, speed: 9, up: 3 }]] },
   inferno: { cast: [['fire', { range: 8, arc: 1.4 }], shake(0.3)] },
   // ---- ロケット兵 ----

@@ -642,7 +642,7 @@ export const JOBS = {
     power: 0.96, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     // 射程が短く、当たると燃える（継続ダメージ）
     basic: { type: 'shot', cd: 0.12, speed: 16, mult: 0.3, color: 0xff7043, size: 0.35, range: 8, pierce: true, jitter: 0.25, dot: { mult: 0.12, every: 0.5, dur: 3 } },
-    q: { id: 'napalm', kind: 'zone', zone: 'field', name: 'ナパーム', desc: '狙った場所を5秒間 燃やし続ける', cd: 8, at: 'aim', dist: 6, radius: 4, dur: 5, every: 0.3, mult: 0.5, color: 0xff5722 },
+    q: { id: 'napalm', kind: 'shots', name: 'ナパーム', desc: '大きな火の玉を撃ち、落ちた所を5秒間 燃やし続ける', cd: 8, count: 1, speed: 20, mult: 0.8, size: 0.6, range: 18, landZone: { radius: 4, dur: 5, every: 0.3, mult: 0.5 }, color: 0xff5722 },
     e: { id: 'flameburst', kind: 'burst', name: '炎の噴射', desc: '周りに炎を噴き出して焼く', cd: 7, mult: 1.8, radius: 4.2, color: 0xff7043, melee: false },
     r: { id: 'inferno', kind: 'cone', name: '大火炎', desc: '前方8mを大きく焼き払い、燃やし続ける', mult: 3, range: 8, arc: 1.6, color: 0xff3d00, melee: false, sound: 'wave', dot: { mult: 0.5, every: 0.5, dur: 6 } },
     trait: '燃料タンク持ち：被ダメージ -10%',

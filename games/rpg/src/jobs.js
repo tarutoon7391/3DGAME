@@ -777,6 +777,15 @@ const GENERIC = {
       if (sk.debuff) o.onHit = (t) => { if (t && game.bosses.includes(t)) game.bossCommand({ type: 'debuff', ...sk.debuff, sub: t.sub }); };
       if (sk.chain) o.onHit = chainHit(game, p, sk.chain, sk.color);
       if (sk.orbit) o.orbit = { ...sk.orbit, phase: (i / n) * Math.PI * 2 }; // ジャグリング爆弾：3つが輪になって回る
+      // landZone：狙った場所まで飛び、当たるか落ちた所にエリアを広げる（ナパーム）
+      if (sk.landZone) {
+        o.range = Math.max(4, Math.min(sk.range || 18, Math.hypot(d.tx - d.x, d.tz - d.z) || 8));
+        const Z = sk.landZone;
+        o.onEnd = (x, z) => {
+          game.skillFx?.explosion?.(x, z, Z.radius * 0.6, sk.color, false);
+          addZone(game, { kind: 'field', x, z, r: Z.radius, t: Z.dur, every: Z.every, tick: Z.every, mult: Z.mult, color: sk.color, owner: p.id, local, p, skill: sk.id });
+        };
+      }
       game.projectiles.playerShot(p, p.pos.x, p.pos.z, a, o);
     };
     if (wind) {
