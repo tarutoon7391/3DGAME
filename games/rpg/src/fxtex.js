@@ -234,3 +234,111 @@ export function hexGridTexture() {
     c.fillRect(0, h - 6, w, 6);
   });
 }
+
+/** ドクロ（正面）。白で描き、目と鼻と歯のすき間は抜く */
+export function skullTexture() {
+  return make('skull', 128, 128, (c, w) => {
+    const R = w / 2;
+    c.translate(R, R);
+    c.shadowColor = 'rgba(255,255,255,0.8)';
+    c.shadowBlur = R * 0.12;
+    c.fillStyle = '#fff';
+    c.beginPath();
+    c.arc(0, -R * 0.12, R * 0.62, Math.PI * 0.9, Math.PI * 2.1);
+    c.lineTo(R * 0.42, R * 0.38);
+    c.lineTo(R * 0.36, R * 0.72);
+    c.lineTo(-R * 0.36, R * 0.72);
+    c.lineTo(-R * 0.42, R * 0.38);
+    c.closePath();
+    c.fill();
+    c.shadowBlur = 0;
+    c.globalCompositeOperation = 'destination-out';
+    for (const s of [-1, 1]) {
+      c.beginPath();
+      c.ellipse(s * R * 0.24, -R * 0.05, R * 0.16, R * 0.19, s * 0.2, 0, Math.PI * 2);
+      c.fill();
+    }
+    c.beginPath();
+    c.moveTo(0, R * 0.14);
+    c.lineTo(R * 0.08, R * 0.3);
+    c.lineTo(-R * 0.08, R * 0.3);
+    c.closePath();
+    c.fill();
+    for (let i = -2; i <= 2; i++) c.fillRect(i * R * 0.14 - R * 0.02, R * 0.48, R * 0.04, R * 0.24);
+  });
+}
+
+/** 時計の文字盤（輪・12の目盛り・中心） */
+export function clockFaceTexture() {
+  return make('clockface', 256, 256, (c, w) => {
+    const R = w / 2;
+    c.translate(R, R);
+    const g = c.createRadialGradient(0, 0, 0, 0, 0, R);
+    g.addColorStop(0, 'rgba(255,255,255,0.18)');
+    g.addColorStop(0.85, 'rgba(255,255,255,0.3)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    c.fillStyle = g;
+    c.fillRect(-R, -R, w, w);
+    c.strokeStyle = '#fff';
+    c.lineWidth = R * 0.07;
+    c.beginPath();
+    c.arc(0, 0, R * 0.82, 0, Math.PI * 2);
+    c.stroke();
+    c.lineWidth = R * 0.025;
+    c.beginPath();
+    c.arc(0, 0, R * 0.7, 0, Math.PI * 2);
+    c.stroke();
+    c.fillStyle = '#fff';
+    for (let i = 0; i < 12; i++) {
+      c.save();
+      c.rotate((i / 12) * Math.PI * 2);
+      const big = i % 3 === 0;
+      c.fillRect(-R * (big ? 0.035 : 0.02), -R * 0.68, R * (big ? 0.07 : 0.04), R * (big ? 0.16 : 0.09));
+      c.restore();
+    }
+    c.beginPath();
+    c.arc(0, 0, R * 0.07, 0, Math.PI * 2);
+    c.fill();
+  });
+}
+
+/** 時計の針（中心から上へ）。kind：'hour' 太く短い／'min' 細く長い */
+export function clockHandTexture(kind = 'min') {
+  return make('hand:' + kind, 256, 256, (c, w) => {
+    const R = w / 2;
+    c.translate(R, R);
+    c.fillStyle = '#fff';
+    c.shadowColor = 'rgba(255,255,255,0.9)';
+    c.shadowBlur = R * 0.06;
+    const len = kind === 'hour' ? 0.42 : 0.62;
+    const wd = kind === 'hour' ? 0.07 : 0.04;
+    c.beginPath();
+    c.moveTo(-R * wd, R * 0.08);
+    c.lineTo(R * wd, R * 0.08);
+    c.lineTo(R * wd * 0.4, -R * len);
+    c.lineTo(0, -R * (len + 0.06));
+    c.lineTo(-R * wd * 0.4, -R * len);
+    c.closePath();
+    c.fill();
+  });
+}
+
+/** 吸い込む風：斜めの筋の模様（繰り返して貼り、ずらして流す） */
+export function windTexture() {
+  return make('wind', 128, 128, (c, w, h) => {
+    c.clearRect(0, 0, w, h);
+    for (let i = 0; i < 6; i++) {
+      const g = c.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, 'rgba(255,255,255,0)');
+      g.addColorStop(0.5, 'rgba(255,255,255,0.9)');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      c.strokeStyle = g;
+      c.lineWidth = 5 + (i % 3) * 3;
+      c.beginPath();
+      const x = (i / 6) * w;
+      c.moveTo(x, 0);
+      c.bezierCurveTo(x + w * 0.25, h * 0.33, x - w * 0.1, h * 0.66, x + w * 0.2, h);
+      c.stroke();
+    }
+  });
+}

@@ -82,6 +82,7 @@ export function createProjectiles(game) {
 
   function explodeAt(s) {
     game.fx.burst(s.x, 1, s.z, s.color, 30, { speed: 7, up: 4, life: 0.5, size: 0.2 });
+    game.skillFx?.explosion(s.x, s.z, s.explode, s.color, s.size >= 0.8); // 爆発の光（大砲・大爆発フラスコは大爆発）
     game.sound.se('slam');
     if (s.local) {
       radiusHit(game, s.owner, s.mult, s.explode, { color: s.color, gauge: s.basic ? s.gauge : GAUGE.gainSkill, basic: s.basic }, s.x, s.z);

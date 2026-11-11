@@ -76,7 +76,7 @@ export function createCameraRig(camera) {
     const k = VIEW.fpsShake;
     camera.position.set(
       me.pos.x + shake.x * k,
-      me.pos.y + VIEW.eyeHeight + bob - rig.eyeDip + shake.y * k,
+      me.pos.y + VIEW.eyeHeight + bob - rig.eyeDip + shake.y * k + (me.model?.root?.position.y || 0), // 跳ぶ技（天穿ち・昇竜拳など）は視点も上がる
       me.pos.z + shake.z * k,
     );
     camera.rotation.set(rig.look, rig.yaw + Math.PI, me.alive ? 0 : Math.min(0.5, rig.eyeDip * 0.4));
