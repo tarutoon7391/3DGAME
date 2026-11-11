@@ -70,7 +70,7 @@
 
 追加の16職（罠士〜鞭使い）の技は、`src/jobs.js` の汎用の型（`kind`：dash・burst・cone・shots・leap・zone・teambuff・selfbuff・teamheal・teamgauge・debuff・counter・random・beam・cleanse・mimic・cycle・blink・blinkbehind・mark。zone は field・strike・totem・trap・aegis・turret・talisman）をデータで組み合わせて作っている。新しい技はデータを書くだけで足せる。**技の id は全職で重ならないようにする**（重なると後から書いた方が上書きして、別の職業の技が化ける）。
 
-- 近接職の底上げ：通常攻撃が近接の職業は、データを書いた後に HP 1.3倍・攻撃力 1.25倍を一括で掛けている（`data/jobs.js` の `MELEE_BUFF`。表の数字は掛ける前）
+- 近接職の底上げ：通常攻撃が近接の職業は、データを書いた後に HP 1.8倍・攻撃力 2.5倍を一括で掛けている（`data/jobs.js` の `MELEE_BUFF`。表の数字は掛ける前）
 - ダメージ計算：防御は割合でカット（`攻撃力×倍率×30/(30+防御)`）。固定値引きだと1発の軽い攻撃（連射・多段）がほぼ 1 ダメージになっていたため
 
 | 職業 | 通常攻撃 | Q スキル | E スキル | R 必殺技 | 特性 |

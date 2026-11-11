@@ -993,7 +993,7 @@ export const JOB_ORDER = ['swordsman', 'knight', 'mage', 'priest', 'archer', 'ni
  * 近接職の底上げ（被弾しやすいのに火力が出ていなかったので）：通常攻撃が近接の職業は HP・攻撃力を一括で上げる
  * 職業データを書いた後に掛けるので、準備画面の数字にも反映される
  */
-export const MELEE_BUFF = { hp: 1.3, atk: 1.25 };
+export const MELEE_BUFF = { hp: 1.8, atk: 2.5 }; // 2026-11-11：近接の火力を2倍（1.25→2.5）、HP を 1.3→1.8 に
 for (const id of JOB_ORDER) {
   const J = JOBS[id];
   if (J.basic.type !== 'melee') continue;
