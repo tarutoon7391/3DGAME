@@ -102,6 +102,14 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
       // 汎用：バフの atkMul（怒号・竜化・星占いなど）をすべて掛ける
       for (const b of Object.values(p.buffs)) if (b.atkMul) a *= b.atkMul;
       if (J.barrierAtk && p.buffs.barrier) a *= J.barrierAtk; // 結界師：バリアがある間 攻撃力アップ
+      if (J.soulPer) a *= 1 + (p.soul || 0); // 魂喰い：当てるほど永続的に強くなる
+      if (J.moveAtk && p.walking) a *= J.moveAtk; // 韋駄天：動いている間は強い
+      if (J.lastStand) {
+        // 背水：倒れている仲間の数と、自分の HP の少なさで強くなる
+        const downs = game.players.filter((o) => o !== p && o.downed).length;
+        a *= 1 + J.lastStand * downs;
+        if (p.hp / p.maxHp < 0.3) a *= 1.3;
+      }
       if (J.chainPer) a *= 1 + (p.chain || 0) * J.chainPer; // 格闘家の連打
       if (J.lowHpBonus) a *= 1 + J.lowHpBonus * (1 - p.hp / p.maxHp); // 狂戦士：HP が減るほど強い
       return a;
@@ -159,6 +167,7 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
 
     /** 倒れる（協力プレイ）。蘇生されるまで動けない */
     knockDown() {
+      p.soul = 0;
       p.alive = false;
       p.downed = true;
       p.reviveT = 0;
@@ -215,6 +224,8 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
         animateDown();
         return;
       }
+      if (J.selfRegen) p.hp = Math.min(p.maxHp, p.hp + p.maxHp * J.selfRegen * dt); // 料理人のつまみ食い
+      if (J.hpDrain && p.hp > 1) p.hp = Math.max(1, p.hp - p.maxHp * J.hpDrain * dt); // 呪いの騎士：HP が減り続ける
 
       const mlen = Math.hypot(intent.moveX, intent.moveZ);
       const moving = mlen > 0.01;
@@ -224,7 +235,9 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
       const busy = p.action === 'dodge' || p.action === 'spin' || p.action === 'cast' || p.action === 'dash';
 
       // ---- 行動の開始 ----
-      if (intent.dodge && p.dodgeCd <= 0 && p.action !== 'dodge' && p.action !== 'dash' && canStamina) {
+      if (intent.dodge && J.noDodge) {
+        if (p === game.me()) game.toastOnce('鬼は回避できない！（そのかわり硬い）', 1200);
+      } else if (intent.dodge && p.dodgeCd <= 0 && p.action !== 'dodge' && p.action !== 'dash' && canStamina) {
         const y = moving ? moveYaw : p.yaw + Math.PI;
         p.action = 'dodge';
         p.actT = 0;
@@ -410,7 +423,11 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
     p.flash = Math.max(0, p.flash - dt);
     const blink = p.invuln > 0 && p.action !== 'dodge' && Math.floor(p.invuln * 20) % 2 === 0;
     model.group.visible = !blink && !p.hideBody; // 一人称では自分の体を描かない
-    const glow = p.buffs.courage ? 0x332200 : p.buffs.clone ? 0x220033 : 0x000000;
+    let glow = p.buffs.courage ? 0x332200 : p.buffs.clone ? 0x220033 : 0x000000;
+    // 回復ができる職業で遊んでいる人の画面では、HP が少ない（35% 以下）か倒れた仲間を赤く点滅させる
+    if (p.remote && game.me()?.job.healer && (p.downed || p.hp / p.maxHp <= 0.35)) {
+      glow = Math.floor(performance.now() / 250) % 2 ? 0xaa0000 : 0x440000;
+    }
     model.armorMat.emissive.setHex(p.flash > 0 ? 0x880000 : glow);
   }
 

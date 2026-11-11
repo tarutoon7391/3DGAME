@@ -270,6 +270,7 @@ function mage(bm) {
  * 武器は右腕の先に付く
  */
 export function makeBossModel(color, look = {}) {
+  if (look.monster) return makeMonsterModel(color, look);
   const { scale = 2.5, horn: hornColor = 0xf5f0e1, eye = 0xffea00, weapon = 'club', metal = 0x37474f } = look;
   const bodyMat = ownMat(color);
   bodyMat.emissive = new THREE.Color(0x000000);
@@ -310,4 +311,107 @@ export function makeBossModel(color, look = {}) {
   }
   h.armR.rotation.x = -0.4;
   return { ...h, bodyMat, club: wpn };
+}
+
+// ---------------- モンスター（ステージ4：竜・獣・多頭の蛇） ----------------
+/**
+ * 人型ボスと同じ部品（root・armL・armR・legL・legR・bodyMat）を持たせて、boss.js の動きをそのまま使えるようにする
+ *   dragon：armL/armR＝翼、legL/legR＝後ろ脚 / beast：armL/armR＝前脚（wings で翼も） / hydra：armL/armR＝左右の首
+ * look: { monster, scale, horn, eye, belly, wings }
+ */
+export function makeMonsterModel(color, look = {}) {
+  const { monster, scale = 2, horn: hornColor = 0xeeeeee, eye = 0xffea00, belly = 0xd7ccc8 } = look;
+  const bodyMat = ownMat(color);
+  bodyMat.emissive = new THREE.Color(0x000000);
+  const group = new THREE.Group();
+  const root = pivot(group, 0, 0, 0);
+  const horn = mat(hornColor);
+  const em = mat(eye, { emissive: eye, emissiveIntensity: 1.2 });
+  const bel = mat(belly);
+  const legs = (x, z, h, w) => {
+    const pv = pivot(root, x, h, z);
+    part(box(w, h, w * 1.1), bodyMat, 0, -h / 2, 0, pv);
+    part(box(w * 1.3, 0.18, w * 1.6), horn, 0, -h + 0.05, 0.08, pv); // 爪
+    return pv;
+  };
+  let armL;
+  let armR;
+  let legL;
+  let legR;
+  if (monster === 'hydra') {
+    // 胴（丸い山）と3本の首。左右の首を armL / armR に
+    part(box(2.4, 1.4, 2.6), bodyMat, 0, 0.9, 0, root);
+    part(box(1.8, 0.5, 2.0), bel, 0, 0.35, 0.1, root);
+    const neck = (pv, len) => {
+      part(box(0.45, len, 0.45), bodyMat, 0, len / 2, 0, pv);
+      const head = part(box(0.75, 0.55, 0.95), bodyMat, 0, len + 0.15, 0.25, pv);
+      part(box(0.12, 0.12, 0.05), em, -0.2, len + 0.3, 0.73, pv);
+      part(box(0.12, 0.12, 0.05), em, 0.2, len + 0.3, 0.73, pv);
+      part(cone(0.08, 0.35, 4), horn, 0, len + 0.55, 0.05, pv);
+      return head;
+    };
+    const mid = pivot(root, 0, 1.5, 0.6);
+    neck(mid, 2.2);
+    armL = pivot(root, -0.8, 1.4, 0.5);
+    neck(armL, 1.7);
+    armL.rotation.z = 0.35;
+    armR = pivot(root, 0.8, 1.4, 0.5);
+    neck(armR, 1.7);
+    armR.rotation.z = -0.35;
+    legL = legs(-0.8, -0.6, 0.5, 0.45);
+    legR = legs(0.8, -0.6, 0.5, 0.45);
+    part(box(0.5, 0.4, 1.6), bodyMat, 0, 0.6, -1.9, root); // しっぽ
+  } else {
+    const dragon = monster === 'dragon';
+    // 胴・腹・首・頭・しっぽ（共通）
+    part(box(1.4, 1.1, 2.6), bodyMat, 0, 1.7, 0, root);
+    part(box(1.1, 0.4, 2.2), bel, 0, 1.15, 0.05, root);
+    const neckLen = dragon ? 1.1 : 0.5;
+    const nk = part(box(0.6, neckLen, 0.6), bodyMat, 0, 2.2 + neckLen / 2 - 0.2, 1.3, root);
+    nk.rotation.x = 0.5;
+    const hy = 2.3 + neckLen;
+    part(box(0.8, 0.7, 1.1), bodyMat, 0, hy, 1.75, root); // 頭
+    part(box(0.6, 0.3, 0.6), bodyMat, 0, hy - 0.2, 2.45, root); // 口先
+    part(box(0.12, 0.12, 0.05), em, -0.25, hy + 0.12, 2.31, root);
+    part(box(0.12, 0.12, 0.05), em, 0.25, hy + 0.12, 2.31, root);
+    const hl = part(cone(0.1, 0.6, 5), horn, -0.25, hy + 0.5, 1.5, root);
+    hl.rotation.x = -0.6;
+    const hr = part(cone(0.1, 0.6, 5), horn, 0.25, hy + 0.5, 1.5, root);
+    hr.rotation.x = -0.6;
+    const tail = part(box(0.45, 0.4, 2.2), bodyMat, 0, 1.5, -2.2, root);
+    tail.rotation.x = -0.2;
+    part(cone(0.25, 0.6, 4), horn, 0, 1.25, -3.35, root).rotation.x = -Math.PI / 2;
+    // 背中のとげ
+    for (let i = 0; i < 4; i++) part(cone(0.12, 0.4, 4), horn, 0, 2.4, 0.9 - i * 0.6, root);
+    legL = legs(-0.55, -0.8, 1.2, 0.42);
+    legR = legs(0.55, -0.8, 1.2, 0.42);
+    if (dragon || look.wings) {
+      // 翼（肩から横へ広がる板）を armL / armR に
+      const wing = (side) => {
+        const pv = pivot(root, side * 0.6, 2.2, 0.3);
+        const bone = part(box(2.8, 0.12, 0.2), bodyMat, side * 1.4, 0, 0, pv);
+        bone.rotation.z = side * 0.25;
+        const memb = part(box(2.6, 0.05, 1.6), mat(look.wingColor ?? 0x5d4037), side * 1.35, -0.1, -0.7, pv);
+        memb.rotation.z = side * 0.25;
+        return pv;
+      };
+      armL = wing(-1);
+      armR = wing(1);
+      // 竜の前脚は小さめ（動かない）
+      if (dragon) {
+        legs(-0.5, 0.8, 1.0, 0.36);
+        legs(0.5, 0.8, 1.0, 0.36);
+      } else {
+        legs(-0.55, 0.85, 1.2, 0.42);
+        legs(0.55, 0.85, 1.2, 0.42);
+      }
+    } else {
+      // 獣：前脚を armL / armR に
+      armL = legs(-0.55, 0.85, 1.2, 0.42);
+      armR = legs(0.55, 0.85, 1.2, 0.42);
+    }
+    if (look.mane) part(box(1.6, 1.2, 0.6), mat(look.mane), 0, 2.2, 1.0, root); // たてがみ
+  }
+  group.scale.setScalar(scale);
+  return { group, root, armL, armR, legL, legR, bodyMat };
 }

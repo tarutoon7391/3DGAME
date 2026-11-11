@@ -41,13 +41,16 @@ export function buildCastle(ctx) {
   ctx.instanced(tileGeo, ctx.mat(C.tileA), tilesA, { cast: false, receive: true });
   ctx.instanced(tileGeo.clone(), ctx.mat(C.tileB), tilesB, { cast: false, receive: true });
   // 冥王の間への赤い絨毯
-  // 最後の部屋への絨毯（def.carpet { z, len } で位置と長さ）
-  const cp = def.carpet || { z: -56, len: 40 };
+  // 最後の部屋への絨毯（def.carpet { z, len } で位置と長さ。false なら敷かない＝屋外）
+  const cp = def.carpet === false ? null : def.carpet || { z: -56, len: 40 };
+  if (cp) {
   const carpet = new THREE.Mesh(new THREE.PlaneGeometry(4, cp.len), ctx.mat(C.carpet));
   carpet.rotation.x = -Math.PI / 2;
   carpet.position.set(0, 0.01, cp.z);
   carpet.receiveShadow = true;
   group.add(carpet);
+  }
+  if (def.outdoor) buildOutdoorDeco(ctx, b);
 
   // ボスの魔法陣（ボスごとの色）
   const circles = [];
@@ -78,16 +81,18 @@ export function buildCastle(ctx) {
       ctx.box(-(dv.gap + 1), 0, dv.z, 2, H, 1, WALL, { collide: true });
       ctx.box(dv.gap + 1, 0, dv.z, 2, H, 1, WALL, { collide: true });
     }
-    ctx.box(0, 4.6, dv.z, dv.gap * 2, H - 4.6, 1, WALL);
-    const door = ctx.box(0, 0, dv.z, dv.gap * 2, 4.6, 0.6, 0x4e342e, { matOpts: { metalness: 0.4 } });
+    // 扉の高さは壁より低く（屋外の低い崖でも崩れない）。上に余りがあれば梁でふさぐ
+    const DH = Math.min(4.6, H - 0.3);
+    if (H - DH > 0.05) ctx.box(0, DH, dv.z, dv.gap * 2, H - DH, 1, WALL);
+    const door = ctx.box(0, 0, dv.z, dv.gap * 2, DH, 0.6, def.outdoor ? 0x6d4c41 : 0x4e342e, { matOpts: { metalness: def.outdoor ? 0 : 0.4 } });
     const col = { minX: -dv.gap, maxX: dv.gap, minZ: dv.z - 0.5, maxZ: dv.z + 0.5 };
     ctx.colliders.push(col);
     const st = { target: i === 0 ? 1 : 0, t: i === 0 ? 1 : 0 };
     col.off = i === 0;
-    door.position.y = 2.3 - st.t * 4.5;
+    door.position.y = DH / 2 - st.t * (DH - 0.1);
     ctx.updaters.push((dt) => {
       st.t += Math.sign(st.target - st.t) * Math.min(Math.abs(st.target - st.t), dt * 0.8);
-      door.position.y = 2.3 - st.t * 4.5;
+      door.position.y = DH / 2 - st.t * (DH - 0.1);
     });
     return (open, instant = false) => {
       st.target = open ? 1 : 0;
@@ -115,4 +120,27 @@ export function buildCastle(ctx) {
       o.f.scale.y = 1 + Math.sin(t * 12 + o.p) * 0.2;
     }
   });
+}
+
+/** 屋外：囲いの外側に木と岩を並べる（当たり判定なし。広さは変えない） */
+function buildOutdoorDeco(ctx, b) {
+  const trees = [];
+  const rocks = [];
+  let seed = 12345;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let z = b.minZ - 6; z < b.maxZ + 6; z += 3.2) {
+    for (const side of [-1, 1]) {
+      const x = side * (b.maxX + 3 + rnd() * 9);
+      trees.push({ x, z: z + rnd() * 2, s: 1.2 + rnd() * 1.4, ry: rnd() * 6 });
+      if (rnd() < 0.4) rocks.push({ x: side * (b.maxX + 1.5 + rnd() * 3), z: z + rnd() * 3, s: 0.8 + rnd() * 1.2, ry: rnd() * 6 });
+    }
+  }
+  const trunk = new THREE.CylinderGeometry(0.25, 0.35, 2, 6);
+  trunk.translate(0, 1, 0);
+  const leaves = new THREE.ConeGeometry(1.6, 3.6, 7);
+  leaves.translate(0, 3.4, 0);
+  ctx.instanced(trunk, ctx.mat(0x6d4c41), trees, { cast: true });
+  ctx.instanced(leaves, ctx.mat(0x2e7d32), trees, { cast: true });
+  const rockGeo = new THREE.DodecahedronGeometry(1, 0);
+  ctx.instanced(rockGeo, ctx.mat(0x9e9e9e), rocks, { cast: true });
 }

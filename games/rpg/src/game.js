@@ -21,9 +21,10 @@ import { createHudView } from './ui/hudview.js';
 import { createModalHost, createDialog } from './ui/dialog.js';
 import { openLobby } from './ui/lobby.js';
 import { openJobPicker } from './ui/jobpick.js';
+import { createNameplates } from './ui/nameplates.js';
 import { createLights, loadArea, updateAreaLogic, checkSeals, bossDown, makeRoom } from './area.js';
 import { AREAS, AREA_ORDER, COURSES, courseOf } from './data/areas.js';
-import { JOBS, REVIVE, DEFAULT_JOB } from './data/jobs.js';
+import { JOBS, JOB_ORDER, REVIVE, DEFAULT_JOB } from './data/jobs.js';
 import { updateJobZones, inAegis } from './jobs.js';
 import { hurtPlayer } from './combat.js';
 import { createRaid } from './raid.js';
@@ -48,6 +49,7 @@ export function createGame() {
   if (!saveData.records) saveData.records = { clears: 0, bestTime: 0 }; // ステージ1 の記録
   if (!saveData.records2) saveData.records2 = { clears: 0, bestTime: 0 }; // ステージ2 の記録
   if (!saveData.records3) saveData.records3 = { clears: 0, bestTime: 0 }; // ステージ3 の記録
+  for (const c of COURSES) if (!saveData[c.recKey]) saveData[c.recKey] = { clears: 0, bestTime: 0 }; // 以降のステージも
   saveData.progress = migrateProgress(saveData.progress); // 旧形式（レベル制）は到達エリアだけ引き継ぐ
   // 設定（視点・名前・職業）は進行とは別に保存する（クリアしても消えない）
   if (!saveData.settings || !['fps', 'tps'].includes(saveData.settings.view)) saveData.settings = { ...(saveData.settings || {}), view: VIEW.defaultMode };
@@ -83,6 +85,7 @@ export function createGame() {
   game.allies = createAllies(game);
   game.hazards = createHazards(game);
   game.hudView = createHudView(game);
+  game.plates = createNameplates(game); // 頭上の名前と HP バー（味方・ボス）
   game.modal = createModalHost(game);
   game.dialog = createDialog(game, game.modal);
   game.ui = { dialog: game.dialog };
@@ -109,23 +112,49 @@ export function createGame() {
     game.players = roster.map((r, i) => createPlayer(game, i, { job: r.job, remote: r.id !== myId, id: r.id, name: r.name }));
     game.localIndex = Math.max(0, game.players.findIndex((p) => !p.remote));
     const me = game.me();
+    if (me.jobId === 'shifter') me.shift = { t: JOBS.shifter.shiftEvery };
     game.vm.setLook(me.job.look);
     game.setView?.(saveData.settings.view);
   }
 
   /** 自分の職業を変える（全滅したときの選び直し）。協力プレイでは 'ps' の job で他の人の画面も作り直される */
-  function changeMyJob(job) {
+  function changeMyJob(job, { shift = false } = {}) {
     const old = game.me();
     if (!old || old.jobId === job || !JOBS[job]) return;
     scene.remove(old.model.group);
     const np = createPlayer(game, game.localIndex, { job, remote: false, id: old.id, name: old.name });
     np.pos.copy(old.pos);
+    np.yaw = old.yaw;
     game.players[game.localIndex] = np;
-    saveData.settings.job = job;
-    store.save(saveData);
+    if (shift) {
+      // 変化師：HP の割合・必殺ゲージ・バフはそのまま、職業だけ入れ替わる
+      np.hp = Math.max(1, np.maxHp * (old.hp / old.maxHp));
+      np.gauge = old.gauge;
+      np.buffs = old.buffs;
+      np.alive = old.alive;
+      np.downed = old.downed;
+      np.invuln = old.invuln;
+      np.shift = old.shift;
+    } else {
+      saveData.settings.job = job;
+      store.save(saveData);
+      if (job === 'shifter') np.shift = { t: JOBS.shifter.shiftEvery };
+    }
     game.vm.setLook(np.job.look);
     game.setView(saveData.settings.view);
-    game.toast(`${np.job.name}に転職した！`, 1800);
+    game.toast(shift ? `変化！ ${np.job.name}になった` : `${np.job.name}に転職した！`, 1800);
+  }
+  game.changeMyJob = changeMyJob;
+  /** 変化師：決まった時間ごとに、ランダムな職業に入れ替わる（変化師そのものには戻らない） */
+  function updateShift(dt) {
+    const me = game.me();
+    if (!me?.shift || !me.alive) return;
+    me.shift.t -= dt;
+    if (me.shift.t <= 5 && me.shift.t + dt > 5) game.toastOnce('あと5秒で変化する……', 1500);
+    if (me.shift.t > 0) return;
+    me.shift.t = JOBS.shifter.shiftEvery;
+    const pool = JOB_ORDER.filter((j) => j !== 'shifter' && j !== me.jobId);
+    changeMyJob(pool[Math.floor(Math.random() * pool.length)], { shift: true });
   }
   /** 職業を選べるステージか（ステージ1 は剣士固定） */
   const canChangeJob = () => courseOf(game.state.progress.area) !== COURSES[0];
@@ -214,7 +243,20 @@ export function createGame() {
     const alive = game.bosses.filter((b) => b.alive);
     if (cmd.type === 'taunt') alive.forEach((b) => b.setTaunt(cmd.id, cmd.dur));
     else if (cmd.type === 'debuff') alive.filter((b) => cmd.sub === undefined || b.sub === cmd.sub).forEach((b) => b.setDebuff(cmd.name, cmd.dur, cmd.mul));
-    else if (cmd.type === 'detonate') game.allies.detonate(cmd.owner, cmd.mult, cmd.radius);
+    else if (cmd.type === 'pull') {
+      // 重力術師：近くのボスを (x,z) の方へ引き寄せる（壁は越えない）
+      for (const b of alive) {
+        const dx = cmd.x - b.pos.x;
+        const dz = cmd.z - b.pos.z;
+        const d = Math.hypot(dx, dz);
+        if (d > cmd.r || d < 1) continue;
+        const k = Math.min(cmd.dist, d - 1) / d;
+        b.pos.x += dx * k;
+        b.pos.z += dz * k;
+        game.world.collide(b.pos, b.radius);
+        game.fx.burst(b.pos.x, 2, b.pos.z, 0x7c4dff, 20, { speed: 4, up: 2, life: 0.5 });
+      }
+    } else if (cmd.type === 'detonate') game.allies.detonate(cmd.owner, cmd.mult, cmd.radius);
     else if (cmd.type === 'freeze') alive.forEach((b) => b.freeze(cmd.dur, cmd.immune));
     else if (cmd.type === 'summon') {
       if (cmd.kind === 'spirit') {
@@ -467,6 +509,7 @@ export function createGame() {
     input.lockPointer();
     if (pr.area === AREA_ORDER[0]) setTimeout(() => toast('迷路を抜けて北の出口へ。赤い結界は番人を全部倒すと消える', 4000), 800);
     if (pr.area === COURSES[1].start && !pr.bossStep) setTimeout(() => toast('中ボス2体を倒して、最奥の冥王を討て。近接で殴るとボスがブレイク（気絶）する', 4000), 800);
+    if (pr.area === 'wilds' && !pr.bossStep) setTimeout(() => toast('屋外の5連戦。竜や魔獣が相手。最後は古竜エルドラード', 4000), 800);
     if (pr.area === COURSES[2].start && !pr.bossStep) setTimeout(() => toast('5連戦。4戦目と5戦目はボスが2体同時に出る。攻撃は重い、油断するな', 4000), 800);
   }
 
@@ -490,6 +533,7 @@ export function createGame() {
       save: saveSettings,
       area: course.start,
       heading: `${course.label}　${course.name}`,
+      headingOf: (a) => { const c = courseOf(a); return `${c.label}　${c.name}`; },
       onSolo: ({ job }) => startSolo(newProgress(course.start), job),
       onBack: () => title(),
       onStart: ({ net, roster, step, area }) => startRaid(net, roster, step, area),
@@ -740,6 +784,7 @@ export function createGame() {
       game.raid.update(dt);
     }
     priestAura(dt, me);
+    updateShift(dt);
     // 祈祷師の近くにいると必殺ゲージが少しずつ溜まる
     if (me.alive && game.players.some((o) => o !== me && o.alive && o.jobId === 'shaman' && Math.hypot(o.pos.x - me.pos.x, o.pos.z - me.pos.z) <= 8)) me.addGauge(1.5 * dt);
     saveTimer += dt;
@@ -807,6 +852,7 @@ export function createGame() {
       game.vm.setVisible(game.cam.fps && me.alive);
       game.vm.update(dt, me, game.cam);
       ui.update(dt);
+      game.plates.update();
     }
     input.endFrame();
   });

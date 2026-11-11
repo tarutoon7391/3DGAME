@@ -46,6 +46,7 @@ export function strike(game, pl, target, mult, opts = {}) {
     if (ls && pl.alive && pl.hp !== undefined) pl.hp = Math.min(pl.maxHp, pl.hp + dmg * ls);
     // 格闘家：当て続けるほど強くなる
     if (J.chainPer && melee) pl.chain = Math.min(J.chainMax, (pl.chain || 0) + 1);
+    if (J.soulPer && !opts.clone) pl.soul = Math.min(J.soulMax, (pl.soul || 0) + J.soulPer); // 魂喰い
   }
   game.fx.text(target.pos.x, target.hpY ?? 2, target.pos.z, crit ? `${dmg}!` : String(dmg), clone ? '#ce93d8' : crit ? '#ffd54f' : '#ffffff', crit);
   game.fx.burst(target.pos.x, 1, target.pos.z, color, crit ? 14 : 8, { speed: 5, up: 3, life: 0.4 });
@@ -109,6 +110,12 @@ export function hurtPlayer(game, pl, frac, fromX, fromZ) {
     return true;
   }
   if (pl.invuln > 0) return false;
+  // 酔拳家・幽霊：一定の確率で攻撃をすり抜ける
+  if (pl.job.evade && Math.random() < pl.job.evade) {
+    pl.invuln = Math.max(pl.invuln, 0.35);
+    game.fx.text(pl.pos.x, 2.3, pl.pos.z, 'ひらり', '#b3e5fc');
+    return false;
+  }
   // 侍の見切り：構え中に攻撃を受けたら無傷で反撃
   if (pl.buffs.counter) {
     const c = pl.buffs.counter;
