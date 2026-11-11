@@ -600,9 +600,10 @@ function findSkill(p, id) {
 
 /** 技を実行する。専用の処理（SKILLS）が無ければ、データの kind に応じた汎用処理（GENERIC） */
 function run(game, p, id, d, local) {
-  if (SKILLS[id]) return SKILLS[id](game, p, d, local);
   const sk = findSkill(p, id);
-  if (sk && GENERIC[sk.kind]) GENERIC[sk.kind](game, p, d, local, sk);
+  if (SKILLS[id]) SKILLS[id](game, p, d, local);
+  else if (sk && GENERIC[sk.kind]) GENERIC[sk.kind](game, p, d, local, sk);
+  if (sk) game.skillFx?.skillCast?.(p, sk, d); // 技ごとの演出（data/skillvis.js のレシピ）
 }
 
 function cast(game, p, id, d) {

@@ -98,6 +98,21 @@ export function createViewModel(renderer, camera) {
   muzzle.renderOrder = ORDER + 3;
   muzzle.visible = false;
   R.twist.add(muzzle);
+  /** 武器の形の一番前（-Z）・上寄りを銃口とみなす */
+  function autoMuzzle() {
+    const bb = new THREE.Box3();
+    weapon.group.updateMatrix();
+    weapon.group.traverse((o) => {
+      if (!o.isMesh) return;
+      o.geometry.computeBoundingBox();
+      o.updateMatrix();
+      const m = new THREE.Matrix4();
+      for (let q = o; q && q !== weapon.group; q = q.parent) m.premultiply(q.matrix);
+      bb.union(o.geometry.boundingBox.clone().applyMatrix4(m));
+    });
+    if (bb.isEmpty()) return null;
+    return [(bb.min.x + bb.max.x) / 2, bb.min.y + (bb.max.y - bb.min.y) * 0.6, bb.min.z - 0.02].map((v) => +v.toFixed(3));
+  }
   let dragonOn = false;
   function setDragon(on) {
     if (on === dragonOn) return;
@@ -356,7 +371,8 @@ export function createViewModel(renderer, camera) {
       R.twist.rotation.y = Rp.twist;
       aura.update(dt, ench);
       // 銃口の光
-      const mz = weapon?.muzzle;
+      let mz = weapon?.muzzle;
+      if (mz === 'auto') mz = weapon.muzzle = autoMuzzle(); // 銃の形の一番前を銃口にする
       if (mz && p.muzzleT > 0) {
         muzzle.visible = true;
         muzzle.position.set(mz[0], mz[1], mz[2]);

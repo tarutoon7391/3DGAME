@@ -631,7 +631,7 @@ export const JOBS = {
     power: 0.52, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.08, speed: 38, mult: 0.28, color: 0xffe082, size: 0.12, range: 26, jitter: 0.12 },
     q: { id: 'suppress', kind: 'shots', name: '制圧射撃', desc: '2秒間 弾をばらまきながらボスを鈍らせる', cd: 9, count: 24, every: 0.08, jitter: 0.25, speed: 38, mult: 0.4, size: 0.13, range: 26, color: 0xffe082, debuff: { name: 'slow', dur: 3, mul: 0.75 } },
-    e: { id: 'reloadroll', kind: 'selfbuff', name: '弾込め回避', desc: '0.6秒 無敵になり、6秒間 攻撃力 +25%', cd: 9, buff: 'reload', dur: 6, vals: { atkMul: 1.25 }, invuln: 0.6, color: 0xbdbdbd, sound: 'dodge' },
+    e: { id: 'reloadroll', kind: 'selfbuff', move: true, name: '弾込め回避', desc: '転がって回避し（回避と同じ移動）、0.6秒 無敵・6秒間 攻撃力 +25%', cd: 9, buff: 'reload', dur: 6, vals: { atkMul: 1.25 }, invuln: 0.6, color: 0xbdbdbd, sound: 'dodge' },
     r: { id: 'gatling', kind: 'shots', name: 'ガトリング', desc: '4秒間 一番近いボスへ大量の弾を撃ち込む', aim: true, count: 50, every: 0.08, jitter: 0.15, speed: 42, mult: 0.55, size: 0.15, range: 30, color: 0xffab40 },
     trait: '撃ちっぱなしの超連射（1発は軽い）',
     breakMul: 1,
