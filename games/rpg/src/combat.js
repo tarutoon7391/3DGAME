@@ -56,7 +56,19 @@ export function strike(game, pl, target, mult, opts = {}) {
   const len = Math.hypot(dx, dz) || 1;
   const brk = dmg * (melee ? 1 : GAUGE.breakShot) * (J.breakMul ?? 1) * (opts.brkMul ?? 1);
   target.takeHit(game, dmg, dx / len, dz / len, knock, { brk, from: pl.id });
-  pl.addGauge(opts.gauge ?? (melee ? GAUGE.gainMelee : GAUGE.gainShot));
+  // 必殺ゲージ：通常攻撃は職業ごとの basicGauge（毎秒の上がり方が揃う）。
+  // 技などの小さなヒット（3 以下）は 2秒あたりの上限つき。大きな値（魂刈り・見切りの反撃など）は狙って決めた量なのでそのまま
+  const g = opts.gauge ?? GAUGE.gainSkill;
+  if (opts.basic || g > GAUGE.gainSkill) pl.addGauge(g);
+  else if (g > 0) {
+    const now = performance.now();
+    if (!pl.skillG || now - pl.skillG.t0 > GAUGE.skillCapWindow * 1000) pl.skillG = { t0: now, sum: 0 };
+    const add = Math.min(g, GAUGE.skillCap - pl.skillG.sum);
+    if (add > 0) {
+      pl.skillG.sum += add;
+      pl.addGauge(add);
+    }
+  }
   if (!pl.remote) {
     // 吸血（呪術師の特性・狂戦士の血の旋風）
     let ls = (J.lifesteal || 0) + (opts.lifesteal || 0);

@@ -80,7 +80,7 @@ export function createProjectiles(game) {
       vx: Math.sin(yaw) * o.speed, vz: Math.cos(yaw) * o.speed, dist: 0, age: 0,
       range: o.range || 24, size: o.size || 0.3, color: o.color || 0xffffff, mult: o.mult || 1,
       pierce: !!o.pierce, explode: o.explode || 0, wobble: !!o.wobble, local: o.local !== false,
-      gauge: o.gauge, hit: new Set(), onHit: o.onHit || null, dot: o.dot || null,
+      gauge: o.gauge, basic: !!o.basic, hit: new Set(), onHit: o.onHit || null, dot: o.dot || null,
       split: o.split || null, boomerang: !!o.boomerang, back: false,
     });
   }
@@ -89,7 +89,7 @@ export function createProjectiles(game) {
     game.fx.burst(s.x, 1, s.z, s.color, 30, { speed: 7, up: 4, life: 0.5, size: 0.2 });
     game.sound.se('slam');
     if (s.local) {
-      radiusHit(game, s.owner, s.mult, s.explode, { color: s.color, gauge: GAUGE.gainSkill }, s.x, s.z);
+      radiusHit(game, s.owner, s.mult, s.explode, { color: s.color, gauge: s.basic ? s.gauge : GAUGE.gainSkill, basic: s.basic }, s.x, s.z);
       s.onHit?.(null, s);
     }
   }
@@ -125,7 +125,7 @@ export function createProjectiles(game) {
               return;
             }
             if (s.local) {
-              strike(game, s.owner, e, shotMult(s.owner, e, s.mult), { color: s.color, knock: 0.3, gauge: s.gauge });
+              strike(game, s.owner, e, shotMult(s.owner, e, s.mult), { color: s.color, knock: 0.3, gauge: s.gauge, basic: s.basic });
               if (s.dot) addDot(game, s.owner, e, s.dot);
               s.onHit?.(e, s);
             }
@@ -135,7 +135,7 @@ export function createProjectiles(game) {
               const base = Math.atan2(s.vx, s.vz);
               for (let k = 0; k < n; k++) {
                 const a = base + (k - (n - 1) / 2) * (s.split.spread || 0.6);
-                playerShot(s.owner, s.x - Math.sin(a) * 0.8, s.z - Math.cos(a) * 0.8, a, { speed: 22, mult: s.split.mult, color: s.color, size: s.size * 0.7, range: 9, local: s.local, gauge: 1 });
+                playerShot(s.owner, s.x - Math.sin(a) * 0.8, s.z - Math.cos(a) * 0.8, a, { speed: 22, mult: s.split.mult, color: s.color, size: s.size * 0.7, range: 9, local: s.local, gauge: s.basic ? 0 : 1 });
               }
             }
             else game.fx.burst(s.x, 1, s.z, s.color, 4, { speed: 2, life: 0.25 });

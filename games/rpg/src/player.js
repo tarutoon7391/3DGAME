@@ -369,7 +369,7 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
           p.didHit = true;
           const crit = p.critNext || (last && J === JOBS.swordsman);
           const bonus = meleeBonus();
-          if (meleeArc(game, p, p.yaw, c.mult * bonus, J.basic.range + (last ? J.basic.heavyBonus : 0), J.basic.arc, { crit })) {
+          if (meleeArc(game, p, p.yaw, c.mult * bonus, J.basic.range + (last ? J.basic.heavyBonus : 0), J.basic.arc, { crit, gauge: J.basicGauge, basic: true })) {
             p.critNext = false;
             p.idleT = 0; // 溜め斬り：当てたら溜めはリセット
           }
