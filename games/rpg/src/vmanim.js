@@ -100,6 +100,42 @@ export function animateSpecial(V, k, Rp, Lp, setFlash) {
       Rp.x = -0.1 + (i % 2 ? -0.08 : 0.04);
       Rp.ry = (i % 2 ? 0.25 : -0.15);
     }
+  } else if (V.kind === 'plant') {
+    // 結界の衝撃：杖をそのままの向きで真上へ持ち上げ、地面へまっすぐ落とす（V.hit 秒で地面）
+    const t = V.t;
+    const up = smooth(0, V.hit * 0.6, t);
+    const down = smooth(V.hit * 0.65, V.hit, t);
+    const back = smooth(V.hit + 0.08, V.dur, t);
+    Rp.y += 0.24 * up - 0.46 * down * (1 - back) - 0.24 * up * back;
+    Rp.z += -0.04 * up + 0.04 * down;
+    Rp.x += -0.04 * up;
+    if (t > V.hit * 0.65 && t < V.hit + 0.1) setFlash(0x1a5a7a);
+  } else if (V.kind === 'throwdown') {
+    // 煙玉：腕を少し上げてから、地面へ叩きつけるように振り下ろす
+    const t = V.t;
+    const up = smooth(0, 0.12, t) * (1 - smooth(0.12, 0.2, t));
+    const down = smooth(0.12, 0.22, t) * (1 - smooth(0.3, V.dur, t));
+    Rp.rx += 0.6 * up - 1.4 * down;
+    Rp.y += 0.08 * up - 0.22 * down;
+    Rp.z += -0.18 * down;
+    Rp.x += -0.06 * down;
+  } else if (V.kind === 'cheer') {
+    // 大盤振る舞い：両手を3回 上へ振り上げて、コインをばらまく
+    const step = 0.35;
+    const t = V.t - 0.05;
+    const i = Math.floor(t / step);
+    if (t > 0 && i < 3) {
+      const f = (t - i * step) / step;
+      const up = f < 0.45 ? ease(f / 0.45) : 1 - ease((f - 0.45) / 0.55) * 0.6;
+      for (const [P, s] of [[Rp, 1], [Lp, -1]]) {
+        P.rx = 1.35 * up - 0.25;
+        P.ry = 0.25 * s * up;
+        P.rz = -0.2 * s * up;
+        P.x = -0.08 + 0.06 * up;
+        P.y = 0.2 * up - 0.02;
+        P.z = 0.05;
+      }
+    }
   } else if (V.kind === 'kiblast') {
     // 気功波：両手をそろえて前へ突き出す（波動拳）
     for (const P of [Rp, Lp]) {

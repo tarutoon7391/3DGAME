@@ -264,9 +264,9 @@ export const JOBS = {
     name: '雷術士', role: '連鎖する雷', color: '#fff176',
     power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.5, speed: 30, mult: 0.8, color: 0xfff176, size: 0.25, range: 24 },
-    q: { id: 'thunder', kind: 'zone', zone: 'strike', name: '落雷', desc: '狙った場所に0.7秒後 雷を落とす', cd: 5, at: 'aim', dist: 8, radius: 3.5, dur: 0.7, mult: 2.6, color: 0xfff176 },
+    q: { id: 'thunder', kind: 'zone', zone: 'strike', name: '落雷', desc: '一番近いボスの足元に0.7秒後 雷を落とす', cd: 5, at: 'boss', dist: 8, radius: 3.5, dur: 0.7, mult: 2.6, color: 0xfff176 },
     e: { id: 'chainbolt', kind: 'shots', name: '連鎖雷', desc: '当たった敵の周りの敵にも連鎖する雷を放つ', cd: 6, speed: 34, mult: 1.6, size: 0.35, color: 0xffee58, chain: { range: 8, mult: 1.0 } },
-    r: { id: 'tempest', kind: 'zone', zone: 'field', name: '雷嵐', desc: '自分の周りに5秒間 雷を降らせ続ける', radius: 6, dur: 5, every: 0.3, mult: 0.9, color: 0xfff176 },
+    r: { id: 'tempest', kind: 'zone', zone: 'field', name: '雷嵐', desc: '一番近いボスの周りに5秒間 雷を降らせ続ける。中の敵の足元から雷がはじける', at: 'boss', dist: 8, radius: 6, dur: 5, every: 0.3, mult: 0.9, color: 0xfff176 },
     trait: '会心率 +10%。会心のダメージ +20%',
     critBonus: 0.1, critDmgBonus: 0.2, breakMul: 1,
     look: { armorColor: 0x283593, swordColor: 0xfff176, swordLen: 0.9, cape: 0xf9a825, weapon: 'staff', hat: 0x1a237e },
@@ -276,7 +276,7 @@ export const JOBS = {
     power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.55, speed: 20, mult: 0.75, color: 0x80d8ff, size: 0.3, range: 22 },
     q: { id: 'ward', kind: 'teambuff', name: '守りの結界', desc: '周囲8mの味方にバリア（最大 HP の 25% を吸収・8秒）', cd: 12, radius: 8, buff: 'barrier', dur: 8, vals: { shield: 0.25 }, color: 0x80d8ff, msg: 'バリアが張られた！' },
-    e: { id: 'wardburst', kind: 'burst', name: '結界破裂', desc: '自分の周りに結界の衝撃を放つ', cd: 7, mult: 1.8, radius: 4.5, color: 0x80d8ff, melee: false, knock: 2 },
+    e: { id: 'wardburst', kind: 'burst', name: '結界破裂', desc: '自分の周りにバリアを張り、砕いた衝撃で攻撃する', cd: 7, windup: 0.35, anim: 'cast', mult: 1.8, radius: 4.5, color: 0x80d8ff, melee: false, knock: 2 },
     r: { id: 'greatward', kind: 'teambuff', name: '大結界', desc: '全員に大きなバリア（最大 HP の 60% を吸収・10秒）', buff: 'barrier', dur: 10, vals: { shield: 0.6 }, color: 0x40c4ff, msg: '大結界！ 大きなバリアが張られた' },
     trait: '自分にバリアがある間 攻撃力 +20%',
     barrierAtk: 1.2, breakMul: 1,

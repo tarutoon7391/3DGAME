@@ -311,7 +311,8 @@ export function createViewModel(renderer, camera) {
       sheath.visible = sheathVis;
       if (Rp.aim) R.holder.rotation.set(AIM_ROT[0], AIM_ROT[1], AIM_ROT[2]);
       else if (R.baseRot) R.holder.rotation.copy(R.baseRot);
-      // 左手（両手の拳の職業だけ）。左右反転して置く
+      // 左手（両手の拳の職業だけ。大盤振る舞いの両手の振り上げでも出す）。左右反転して置く
+      L.off.visible = !!weapon?.dual || p.vmAnim?.kind === 'cheer';
       if (L.off.visible) {
         L.off.position.set(LEFT_X - Lp.x, Lp.y, Lp.z);
         L.pivot.rotation.set(Lp.rx, -Lp.ry, -Lp.rz, 'YXZ');

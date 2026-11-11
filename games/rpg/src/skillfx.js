@@ -12,6 +12,7 @@ import { wallTexture, fillTexture } from './auratex.js';
 import { geo, sectorGeo, discGeo, columnGeo, beamGeo, ribbonGeo, ringGeo, glow, arrowGeo, hotOf, ease } from './fxkit.js';
 import { createSkillFxB } from './skillfx_b.js';
 import { createSkillFxC } from './skillfx_c.js';
+import { createSkillFxD } from './skillfx_d.js';
 
 /** 矢の雨：上へ放った矢が落ちてくるまでの間（秒）。この間は矢を降らせない（見た目だけ） */
 const RAIN_DELAY = 0.4;
@@ -189,7 +190,7 @@ export function createSkillFx(game) {
       arrows.userData.seeds = Array.from({ length: 24 }, () => [Math.random(), Math.random(), Math.random()]);
       g.add(arrows);
       mats.push(mA);
-    } else if (z.kind === 'strike') {
+    } else if (z.kind === 'strike' && z.skill !== 'thunder') { // 落雷は落ちる瞬間に本物の稲妻（skillfx_d.js）
       const mB = glow(color, 0.6, wallTexture());
       bolt = mesh(columnGeo(), mB);
       g.add(bolt);
@@ -337,10 +338,26 @@ export function createSkillFx(game) {
 
   const B = createSkillFxB({ game, root, add, mesh, column, sigil, streak, slash, slam });
   const Cx = createSkillFxC({ game, root, add, mesh, column, slash, streak });
+  const D = createSkillFxD({ game, root, add, mesh });
 
   return {
     ...B,
     ...Cx,
+    ...D,
+    /** 周囲攻撃の始まり（結界の衝撃はバリアを張る） */
+    burstStart(p, sk) {
+      if (sk.id === 'wardburst') D.wardStart(p, sk);
+      else Cx.burstStart(p, sk);
+    },
+    /** 周囲攻撃の1回ごと（結界の衝撃はバリアが砕ける） */
+    burstTick(p, sk, n, ticks) {
+      if (sk.id === 'wardburst') D.wardShatter(p, sk);
+      else Cx.burstTick(p, sk, n, ticks);
+    },
+    teamBuffFx(p, sk) {
+      Cx.teamBuffFx(p, sk);
+      D.teamBuffD(p, sk);
+    },
     slash(x, z, yaw, range, arc, color, o) {
       slash(x, z, yaw, range, arc, color, o);
     },
@@ -457,6 +474,7 @@ export function createSkillFx(game) {
     /** メテオ・矢の雨・落雷（auras.js の zoneAdded から回ってくる） */
     zoneAdded(z) {
       if (z.kind === 'meteor' || z.kind === 'arrowrain' || z.kind === 'strike') zoneFx(z);
+      if (z.skill === 'thunder' || z.skill === 'tempest') D.crackle(z); // 魔法陣にイナヅマが走る
       else if (z.kind === 'trap') Cx.trapFx(z); // トラバサミ・地雷
     },
 
@@ -478,6 +496,7 @@ export function createSkillFx(game) {
       Cx.updateTraps(dt);
       updateBuffRings(dt);
       updateCloneFrame(dt);
+      D.updateD(dt);
     },
 
     clear() {

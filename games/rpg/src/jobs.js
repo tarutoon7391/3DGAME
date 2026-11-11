@@ -305,7 +305,7 @@ const SKILLS = {
     const q = JOBS.chrono.q;
     startAction(p, 'cast', 0.4);
     game.sound.se('gate');
-    for (const b of game.bosses) if (b.alive) { ringFx(game, b.pos.x, b.pos.z, b.radius + 2, 0xb388ff); game.skillFx?.clock(b, q.dur, 'reverse'); } // 針が逆に回る時計
+    for (const b of game.bosses) if (b.alive) { ringFx(game, b.pos.x, b.pos.z, b.radius + 2, 0xb388ff); game.skillFx?.clock(b, q.dur, 'slow'); } // 針がゆっくり回る時計
     if (local) game.bossCommand({ type: 'debuff', name: 'slow', dur: q.dur, mul: q.mul });
   },
   timestop(game, p, d, local) {
@@ -704,7 +704,8 @@ const GENERIC = {
     };
     if (!local) {
       game.fx.burst(p.pos.x, 1, p.pos.z, sk.color, 24, { speed: 8, up: 1.5, life: 0.4, size: 0.15, grav: 2 });
-      game.skillFx?.spin(p.pos.x, p.pos.z, sk.radius, sk.color);
+      if (sk.id === 'wardburst') setTimeout(() => game.skillFx?.wardShatter?.(p, sk), windup * 1000); // 結界の衝撃：張ったバリアが砕ける
+      else game.skillFx?.spin(p.pos.x, p.pos.z, sk.radius, sk.color);
     }
   },
   cone(game, p, d, local, sk) {
@@ -715,6 +716,18 @@ const GENERIC = {
       const a = d.yaw + (Math.random() - 0.5) * sk.arc;
       const r = Math.random() * sk.range;
       game.fx.burst(p.pos.x + Math.sin(a) * r, 1.1, p.pos.z + Math.cos(a) * r, sk.color, 2, { speed: 2.5, up: 1, life: 0.35, grav: 0 });
+    }
+    // 盗む：誰かに当たったら、自分の画面に上矢印（盗んだ印）
+    if (local && sk.id === 'steal') {
+      let got = false;
+      forEachTarget(game, (e) => {
+        const dx = e.pos.x - p.pos.x;
+        const dz = e.pos.z - p.pos.z;
+        if (Math.hypot(dx, dz) > sk.range + e.radius) return;
+        const da = Math.atan2(Math.sin(Math.atan2(dx, dz) - d.yaw), Math.cos(Math.atan2(dx, dz) - d.yaw));
+        if (Math.abs(da) <= sk.arc / 2 + 0.3) got = true;
+      });
+      if (got) game.skillFx?.stealArrows?.();
     }
     if (local) {
       meleeArc(game, p, d.yaw, sk.mult, sk.range, sk.arc, { melee: sk.melee !== false, gauge: sk.gaugeSelf ?? GAUGE.gainSkill, brkMul: sk.brkMul, knock: sk.knock ?? 1.2, color: sk.color, crit: sk.crit, lifesteal: sk.lifesteal });
@@ -732,7 +745,7 @@ const GENERIC = {
     if (sk.aim && d.bx !== undefined) yaw = Math.atan2(d.bx - d.x, d.bz - d.z);
     const fire = (i) => {
       const a = yaw + (i - (n - 1) / 2) * (sk.spread || 0) + (sk.jitter ? (Math.random() - 0.5) * sk.jitter : 0);
-      const o = { speed: sk.speed || 22, mult: sk.mult, color: sk.color, size: sk.size || 0.3, range: sk.range || 24, pierce: sk.pierce, explode: sk.explode, dot: sk.dot, split: sk.split, boomerang: sk.boomerang, local, gauge: sk.gaugeSelf ?? GAUGE.gainSkill };
+      const o = { speed: sk.speed || 22, mult: sk.mult, color: sk.color, size: sk.size || 0.3, range: sk.range || 24, pierce: sk.pierce, explode: sk.explode, dot: sk.dot, split: sk.split, boomerang: sk.boomerang, local, gauge: sk.gaugeSelf ?? GAUGE.gainSkill, zap: !!sk.chain };
       if (sk.debuff) o.onHit = (t) => { if (t && game.bosses.includes(t)) game.bossCommand({ type: 'debuff', ...sk.debuff, sub: t.sub }); };
       if (sk.chain) o.onHit = chainHit(game, p, sk.chain, sk.color);
       game.projectiles.playerShot(p, p.pos.x, p.pos.z, a, o);
@@ -795,7 +808,7 @@ const GENERIC = {
         kind: sk.zone, x: at.x + Math.sin(a) * off, z: at.z + Math.cos(a) * off, r: sk.radius, t: sk.dur, delay: sk.delay,
         every: sk.every, tick: sk.every || 0, mult: (sk.mult || 0) * (sk.zone === 'trap' ? p.job.trapBonus || 1 : 1), color: sk.color,
         trigger: sk.trigger, buff: sk.buff, debuff: sk.debuff, heal: sk.heal, owner: p.id, local, p,
-        range: sk.range, explode: sk.explode, endBurst: sk.endBurst,
+        range: sk.range, explode: sk.explode, endBurst: sk.endBurst, skill: sk.id,
       });
     }
   },
@@ -810,7 +823,7 @@ const GENERIC = {
     startAction(p, 'cast', 0.35);
     game.sound.se(sk.sound || 'seal');
     game.fx.burst(p.pos.x, 1.4, p.pos.z, sk.color, 36, { speed: 5, up: 4, life: 0.7 });
-    game.skillFx?.powerUp(p, sk.color);
+    if (!game.skillFx?.selfBuffFx?.(p, sk)) game.skillFx?.powerUp(p, sk.color); // 煙玉は地面へ叩きつけて煙
     if (local) {
       p.buff(sk.buff, sk.dur, { ...sk.vals });
       if (sk.invuln) p.invuln = Math.max(p.invuln, sk.invuln);
@@ -828,7 +841,7 @@ const GENERIC = {
     startAction(p, 'cast', 0.4);
     game.sound.se('seal');
     game.fx.burst(p.pos.x, 2, p.pos.z, sk.color, 50, { speed: 7, up: 5, life: 0.9 });
-    game.skillFx?.powerUp(p, sk.color, true);
+    if (!game.skillFx?.teamGaugeFx?.(p, sk)) game.skillFx?.powerUp(p, sk.color, true); // 大盤振る舞いはコインをばらまく
     if (local) {
       game.teamEffect({ kind: 'gauge', amount: sk.amount, x: d.x, z: d.z, r: sk.radius || 0, from: p.id });
       if (sk.self) p.addGauge(sk.self);
@@ -1080,7 +1093,6 @@ function chainHit(game, p, ch, color) {
     if (!t) return;
     forEachTarget(game, (e) => {
       if (e === t || Math.hypot(e.pos.x - t.pos.x, e.pos.z - t.pos.z) > ch.range) return;
-      for (let k = 0; k < 1; k += 0.2) game.fx.burst(t.pos.x + (e.pos.x - t.pos.x) * k, 1.6, t.pos.z + (e.pos.z - t.pos.z) * k, color, 1, { speed: 0.5, up: 0.5, life: 0.25, grav: 0 });
       strike(game, p, e, ch.mult, { gauge: 1, knock: 0, color });
     });
   };
@@ -1263,6 +1275,7 @@ function addZone(game, z) {
 
 function removeZone(i) {
   const z = zones[i];
+  z.removed = true;
   z.aura?.remove();
   zoneGroup.remove(z.mesh);
   z.mat.dispose();
@@ -1316,6 +1329,10 @@ export function updateJobZones(game, dt) {
       if (z.tick <= 0) {
         z.tick = z.every;
         if (z.local && z.mult) radiusHit(game, z.p, z.mult, z.r, { gauge: 1, knock: 0.2, color: z.color }, z.x, z.z);
+        // 雷嵐：中にいる敵の足元から小さな雷がはじける（見た目だけ。全員の画面で）
+        if (z.skill === 'tempest') forEachTarget(game, (e) => {
+          if (Math.hypot(e.pos.x - z.x, e.pos.z - z.z) <= z.r + (e.radius || 0)) game.skillFx?.groundZap?.(e.pos.x, e.pos.z, z.color);
+        });
         if (z.heal) {
           const me = game.me();
           if (me?.alive && Math.hypot(me.pos.x - z.x, me.pos.z - z.z) <= z.r) me.hp = Math.min(me.maxHp, me.hp + me.maxHp * z.heal);
@@ -1335,6 +1352,7 @@ export function updateJobZones(game, dt) {
       z.mat.opacity = 0.4 + 0.4 * Math.sin(z.age * 20);
       if (z.t <= 0) {
         game.fx.burst(z.x, 0.6, z.z, z.color, 50, { speed: 10, up: 9, life: 0.7, size: 0.26 });
+        game.skillFx?.strikeHit?.(z); // 落雷：空から本物の稲妻
         game.skillFx?.slam(z.x, z.z, z.r, z.color);
         game.fx.shake(0.6);
         game.sound.se('slam');
