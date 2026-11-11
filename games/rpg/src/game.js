@@ -28,6 +28,7 @@ import { JOBS, JOB_ORDER, REVIVE, DEFAULT_JOB } from './data/jobs.js';
 import { updateJobZones, inAegis } from './jobs.js';
 import { hurtPlayer } from './combat.js';
 import { createRaid } from './raid.js';
+import { createTouch, isTouchDevice } from './ui/touch.js';
 import { fmtTime, clamp } from './util.js';
 
 const TITLE = '3DRPG 〜魔窟の主〜';
@@ -39,10 +40,23 @@ const CONTROLS = [
   'ダッシュと回避はスタミナを使う。0 になるとバテて、満タンに戻るまで使えない',
   'ホイール：カメラ距離（三人称）　Esc：ポーズ',
 ].join('\n');
+/** スマホ（横持ち）の操作説明 */
+const TOUCH_CONTROLS = [
+  '左側をドラッグ：移動（いっぱいに倒すとダッシュ）　右側をドラッグ：視点',
+  '攻撃ボタン：通常攻撃（長押しで出し続ける。押したままドラッグで狙いも動く）',
+  '回避・Q・E：スキル　R：必殺技（攻撃を当てて溜める）　調べる：看板の前で出る',
+  '上のボタン：視点の切り替え（一人称／三人称）・全画面・ポーズ',
+].join('\n');
 
 export function createGame() {
   const { renderer, scene, camera, start } = createApp({ canvas: document.getElementById('game') });
   const input = createInput(renderer.domElement);
+  // スマホ（横持ち）：タッチ操作の画面を重ねる。PC は ?touch で試せる
+  const touch = isTouchDevice() ? createTouch({
+    allowMouse: new URLSearchParams(location.search).has('touch'),
+    onPause: () => pause(),
+    onView: () => { if (!game.down) game.setView(game.cam.fps ? 'tps' : 'fps', true); },
+  }) : null;
   const audio = createAudio();
   const store = createSave('rpg');
   const saveData = store.load({ records: { clears: 0, bestTime: 0 }, progress: null });
@@ -56,7 +70,7 @@ export function createGame() {
   const saveSettings = () => store.save(saveData);
 
   const game = {
-    scene, camera, renderer, input, audio,
+    scene, camera, renderer, input, audio, touch,
     sound: createSound(audio),
     state: createState(newProgress()),
     world: null,
@@ -312,7 +326,7 @@ export function createGame() {
 
   // ---- ポインタロックとモーダル ----
   let expectUnlock = false;
-  const canLock = () => game.playing && !game.modal.open && !isOverlayOpen() && !game.down;
+  const canLock = () => !touch && game.playing && !game.modal.open && !isOverlayOpen() && !game.down;
   renderer.domElement.addEventListener('click', () => {
     if (canLock()) input.lockPointer();
   });
@@ -338,6 +352,9 @@ export function createGame() {
     setTimeout(() => { if (canLock()) input.lockPointer(); }, 0);
   };
 
+  document.addEventListener('visibilitychange', () => {
+    if (touch && document.hidden && game.playing && !game.modal.open && !isOverlayOpen() && !game.down) pause();
+  });
   let pausedAt = 0;
   function pause() {
     if (isPaused()) return;
@@ -347,7 +364,7 @@ export function createGame() {
       input.unlockPointer();
     }
     showPause({
-      onResume: () => input.lockPointer(),
+      onResume: () => { if (!touch) input.lockPointer(); },
       extra: `${game.world?.def.name || ''}　プレイ時間 ${fmtTime(game.state.progress.stats.time)}${game.raid ? '　（協力プレイ中はポーズしても時間は止まりません）' : ''}`,
     });
   }
@@ -701,7 +718,7 @@ export function createGame() {
     showTitle({
       title: TITLE,
       desc,
-      controls: CONTROLS,
+      controls: touch ? TOUCH_CONTROLS : CONTROLS,
       onStart: () => startCourse(COURSES[0]),
       startLabel: `${COURSES[0].label}　${COURSES[0].name}`,
       onContinue: has ? () => startSolo(saveData.progress, cont !== COURSES[0] ? saveData.settings.job || DEFAULT_JOB : DEFAULT_JOB) : undefined,
@@ -733,8 +750,13 @@ export function createGame() {
   const idleIntent = emptyIntent(); // 操作していないとき（ポーズ中の協力プレイなど）
   function readIntent() {
     const k = (c) => input.isDown(c);
-    const right = (k('KeyD') || k('ArrowRight') ? 1 : 0) - (k('KeyA') || k('ArrowLeft') ? 1 : 0);
-    const fwd = (k('KeyW') || k('ArrowUp') ? 1 : 0) - (k('KeyS') || k('ArrowDown') ? 1 : 0);
+    let right = (k('KeyD') || k('ArrowRight') ? 1 : 0) - (k('KeyA') || k('ArrowLeft') ? 1 : 0);
+    let fwd = (k('KeyW') || k('ArrowUp') ? 1 : 0) - (k('KeyS') || k('ArrowDown') ? 1 : 0);
+    const ts = touch?.state;
+    if (ts && (ts.mx || ts.my)) {
+      right = ts.mx;
+      fwd = ts.my;
+    }
     const v = game.cam.toWorld(right, fwd);
     const it = myIntent;
     it.moveX = v.x;
@@ -749,6 +771,15 @@ export function createGame() {
     it.skillE = input.wasPressed('KeyE');
     it.skillR = input.wasPressed('KeyR');
     it.interact = input.wasPressed('KeyF');
+    if (ts) {
+      it.attack ||= ts.attack || ts.pressed.has('attack');
+      it.dodge ||= ts.pressed.has('dodge');
+      it.dash ||= ts.dash;
+      it.skillQ ||= ts.pressed.has('skillQ');
+      it.skillE ||= ts.pressed.has('skillE');
+      it.skillR ||= ts.pressed.has('skillR');
+      it.interact ||= ts.pressed.has('interact');
+    }
     return it;
   }
 
@@ -873,6 +904,11 @@ export function createGame() {
     if (active && (input.mouse.locked || input.isDown('Mouse2'))) {
       game.cam.input({ dx: input.mouse.dx, dy: input.mouse.dy, wheel: input.mouse.wheel });
     } else if (active) game.cam.input({ wheel: input.mouse.wheel });
+    if (touch) {
+      if (active && (touch.state.lookDx || touch.state.lookDy)) game.cam.input({ dx: touch.state.lookDx, dy: touch.state.lookDy });
+      touch.setVisible(active && !game.down && !game.trans);
+      if (active) touch.update(game, game.me());
+    }
 
     if (active && game.trans) {
       const tr = game.trans;
@@ -916,6 +952,7 @@ export function createGame() {
       game.plates.update();
     }
     input.endFrame();
+    touch?.endFrame();
   });
 
   // タイトル背景用に村を表示しておく

@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>3DRPG | 3DGAME</title>
   <script type="importmap">
     { "imports": { "three": "/vendor/three/three.module.js", "three/addons/": "/vendor/three/addons/" } }
@@ -126,6 +126,67 @@
     .rpg-jobs-small{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
     .rpg-jobs-small .rpg-job{padding:6px 8px;font-size:11px}
     .rpg-jobs-small .rpg-job b{font-size:14px}
+    /* ---- スマホ（横持ち）のタッチ操作（src/ui/touch.js） ---- */
+    .rpg-touch{position:fixed;inset:0;z-index:13;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;font-family:system-ui,"Hiragino Sans",sans-serif}
+    .rt-look{position:absolute;inset:0}
+    .rt-stick{position:absolute;left:110px;bottom:0;top:auto;width:0;height:0;pointer-events:none;transform:translateY(-120px);opacity:.45}
+    .rt-stick.on{transform:none;opacity:1}
+    .rt-base{position:absolute;left:-60px;top:-60px;width:120px;height:120px;border-radius:50%;border:2px solid #ffffff66;background:#0b0f1666}
+    .rt-knob{position:absolute;left:-26px;top:-26px;width:52px;height:52px;border-radius:50%;background:#ffffffaa;box-shadow:0 0 8px #000a}
+    .rt-stick.dash .rt-knob{background:#ffee58;box-shadow:0 0 12px #ffee58}
+    .rt-btn{position:absolute;border-radius:50%;border:2px solid #ffffff55;background:#0b0f16a8;color:#fff;font:bold 13px inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0;overflow:hidden;touch-action:none;-webkit-tap-highlight-color:transparent}
+    .rt-btn b{font-size:16px;color:#ffd54f;line-height:1}
+    .rt-btn span{font-size:9px;font-weight:normal;color:#cfd8dc;max-width:90%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .rt-btn i{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#000a;font-style:normal;font-size:18px}
+    .rt-btn u{position:absolute;left:0;right:0;bottom:0;background:#ffee5855;text-decoration:none;pointer-events:none}
+    .rt-btn.down{background:#ffffff40;border-color:#fff}
+    .rt-btn.off{opacity:.55}
+    .rt-btn.ready{border-color:#ffee58;box-shadow:0 0 12px #ffee58;animation:rpgblink .8s infinite;opacity:1}
+    .rt-atk{right:calc(24px + env(safe-area-inset-right));bottom:24px;width:92px;height:92px;font-size:16px;border-color:#ff8a65aa}
+    .rt-dodge{right:calc(128px + env(safe-area-inset-right));bottom:16px;width:60px;height:60px}
+    .rt-q{right:calc(138px + env(safe-area-inset-right));bottom:88px;width:62px;height:62px}
+    .rt-e{right:calc(84px + env(safe-area-inset-right));bottom:140px;width:62px;height:62px}
+    .rt-r{right:calc(16px + env(safe-area-inset-right));bottom:132px;width:62px;height:62px}
+    .rt-f{right:calc(200px + env(safe-area-inset-right));bottom:150px;width:66px;height:42px;border-radius:10px;border-color:#ffd54f;color:#ffd54f}
+    .rt-top{position:absolute;top:8px;right:calc(150px + env(safe-area-inset-right));display:flex;gap:6px}
+    .rt-mini{border:1px solid #30363d;background:#0d1117cc;color:#c9d1d9;border-radius:6px;font:12px system-ui,sans-serif;padding:6px 10px;touch-action:manipulation}
+    .rpg-rotate{display:none;position:fixed;inset:0;z-index:60;background:#05070b;color:#fff;align-items:center;justify-content:center;text-align:center;font:18px/1.8 system-ui,"Hiragino Sans",sans-serif}
+    .rpg-rotate b{color:#ffd54f}
+    @media (orientation:portrait){body.rpg-touch-on .rpg-rotate{display:flex}}
+    /* タッチ時：HUD のスキル欄はボタンに映すので消す。地図は左上の状態の下へ小さく */
+    body.rpg-touch-on .rpg-skills{display:none}
+    body.rpg-touch-on .rpg-map{right:auto;left:8px;bottom:auto;top:118px;transform:scale(.5);transform-origin:top left;opacity:.85}
+    body.rpg-touch-on .rpg-party{top:44px}
+    body.rpg-touch-on .rpg-prompt{bottom:auto;top:62%}
+    body.rpg-touch-on canvas{touch-action:none}
+    /* 背の低い画面（スマホの横持ち）：HUD とメニューを詰める */
+    @media (max-height:520px){
+      body .g3-hud{transform:scale(.72);transform-origin:top left}
+      body .rpg-status{min-width:200px}
+      body .rpg-party{transform:scale(.8);transform-origin:top right}
+      body .rpg-boss{width:min(420px,50vw)}
+      body .rpg-banner{font-size:22px}
+      body .rpg-talk{bottom:8px;padding:8px 14px}
+      body .rpg-talk-text{font-size:14px;line-height:1.5}
+      body .g3-overlay{overflow:auto;align-items:flex-start;padding:8px 0}
+      body .g3-panel{padding:12px 18px;margin:auto;max-width:94vw}
+      body .g3-panel h1{font-size:1.3rem;margin-bottom:6px}
+      body .g3-panel h2{font-size:1.15rem;margin-bottom:6px}
+      body .g3-panel p{font-size:.85rem;margin-bottom:6px;line-height:1.45}
+      body .g3-controls{font-size:.72rem;padding:6px 10px;margin-bottom:8px}
+      body .g3-btn{padding:8px 14px;font-size:.9rem}
+      body .rpg-lobby{padding:6px}
+      body .rpg-lobby-panel{padding:8px 12px}
+      body .rpg-lobby h2{font-size:16px}
+      body .rpg-jobgrid{grid-template-columns:repeat(8,minmax(0,1fr))}
+      body .rpg-jobc{font-size:10px;padding:3px 4px}
+      body .rpg-jobc b{font-size:12px}
+      body .rpg-jobinfo{font-size:11px;line-height:1.4}
+      body .g3-toast{font-size:13px;padding:6px 12px}
+      body .rpg-tab{padding:3px 8px;font-size:11px}
+      body .rpg-tab b{font-size:12px}
+      body .rpg-lobby .rpg-small{font-size:11px;line-height:1.4}
+    }
   </style>
 </head>
 <body>
