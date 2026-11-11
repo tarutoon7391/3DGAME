@@ -20,6 +20,7 @@ import { VIEW } from './data/view.js';
 import { createHudView } from './ui/hudview.js';
 import { createModalHost, createDialog } from './ui/dialog.js';
 import { openLobby } from './ui/lobby.js';
+import { openJobPicker } from './ui/jobpick.js';
 import { createLights, loadArea, updateAreaLogic, checkSeals, bossDown, makeRoom } from './area.js';
 import { AREAS, AREA_ORDER, COURSES, courseOf } from './data/areas.js';
 import { JOBS, REVIVE, DEFAULT_JOB } from './data/jobs.js';
@@ -32,7 +33,7 @@ const TITLE = '3DRPG 〜魔窟の主〜';
 const CONTROLS = [
   'WASD：移動　Shift：ダッシュ　マウス：視点（画面クリックで視点ロック／右ドラッグでも可）',
   'V：一人称／三人称の切り替え（はじめは一人称）',
-  '左クリック：通常攻撃　Space：回避（無敵時間あり）　F：看板を調べる',
+  '左クリック：通常攻撃（長押しで出し続ける）　Space：回避（無敵時間あり）　F：看板を調べる',
   'Q・E：スキル（クールダウン）　R：必殺技（攻撃を当てて溜める。近接ほど早く溜まる）',
   'ダッシュと回避はスタミナを使う。0 になるとバテて、満タンに戻るまで使えない',
   'ホイール：カメラ距離（三人称）　Esc：ポーズ',
@@ -111,6 +112,23 @@ export function createGame() {
     game.vm.setLook(me.job.look);
     game.setView?.(saveData.settings.view);
   }
+
+  /** 自分の職業を変える（全滅したときの選び直し）。協力プレイでは 'ps' の job で他の人の画面も作り直される */
+  function changeMyJob(job) {
+    const old = game.me();
+    if (!old || old.jobId === job || !JOBS[job]) return;
+    scene.remove(old.model.group);
+    const np = createPlayer(game, game.localIndex, { job, remote: false, id: old.id, name: old.name });
+    np.pos.copy(old.pos);
+    game.players[game.localIndex] = np;
+    saveData.settings.job = job;
+    store.save(saveData);
+    game.vm.setLook(np.job.look);
+    game.setView(saveData.settings.view);
+    game.toast(`${np.job.name}に転職した！`, 1800);
+  }
+  /** 職業を選べるステージか（ステージ1 は剣士固定） */
+  const canChangeJob = () => courseOf(game.state.progress.area) !== COURSES[0];
 
   // ---- 視点（一人称／三人称）。V で切り替え、選んだ方を保存 ----
   game.setView = (mode, announce = false) => {
@@ -298,6 +316,11 @@ export function createGame() {
     game.sound.se('fall');
   };
 
+  /** 職業の選び直しをやめたとき：やられた画面を出し直す（やられた回数は増やさない） */
+  function finishDownAgain() {
+    game.state.progress.stats.deaths--;
+    finishDown();
+  }
   function finishDown() {
     const pr = game.state.progress;
     pr.stats.deaths++;
@@ -305,28 +328,48 @@ export function createGame() {
     expectUnlock = true;
     input.unlockPointer();
     game.hudView.show(false);
+    const retry = () => {
+      game.down = null;
+      loadArea(game, pr.area);
+      game.hudView.show(true);
+      input.lockPointer();
+    };
+    const extra = [];
+    if (canChangeJob()) {
+      // 職業を選び直してからやり直す（やめたら元の画面に戻る）
+      extra.push({ label: '職業を変えてやり直す', onClick: () => openJobPicker({
+        current: game.me().jobId,
+        title: 'やられてしまった…… 職業を選び直す',
+        onPick: (job, done) => {
+          if (!done) return;
+          changeMyJob(job);
+          retry();
+        },
+        onClose: () => { if (game.down) finishDownAgain(); },
+      }) });
+    }
+    extra.push({ label: 'タイトルへ', onClick: () => title() });
     showResult({
       title: 'やられてしまった……',
       lines: [pr.bossStep ? `${AREAS[pr.area].name}：倒したボスの次の部屋の前からやり直す（HP は全快）。` : `${AREAS[pr.area].name} の入口からやり直す（HP は全快、魔物は元に戻る）。`, `プレイ時間 ${fmtTime(pr.stats.time)}　やられた回数 ${pr.stats.deaths}`],
       retryLabel: pr.bossStep ? '部屋の前からやり直す' : '入口からやり直す',
-      onRetry: () => {
-        game.down = null;
-        loadArea(game, pr.area);
-        game.hudView.show(true);
-        input.lockPointer();
-      },
-      extraButtons: [{ label: 'タイトルへ', onClick: () => title() }],
+      onRetry: retry,
+      extraButtons: extra,
     });
   }
 
-  /** 協力プレイ：全員倒れたら（ホストが判定）3秒後に部屋の前からやり直し */
+  /** 協力プレイ：全員倒れたら（ホストが判定）全員に職業の選び直しを出し、WIPE_WAIT 秒後に部屋の前からやり直し */
+  const WIPE_WAIT = 8;
   let wipeT = 0;
   function checkWipe(dt) {
     if (!game.raid || game.isClient) return;
     if (game.players.every((p) => !p.alive)) {
-      if (wipeT === 0) game.withMirror(() => game.toast('全滅…… 3秒後に部屋の前からやり直し', 2800));
+      if (wipeT === 0) {
+        game.raid.broadcast('wipe', { wait: WIPE_WAIT });
+        onWipe({ wait: WIPE_WAIT });
+      }
       wipeT += dt;
-      if (wipeT > 3) {
+      if (wipeT > WIPE_WAIT) {
         wipeT = 0;
         const d = { step: game.state.progress.bossStep || 0 };
         game.raid.broadcast('restart', d);
@@ -334,8 +377,30 @@ export function createGame() {
       }
     } else wipeT = 0;
   }
+  /** 全滅：職業を選び直せる（決まった職業はやり直すときに反映） */
+  let pendingJob = null;
+  let picker = null;
+  function onWipe(d) {
+    game.toast(`全滅…… ${d.wait}秒後に部屋の前からやり直し。職業を変えられる`, 3000);
+    if (document.pointerLockElement) {
+      expectUnlock = true;
+      input.unlockPointer();
+    }
+    pendingJob = null;
+    picker?.close();
+    picker = openJobPicker({
+      current: game.me().jobId,
+      title: '全滅…… 職業を選び直す',
+      seconds: d.wait,
+      onPick: (job) => { pendingJob = job; },
+      onClose: () => { picker = null; },
+    });
+  }
   function onRestart(d) {
     closeAll();
+    picker?.close();
+    if (pendingJob) changeMyJob(pendingJob);
+    pendingJob = null;
     const pr = game.state.progress;
     pr.bossStep = d.step;
     pr.stats.deaths++;
@@ -488,6 +553,7 @@ export function createGame() {
       }
     },
     onRestart: (d) => (d.again ? againRaid(d) : onRestart(d)),
+    onWipe: (d) => onWipe(d),
     onClear: () => showClear(),
     onBecomeHost() {
       game.isClient = false;
@@ -570,7 +636,8 @@ export function createGame() {
     it.moveZ = v.z;
     it.aimYaw = game.cam.forwardYaw();
     it.lockYaw = game.cam.fps; // 一人称：体の向き＝視点の水平方向
-    it.attack = input.wasPressed('Mouse0');
+    // 左クリックは押しっぱなしで通常攻撃を出し続ける（近接はコンボが続き、飛び道具は撃てる間隔ごとに撃つ）
+    it.attack = input.isDown('Mouse0') || input.wasPressed('Mouse0');
     it.dodge = input.wasPressed('Space');
     it.dash = k('ShiftLeft') || k('ShiftRight');
     it.skillQ = input.wasPressed('KeyQ');

@@ -21,6 +21,16 @@ function disposeBosses(game) {
   game.bosses = [];
 }
 
+/** 暗いエリアの明るさの補正（大きくすると明るくなる） */
+const DARK_BOOST = {
+  hemi: 2.6, // 全体の明るさ（空の光）の倍率
+  sun: 1.8, // 太陽の光の倍率
+  lantern: 75, // 手元のランタンの強さ（元は 30）
+  lanternRange: 28, // ランタンが届く距離（元は 16）
+  fogNear: 10, // 霧が始まる距離を遠くへ
+  fogFar: 35, // 霧で見えなくなる距離を遠くへ
+};
+
 /** シーン共通のライト（エリアごとに色・強さを変える） */
 export function createLights(scene) {
   const hemi = new THREE.HemisphereLight(0xffffff, 0x445533, 0.8);
@@ -38,14 +48,17 @@ export function createLights(scene) {
   return {
     hemi, sun, lantern,
     apply(def) {
+      // 暗いエリア（魔窟・城・回廊）は見やすさのため明るめに補正する（DARK_BOOST）
+      const B = def.dark ? DARK_BOOST : null;
       scene.background = new THREE.Color(def.sky);
-      scene.fog = new THREE.Fog(def.sky, def.fog[0], def.fog[1]);
+      scene.fog = new THREE.Fog(def.sky, def.fog[0] + (B ? B.fogNear : 0), def.fog[1] + (B ? B.fogFar : 0));
       sun.color.setHex(def.sun.color);
-      sun.intensity = def.sun.intensity;
-      hemi.intensity = def.sun.hemi;
-      hemi.color.setHex(def.dark ? 0x8877aa : 0xffffff);
-      hemi.groundColor.setHex(def.dark ? 0x221a2a : 0x445533);
-      lantern.intensity = def.dark ? 30 : 0;
+      sun.intensity = def.sun.intensity * (B ? B.sun : 1);
+      hemi.intensity = def.sun.hemi * (B ? B.hemi : 1);
+      hemi.color.setHex(def.dark ? 0xb8b0d8 : 0xffffff);
+      hemi.groundColor.setHex(def.dark ? 0x4a4058 : 0x445533);
+      lantern.intensity = B ? B.lantern : 0;
+      lantern.distance = B ? B.lanternRange : 16;
     },
     follow(p) {
       sun.position.set(p.x + 18, 32, p.z + 12);

@@ -109,6 +109,16 @@ export function createRaid(game, net, handlers) {
       game.players.push(p);
       handlers.onRosterChange?.();
     }
+    // 職業が変わっていたら（全滅したときの選び直し）分身を作り直す
+    if (p.remote && s.job && p.jobId !== s.job) {
+      const i = game.players.indexOf(p);
+      game.scene.remove(p.model.group);
+      const np = createPlayer(game, i, { job: s.job, remote: true, id: from, name: s.name });
+      np.reset(s.x, s.z, s.yaw);
+      game.players[i] = np;
+      p = np;
+      handlers.onRosterChange?.();
+    }
     p.net = s;
   });
   on('hurt', (d) => {
@@ -136,6 +146,7 @@ export function createRaid(game, net, handlers) {
     for (const ev of ws.ev) replay(ev);
   });
   on('restart', (d) => handlers.onRestart(d));
+  on('wipe', (d) => handlers.onWipe?.(d));
   on('clear', (d) => handlers.onClear(d));
   on('start', (d) => handlers.onStart?.(d));
 
