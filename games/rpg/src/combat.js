@@ -1,9 +1,13 @@
 // ダメージ計算と、攻撃の当たり判定（プレイヤー→敵、敵→プレイヤー）
 // 協力プレイ：自分の攻撃の当たり判定は自分のブラウザで行い、ホストのボス・雑魚には「何ダメージ当てた」を送る
 // 敵→他の人への攻撃は、その人のブラウザへ「当たった」を送り、向こうで無敵などを見て判定する
+import { courseOf, COURSES } from './data/areas.js';
 import { angleDiff, yawTo } from './util.js';
 import { PLAYER } from './data/player.js';
 import { GAUGE } from './data/jobs.js';
+
+/** 敵の攻撃の基準 HP：frac × この値がダメージ（遠距離職の標準 HP。変更前と同じ痛さ） */
+const ENEMY_HIT_BASE_HP = 110;
 
 /**
  * 攻撃力×倍率を、防御で割合カット（防御 8 で約 2割減）して ±10% のぶれ。最低1（プレイヤー→敵）
@@ -123,7 +127,7 @@ export function radiusHit(game, pl, mult, radius, opts = {}, cx = pl.pos.x, cz =
 /**
  * 敵の攻撃をプレイヤーに当てる。無敵中は false
  * 他の人（remote）なら、その人のブラウザへ送って向こうで判定する
- * @param {number} frac 最大 HP に対する割合（data/player.js の HIT）
+ * @param {number} frac 攻撃の重さ（data/player.js の HIT）。ステージ1 は最大 HP の割合、ステージ2〜5 は frac × 110 の固定ダメージ
  */
 export function hurtPlayer(game, pl, frac, fromX, fromZ) {
   if (!pl.alive) return false;
@@ -158,7 +162,10 @@ export function hurtPlayer(game, pl, frac, fromX, fromZ) {
   }
   // 重騎士の守護結界の中にいれば被ダメ半減
   if (game.inAegis?.(pl.pos.x, pl.pos.z)) pl.buff('aegis', 0.2);
-  let dmg = Math.max(1, Math.ceil(pl.maxHp * frac * pl.dmgTakenMul()));
+  // 敵の攻撃は「決まった量」のダメージ（frac × 基準 HP 110）。HP が多い職ほど実際に硬い
+  // ステージ1 だけは剣士固定で調整してあるので、従来どおり最大 HP の割合
+  const base = courseOf(game.state.progress.area) === COURSES[0] ? pl.maxHp : ENEMY_HIT_BASE_HP;
+  let dmg = Math.max(1, Math.ceil(base * frac * pl.dmgTakenMul()));
   // 剣闘士：正面（向いている方向の左右60°）からの攻撃は 40% カット
   if (pl.job.frontGuard) {
     const toFrom = Math.atan2(fromX - pl.pos.x, fromZ - pl.pos.z);

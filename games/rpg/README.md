@@ -71,6 +71,7 @@
 追加の16職（罠士〜鞭使い）の技は、`src/jobs.js` の汎用の型（`kind`：dash・burst・cone・shots・leap・zone・teambuff・selfbuff・teamheal・teamgauge・debuff・counter・random・beam・cleanse・mimic・cycle・blink・blinkbehind・mark。zone は field・strike・totem・trap・aegis・turret・talisman）をデータで組み合わせて作っている。新しい技はデータを書くだけで足せる。**技の id は全職で重ならないようにする**（重なると後から書いた方が上書きして、別の職業の技が化ける）。
 
 - 近接職の底上げ：通常攻撃が近接の職業は、データを書いた後に HP 2.3倍・攻撃力 3.5倍・被ダメージ -20%・スタミナ +100 を一括で掛けている（`data/jobs.js` の `MELEE_BUFF`。表の数字は掛ける前）
+- 敵の攻撃は固定ダメージ（攻撃の重さ × 110。`combat.js` の `ENEMY_HIT_BASE_HP`）。HP が多い職ほど実際に硬い。ステージ1 だけは剣士固定で調整してあるので従来どおり最大 HP の割合
 - ヒーラーは僧侶が一番強い（Q 40%/10秒＋周囲 毎秒1% ≒ 毎秒 5%）。呪術師（吸血 3%・1回最大 1.5%、R は周り10mに合計 16%）・治癒拳士（殴った分の回復は 1.2秒ごと最大 2.5%、E は 12%/12秒）はその半分程度に抑えている
 - ダメージ計算：防御は割合でカット（`攻撃力×倍率×30/(30+防御)`）。固定値引きだと1発の軽い攻撃（連射・多段）がほぼ 1 ダメージになっていたため
 
