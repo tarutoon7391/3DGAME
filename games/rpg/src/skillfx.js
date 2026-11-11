@@ -16,6 +16,7 @@ import { createSkillFxD } from './skillfx_d.js';
 import { createSkillFxE } from './skillfx_e.js';
 import { createSkillFxF } from './skillfx_f.js';
 import { createSkillFxG } from './skillfx_g.js';
+import { createSkillVis } from './skillvis.js';
 
 /** 矢の雨：上へ放った矢が落ちてくるまでの間（秒）。この間は矢を降らせない（見た目だけ） */
 const RAIN_DELAY = 0.4;
@@ -193,7 +194,7 @@ export function createSkillFx(game) {
       arrows.userData.seeds = Array.from({ length: 24 }, () => [Math.random(), Math.random(), Math.random()]);
       g.add(arrows);
       mats.push(mA);
-    } else if (z.kind === 'strike' && !['thunder', 'starfall', 'meteorshower'].includes(z.skill)) { // 落雷は落ちる瞬間に本物の稲妻（skillfx_d.js）
+    } else if (z.kind === 'strike' && !['thunder', 'starfall', 'meteorshower'].includes(z.skill) && !V.hidesColumn(z.skill)) { // 落雷は落ちる瞬間に本物の稲妻（skillfx_d.js）
       const mB = glow(color, 0.6, wallTexture());
       bolt = mesh(columnGeo(), mB);
       g.add(bolt);
@@ -345,6 +346,7 @@ export function createSkillFx(game) {
   const E = createSkillFxE({ game, root, add, mesh, slash, streak, column });
   const F = createSkillFxF({ game, root, add, mesh });
   const G = createSkillFxG({ game, root, add, mesh, slash, column, slam });
+  const V = createSkillVis({ game, add, mesh, slash, column, slam, streak }); // レシピで出す演出（data/skillvis.js）
 
   return {
     ...B,
@@ -353,6 +355,20 @@ export function createSkillFx(game) {
     ...E,
     ...F,
     ...G,
+    /** 技を使った瞬間（jobs.js の run から。全員の画面で）。レシピがあれば出す */
+    skillCast(p, sk, d) {
+      V.cast(p, sk, d);
+    },
+    /** 時間差の一撃が落ちた */
+    strikeHit(z) {
+      D.strikeHit(z);
+      V.land(z);
+    },
+    /** 跳ぶ技の着地 */
+    leapLand(p, sk) {
+      F.leapLand(p, sk);
+      V.landing(p, sk);
+    },
     /** 自分強化の技ごとの見た目。true を返すと、いつもの光の柱は出さない */
     selfBuffFx(p, sk) {
       if (sk.id === 'enchant') E.enchantFx(p);
@@ -382,7 +398,7 @@ export function createSkillFx(game) {
       else if (sk.id === 'bigbang') F.bigBang(p, sk); // 手品の大爆発（派手に）
       else if (sk.id === 'holysmite') G.smiteHit(p, sk); // 聖なる縦斬り
       else if (sk.id === 'chainstorm') G.stormTick(p, sk, n); // ×字の高速斬り
-      else Cx.burstTick(p, sk, n, ticks);
+      else if (!V.tick(p, sk, n, ticks)) Cx.burstTick(p, sk, n, ticks); // レシピの1回ごと（noSpin ならいつもの輪は出さない）
     },
     teamBuffFx(p, sk) {
       Cx.teamBuffFx(p, sk);
@@ -509,6 +525,11 @@ export function createSkillFx(game) {
       if (z.skill === 'thunder' || z.skill === 'tempest') D.crackle(z); // 魔法陣にイナヅマが走る
       if (z.skill === 'starfall' || z.skill === 'meteorshower') E.meteors(z); // 光る隕石が降る
       else if (z.kind === 'trap') Cx.trapFx(z); // トラバサミ・地雷
+      V.zone(z); // レシピの見た目（爆撃・槍の雨・時限爆弾など）
+    },
+    /** 置いたエリア（auras.js から。field・totem・aegis）にレシピの見た目を足す */
+    zoneVis(z) {
+      V.zone(z);
     },
 
     update(dt) {
@@ -530,6 +551,7 @@ export function createSkillFx(game) {
       updateBuffRings(dt);
       updateCloneFrame(dt);
       D.updateD(dt);
+      V.update(dt);
       F.updateF(dt);
     },
 

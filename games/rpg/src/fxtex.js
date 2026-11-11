@@ -511,3 +511,18 @@ export function wingIconTexture() {
     c.stroke();
   });
 }
+
+/** 記号1文字のマーク（♥・✚・★・☾・♪・⚔・☠ など）。白で描くので材質の色で塗る。ふちを少しぼかして光らせる */
+export function glyphTexture(ch) {
+  return make('glyph:' + ch, 128, 128, (c, w) => {
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    c.font = 'bold 92px "Segoe UI Symbol","Apple Symbols","Noto Sans Symbols2","Noto Sans Symbols","DejaVu Sans",sans-serif';
+    c.shadowColor = 'rgba(255,255,255,0.9)';
+    c.shadowBlur = 14;
+    c.fillStyle = '#ffffff';
+    c.fillText(ch, w / 2, w / 2 + 4);
+    c.shadowBlur = 0;
+    c.fillText(ch, w / 2, w / 2 + 4);
+  });
+}

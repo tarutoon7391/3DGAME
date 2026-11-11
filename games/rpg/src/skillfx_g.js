@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { geo, glow, hotOf, ease } from './fxkit.js';
 import { starTexture, wingIconTexture } from './fxtex.js';
 import { WEAPONS } from './weaponmodel.js';
+import { GUN_JOBS } from './data/skillvis.js';
 
 const sprite = (map, color, opacity = 1) => new THREE.SpriteMaterial({
   map, color, transparent: true, opacity, depthWrite: false, blending: THREE.AdditiveBlending,
@@ -168,7 +169,7 @@ export function createSkillFxG({ game, root, add, mesh, slash, column, slam }) {
   // ---------------- 拳銃使い ----------------
   function muzzle(p) {
     const spec = WEAPONS[p.jobId];
-    if (!spec?.muzzle) return;
+    if (!spec?.muzzle && !GUN_JOBS.includes(p.jobId)) return;
     p.muzzleT = 0.07; // 一人称の銃口の光（viewmodel.js）
     if (p === game.me?.() && p.hideBody) return; // 一人称の自分は手元で光らせる
     const x = p.pos.x + Math.sin(p.yaw) * 0.95 + Math.cos(p.yaw) * -0.3;

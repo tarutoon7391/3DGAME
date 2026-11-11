@@ -15,6 +15,7 @@ import { WEAPONS_A } from './data/weapons_a.js';
 import { WEAPONS_B } from './data/weapons_b.js';
 import { WEAPONS_C } from './data/weapons_c.js';
 import { WEAPONS_D } from './data/weapons_d.js';
+import { LAST_VERTICAL, GUN_JOBS } from './data/skillvis.js';
 
 /** 職業 id → 武器の形（全96職。足りない職は剣士の剣） */
 export const WEAPONS = { ...WEAPONS_A, ...WEAPONS_B, ...WEAPONS_C, ...WEAPONS_D };
@@ -97,5 +98,5 @@ export function buildWeapon(id, colors, makeMat) {
     group.add(mesh);
   }
   if (spec.scale) group.scale.setScalar(spec.scale);
-  return { group, hold: spec.hold || 'up', rot: spec.rot, pos: spec.pos, style: spec.style || 'swing', dual: !!spec.dual, lastV: !!spec.lastV, muzzle: spec.muzzle || null, flashMats, mats };
+  return { group, hold: spec.hold || 'up', rot: spec.rot, pos: spec.pos, style: spec.style || 'swing', dual: !!spec.dual, lastV: !!spec.lastV || LAST_VERTICAL.includes(id), muzzle: spec.muzzle || (GUN_JOBS.includes(id) ? 'auto' : null), flashMats, mats };
 }
