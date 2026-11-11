@@ -1174,6 +1174,8 @@ function chainHit(game, p, ch, color) {
 export function basicShot(game, p, yaw) {
   const b = p.job.basic;
   const d = { x: p.pos.x, z: p.pos.z, yaw, still: p.still > 0.3 };
+  // 双子：場に出ているハートじゃない方の色（ハートが無ければ青）。tc：1 ならピンク
+  if (p.job.e?.swap) d.tc = (p.swapN || 0) % 2;
   shoot(game, p, d, true);
   game.raid?.sendSkill(p, '_shot', d);
 }
@@ -1183,6 +1185,7 @@ function shoot(game, p, d, local) {
   // 双子：通常攻撃が2発（count・spread）
   const n = b.count || 1;
   const o = { ...b, mult, local, gauge: p.job.basicGauge, basic: true }; // 通常攻撃：ゲージは職業ごとの basicGauge
+  if (d.tc !== undefined) o.color = d.tc ? 0xff80ab : 0x64b5f6; // 双子の弾の色（入れ替わりのハートと逆）
   if (b.debuff) o.onHit = (t) => { if (t && game.bosses.includes(t)) game.bossCommand({ type: 'debuff', ...b.debuff, sub: t.sub }); };
   game.skillFx?.muzzle?.(p); // 拳銃：銃口が光る
   for (let i = 0; i < n; i++) {
