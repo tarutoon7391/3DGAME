@@ -131,11 +131,39 @@ export const AREAS = {
     ],
     signs: [{ x: 3.5, z: 42, key: 'abyss' }],
   },
+
+  // ステージ4：竜の高原（屋外）。広さと部屋の区切りはステージ3 と同じ。ボスは竜・獣・多頭の蛇（人型ではない）
+  wilds: {
+    name: 'ステージ4　竜の高原', stage: 6, bgm: 'field', wallH: 3.2, castle: true, outdoor: true,
+    bounds: { minX: -22, maxX: 22, minZ: -164, maxZ: 50 },
+    sky: 0x8fd3ff, fog: [70, 200], ground: 0x7cb342,
+    sun: { color: 0xfff8e1, intensity: 3.0, hemi: 1.3 }, // いちばん明るい（屋外の昼）
+    palette: { wall: 0x8d8d80, trim: 0xa1a191, rock: 0x7d7d70, pillar: 0x8d8d80, tileA: 0x7cb342, tileB: 0x8bc34a, flame: 0xffeb3b, flameGlow: 0xffc107, light: 0xfff59d, carpet: 0x8d6e63 },
+    carpet: false,
+    spawn: { x: 0, z: 44 },
+    gates: [],
+    solids: [
+      { minX: -22, maxX: -5, minZ: 30, maxZ: 50 },
+      { minX: 5, maxX: 22, minZ: 30, maxZ: 50 },
+    ],
+    doors: [{ z: 30, gap: 3 }, { z: -4, gap: 3 }, { z: -38, gap: 3 }, { z: -72, gap: 3.5 }, { z: -114, gap: 3.5 }],
+    pillars: [],
+    torches: [],
+    bosses: [
+      { key: 'wyvern', x: 0, z: 12, triggerZ: 25, door: 0, respawn: { x: 0, z: 44 }, circle: 0xff7043, label: '第1の原' },
+      { key: 'behemoth', x: 0, z: -22, triggerZ: -9, door: 1, respawn: { x: 0, z: -0.5 }, circle: 0x8d6e63, label: '第2の原' },
+      { key: 'hydra', x: 0, z: -56, triggerZ: -43, door: 2, respawn: { x: 0, z: -34.5 }, circle: 0x26a69a, label: '第3の原' },
+      { x: 0, z: -94, triggerZ: -77, door: 3, respawn: { x: 0, z: -68.5 }, circle: 0xffca28, label: '第4の原（2体同時）',
+        pair: [{ key: 'griffon', x: -7, z: -94 }, { key: 'manticore', x: 7, z: -98 }] },
+      { key: 'eldragon', x: 0, z: -142, triggerZ: -120, door: 4, respawn: { x: 0, z: -110.5 }, circle: 0xd50000, label: '竜の玉座' },
+    ],
+    signs: [{ x: 3.5, z: 42, key: 'wilds' }],
+  },
 };
 
 
 /** ステージの順番（つづきから・移行用） */
-export const AREA_ORDER = ['forest', 'canyon', 'dungeon', 'castle', 'abyss'];
+export const AREA_ORDER = ['forest', 'canyon', 'dungeon', 'castle', 'abyss', 'wilds'];
 
 /** 古いセーブ（version 1）のエリア id → 新しい id */
 export const OLD_AREA_MAP = { village: 'forest', field: 'canyon', dungeon: 'dungeon' };
@@ -155,7 +183,11 @@ export const COURSES = [
   },  {
     key: 'abyss', label: 'ステージ3', name: '深淵の回廊', start: 'abyss', areas: ['abyss'], recKey: 'records3',
     desc: 'ボス5連戦。4戦目と5戦目は2体同時。ステージ2 より硬く、攻撃も重い', clearMsg: '深淵の王と女王を討ち果たした！',
+  },  {
+    key: 'wilds', label: 'ステージ4', name: '竜の高原', start: 'wilds', areas: ['wilds'], recKey: 'records4',
+    desc: '屋外でドラゴンや魔獣と5連戦。4戦目は2体同時、最後は古竜', clearMsg: '古竜エルドラードを打ち倒した！',
   },
+
 
 ];
 

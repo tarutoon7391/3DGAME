@@ -68,7 +68,7 @@
     .rpg-party .down{color:#ff5252;font-weight:bold}
     /* ---- レイドの準備画面 ---- */
     .rpg-lobby{position:fixed;inset:0;z-index:20;background:#05070bcc;display:flex;align-items:center;justify-content:center;font-family:system-ui,"Segoe UI","Hiragino Sans","Yu Gothic UI",sans-serif;color:#f0f4f8;overflow:auto;padding:16px;box-sizing:border-box}
-    .rpg-lobby-panel{background:#0d1424f2;border:1px solid #30363d;border-radius:14px;padding:16px 20px;width:min(1040px,100%);max-height:100%;overflow:auto;box-sizing:border-box}
+    .rpg-lobby-panel{background:#0d1424f2;border:1px solid #30363d;border-radius:14px;padding:12px 18px;width:min(1040px,100%);max-height:100%;overflow:auto;box-sizing:border-box}
     .rpg-lobby h2{margin:0 0 6px;color:#ffd54f;font-size:20px}
     .rpg-small{font-size:12px;color:#9fb1c2;line-height:1.6}
     .rpg-lobby-msg{color:#ffcc80}
@@ -88,6 +88,41 @@
     .rpg-members{margin:6px 0;padding-left:18px;line-height:1.8}
     /* ---- 全滅時の職業の選び直し（小さめのカード） ---- */
     .rpg-jobpick{z-index:25}
+    /* ---- 職業のタブと小さなカード（スクロールしなくても収まる） ---- */
+    .rpg-tabs{display:flex;gap:6px;margin:8px 0 6px}
+    .rpg-tab{background:#0b0f16;border:1px solid #30363d;border-radius:8px;color:#9fb1c2;padding:5px 12px;cursor:pointer;font:inherit;font-size:12px}
+    .rpg-tab b{color:#ffd54f;font-size:14px;margin-right:4px}
+    .rpg-tab.on{border-color:#ffd54f;color:#fff;background:#1a2233}
+    .rpg-jobgrid{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:5px}
+    .rpg-jobc{background:#0b0f16;border:2px solid #30363d;border-radius:8px;color:#dfe7ef;padding:4px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;font:inherit;font-size:11px;line-height:1.3;min-width:0}
+    .rpg-jobc b{color:var(--c);font-size:14px;white-space:nowrap}
+    .rpg-jobc span{color:#9fb1c2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+    .rpg-jobc.sel{border-color:var(--c);box-shadow:0 0 10px var(--c);background:#141c2e}
+    .rpg-jobinfo{margin:6px 0;background:#0b0f16;border:1px solid var(--c);border-radius:10px;padding:6px 10px;font-size:12px;line-height:1.55}
+    .rpg-jobinfo b{color:var(--c);font-size:15px}
+    .rpg-jobinfo em{font-style:normal;background:#ffd54f;color:#000;border-radius:3px;padding:0 4px;margin-right:4px;font-weight:bold}
+    .rpg-jobinfo .trait{color:#ffe082}
+    @media (max-width:900px){.rpg-jobgrid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+    /* ---- ルームの参加者（横並びの札）と準備完了のチェック ---- */
+    .rpg-room .rpg-members{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0 0;padding:0;line-height:1.4}
+    .rpg-mem{background:#141c2e;border:1px solid #30363d;border-radius:8px;padding:3px 8px;font-size:12px;display:inline-flex;gap:5px;align-items:center}
+    .rpg-mem.ready{border-color:#69f0ae}
+    .rpg-check{font-style:normal;color:#00e676;font-weight:bold;font-size:15px;text-shadow:0 0 6px #00e67688}
+    .g3-btn[disabled]{opacity:.45;cursor:not-allowed}
+    /* ---- 頭上の名前と HP バー ---- */
+    .rpg-plates{position:fixed;inset:0;pointer-events:none;z-index:11;overflow:hidden;font-family:system-ui,"Segoe UI","Hiragino Sans","Yu Gothic UI",sans-serif}
+    .rpg-plate{position:absolute;left:0;top:0;text-align:center;color:#fff;text-shadow:0 1px 3px #000,0 0 2px #000;font-size:12px;white-space:nowrap}
+    .rpg-plate small{color:#cfd8dc;font-size:10px}
+    .rpg-plate .bar{width:70px;height:6px;margin:2px auto 0;background:#000b;border:1px solid #ffffff44;border-radius:3px;overflow:hidden}
+    .rpg-plate .bar>div{height:100%}
+    .rpg-plate .dn{color:#ff5252;font-weight:bold}
+    .rpg-plate.pinch .bar{border-color:#ff1744;box-shadow:0 0 8px #ff1744}
+    .rpg-plate.pinch .nm{animation:rpgpinch .5s infinite}
+    @keyframes rpgpinch{50%{color:#ff1744;text-shadow:0 0 8px #ff1744}}
+    .rpg-plate.boss{font-size:14px;font-weight:bold;color:#ffccbc}
+    .rpg-plate.boss .bar{width:120px;height:8px;border-color:#ff8a65}
+    .rpg-plate.boss .bar>div{background:linear-gradient(90deg,#b71c1c,#ff5252)}
+    .rpg-plate.boss.stun .bar{box-shadow:0 0 8px #ffee58}
     .rpg-jobs-small{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
     .rpg-jobs-small .rpg-job{padding:6px 8px;font-size:11px}
     .rpg-jobs-small .rpg-job b{font-size:14px}

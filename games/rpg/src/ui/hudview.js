@@ -91,7 +91,7 @@ export function createHudView(game) {
     const tired = me.tired;
     const stColor = tired ? '#ff7043' : me.stamina < STAMINA.max * 0.3 ? '#ffca28' : '#ffee58';
     hud(`<div class="rpg-status">
-      <div><b class="rpg-lv">${esc(game.world?.def.name || '')}</b><span class="rpg-area">${esc(me.job.name)}</span></div>
+      <div><b class="rpg-lv">${esc(game.world?.def.name || '')}</b><span class="rpg-area">${esc(me.job.name)}${me.shift ? `（変化師・あと ${Math.ceil(me.shift.t)} 秒で変化）` : ''}</span></div>
       <div class="rpg-row"><span>HP</span>${bar(me.hp, me.maxHp, me.hp / me.maxHp < 0.3 ? '#ff5252' : '#66bb6a')}<span>${Math.ceil(me.hp)}/${me.maxHp}</span></div>
       <div class="rpg-row"><span>ST</span>${bar(me.stamina, STAMINA.max, stColor, 180, tired ? 'tired' : '')}<span class="${tired ? 'rpg-tired' : ''}">${tired ? 'バテ！' : Math.floor(me.stamina)}</span></div>
       <div class="rpg-goal">◆ ${esc(goal())}</div>
@@ -234,6 +234,7 @@ export function createHudView(game) {
     },
     show(v) {
       root.style.display = v ? '' : 'none';
+      game.plates?.show(v);
       if (!v) hud('');
     },
     update(dt) {

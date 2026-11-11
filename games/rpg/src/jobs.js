@@ -329,7 +329,7 @@ const SKILLS = {
   },
 
   // ================= E スキル（クールダウン制。職業ごとに Q とも R とも違う技） =================
-  gale(game, p, d, local) {
+  galethrust(game, p, d, local) {
     dashStrike(game, p, d, local, JOBS.swordsman.e, 0xcfd8dc);
   },
   bash(game, p, d, local) {
@@ -456,7 +456,7 @@ const SKILLS = {
     game.sound.se('windup');
     addZone(game, { kind: 'mine', x: d.x, z: d.z, r: e.radius, trigger: e.trigger, t: e.dur, mult: e.mult, owner: p.id, local, p });
   },
-  spread(game, p, d, local) {
+  cursespread(game, p, d, local) {
     const e = JOBS.warlock.e;
     startAction(p, 'cast', 0.35);
     game.sound.se('seal');
@@ -605,6 +605,11 @@ const GENERIC = {
       n++;
       game.fx.burst(p.pos.x, 1, p.pos.z, sk.color, 24, { speed: 8, up: 1.5, life: 0.4, size: 0.15, grav: 2 });
       if (local) radiusHit(game, p, sk.mult, sk.radius, { melee: sk.melee !== false, gauge: GAUGE.gainSkill, color: sk.color, brkMul: sk.brkMul, knock: sk.knock ?? 1.2 });
+      // 爆弾魔の自爆：撃ち終わったら自分の HP が残りわずかになる
+      if (local && sk.selfHpTo && n >= ticks) {
+        p.hp = Math.min(p.hp, sk.selfHpTo);
+        game.fx.burst(p.pos.x, 1, p.pos.z, 0x212121, 30, { speed: 5, up: 5, life: 0.8 });
+      }
     };
     if (!local) game.fx.burst(p.pos.x, 1, p.pos.z, sk.color, 24, { speed: 8, up: 1.5, life: 0.4, size: 0.15, grav: 2 });
   },
@@ -670,7 +675,10 @@ const GENERIC = {
   zone(game, p, d, local, sk) {
     startAction(p, 'cast', 0.35);
     game.sound.se(sk.zone === 'trap' ? 'windup' : 'seal');
-    const at = sk.at === 'aim' ? { x: d.tx, z: d.tz } : { x: d.x, z: d.z };
+    // at：self（足元）/ aim（狙った場所）/ boss（一番近いボスの足元。いなければ狙った場所）
+    const at = sk.at === 'boss' && d.bx !== undefined ? { x: d.bx, z: d.bz } : sk.at === 'aim' || sk.at === 'boss' ? { x: d.tx, z: d.tz } : { x: d.x, z: d.z };
+    // 重力術師：その場所へボスを引き寄せる
+    if (sk.pullBoss && local) game.bossCommand({ type: 'pull', x: at.x, z: at.z, dist: sk.pullBoss, r: sk.pullRange || 30 });
     const count = sk.count || 1;
     for (let i = 0; i < count; i++) {
       // 複数置くときは輪の形にばらす（罠の大地など）
@@ -720,6 +728,13 @@ const GENERIC = {
     for (const b of game.bosses) if (b.alive) ringFx(game, b.pos.x, b.pos.z, b.radius + 2, sk.color);
     if (local) for (const db of sk.debuffs) game.bossCommand({ type: 'debuff', ...db });
   },
+  selfhurt(game, p, d, local, sk) {
+    // ギャンブラーの外れ：自分が痛い
+    startAction(p, 'cast', 0.3);
+    game.sound.se('hurt');
+    game.fx.burst(p.pos.x, 1.4, p.pos.z, 0x9e9e9e, 20, { speed: 3, up: 3, life: 0.5 });
+    if (local) p.hp = Math.max(1, p.hp - p.maxHp * sk.frac);
+  },
   counter(game, p, d, local, sk) {
     startAction(p, 'cast', sk.dur);
     game.sound.se('windup');
@@ -757,7 +772,9 @@ export function basicShot(game, p, yaw) {
 function shoot(game, p, d, local) {
   const b = p.job.basic;
   const mult = b.mult * (d.still && p.job.stillBonus ? p.job.stillBonus : 1);
-  game.projectiles.playerShot(p, d.x, d.z, d.yaw, { ...b, mult, local });
+  // 双子：通常攻撃が2発（count・spread）
+  const n = b.count || 1;
+  for (let i = 0; i < n; i++) game.projectiles.playerShot(p, d.x, d.z, d.yaw + (i - (n - 1) / 2) * (b.spread || 0), { ...b, mult, local });
   game.sound.se('shoot');
 }
 SKILLS._shot = (game, p, d, local) => {
