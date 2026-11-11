@@ -20,9 +20,10 @@ const smashTick = (color, r, big = false) => () => [vm('bigchop', 0.32), ['slam'
 
 export const SKILL_VIS = {
   // ---- 暗黒騎士 ----
-  darkblade: { cast: [vm('iai', 0.34), vert({ r: 5, color: 0x880e4f, at: 0.12 }), ['skulls', { color: 0x880e4f, at: 0.15 }], ['flash', { where: 'front', dist: 3, color: 0x880e4f, size: 5, at: 0.15 }], shake(0.4)] },
+  darkblade: { cast: [vm('iai', 0.4, { glow: 0x5a1a8a }), ['orbit', { color: 0xb388ff, n: 14, r: 0.7, h: 2.2, dur: 0.45, spin: 6, size: 0.3 }], vert({ r: 5, color: 0x9c27b0, at: 0.14 }), vert({ r: 5.4, color: 0x6a1b9a, white: false, at: 0.18, dur: 0.4 }), ['flash', { where: 'front', dist: 3, color: 0xb388ff, size: 5, at: 0.16 }], ['shake', { amt: 0.4, at: 0.14 }]] },
   darkveil: { cast: [vm('raise', 0.7), ['orbit', { tex: 'smoke', color: 0x6a1b9a, n: 12, r: 1, h: 2.4, rise: 0.5, size: 1.2, opacity: 0.7 }], ['dome', { color: 0x4a148c, r: 1.6, dur: 0.8 }]] },
-  darkrelease: { cast: [vm('raise', 0.6), ['whiteout', { css: '#2a0012', max: 0.55 }], ['column', { color: 0x880e4f, r: 1.6, h: 7, dur: 0.6 }]], tick: () => [['explode', { color: 0x880e4f, r: 3.5, big: true }], ['skulls', { color: 0x880e4f }], shake(0.5)], noSpin: true },
+  // 暗黒解放：剣を掲げて（windup 0.35秒）、周りに闇の雷を降らせる
+  darkrelease: { cast: [vm('raise', 1.4, { glow: 0x5a1a8a }), ['whiteout', { css: '#12001f', max: 0.55, dur: 1.3 }], ['orbit', { color: 0xb388ff, n: 16, r: 1, h: 3, dur: 1.3, rise: 1.2, size: 0.35 }]], tick: () => [['bolt', { where: 'self', n: 3, spread: 4.5, color: 0x6a1b9a, core: 0xe1bee7, size: 1.1, gap: 0.05 }], ['slam', { r: 5, color: 0x7b1fa2 }], shake(0.5)], noSpin: true },
   // ---- 祈祷師（トーテムは足元に杖を突き立てる） ----
   wartotem: { cast: [vm('plant', 0.6, { hit: 0.3 }), ['flash', { color: 0xff7043, size: 4, at: 0.3 }]], zone: { loop: { type: 'rise', glyph: '⚔', every: 0.35, h: 2.5, size: 0.5, life: 1.2 } } },
   healtotem: { cast: [vm('plant', 0.6, { hit: 0.3 }), ['flash', { color: 0x69f0ae, size: 4, at: 0.3 }]], zone: { loop: { type: 'rise', glyph: '✚', every: 0.3, h: 2.5, size: 0.5, life: 1.2 } } },

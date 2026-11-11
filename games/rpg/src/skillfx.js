@@ -359,6 +359,13 @@ export function createSkillFx(game) {
     skillCast(p, sk, d) {
       V.cast(p, sk, d);
     },
+    /** ほかの人の周囲攻撃（1回ごとの処理は自分の画面でしか進まない）：レシピの1回ごとを時間どおりに出す */
+    visTicks(p, sk, windup = 0) {
+      if (!V.hasTick(sk.id)) return false;
+      const ticks = sk.ticks || 1;
+      for (let n = 1; n <= ticks; n++) setTimeout(() => V.tick(p, sk, n, ticks), (windup + (n - 1) * (sk.every || 0.2)) * 1000);
+      return true;
+    },
     /** 時間差の一撃が落ちた */
     strikeHit(z) {
       D.strikeHit(z);

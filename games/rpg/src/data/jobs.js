@@ -391,7 +391,7 @@ export const JOBS = {
     basic: { type: 'melee', combo: [{ dur: 0.42, hit: 0.15, mult: 1.2 }, { dur: 0.42, hit: 0.15, mult: 1.25 }, { dur: 0.6, hit: 0.24, mult: 2.0 }], range: 2.9, arc: 2.4, heavyBonus: 0.4 },
     q: { id: 'darkblade', kind: 'cone', name: '暗黒剣', desc: 'HP を 8% 払って、前方に強烈な闇の斬撃', cd: 5, hpCost: 0.08, mult: 2.8, range: 4.5, arc: 1.8, color: 0x880e4f },
     e: { id: 'darkveil', kind: 'selfbuff', name: '闇の衣', desc: 'HP を 5% 払って、5秒間 被ダメージ -40%', cd: 12, hpCost: 0.05, buff: 'veil', dur: 5, vals: { dmgMul: 0.6 }, color: 0x4a148c },
-    r: { id: 'darkrelease', kind: 'burst', name: '暗黒解放', desc: 'HP を 20% 払って、周りに3回 闇を爆発させる', hpCost: 0.2, ticks: 3, every: 0.25, mult: 2.6, radius: 5, color: 0x880e4f },
+    r: { id: 'darkrelease', kind: 'burst', name: '暗黒解放', desc: 'HP を 20% 払い、剣を掲げて周りに闇の雷を3回降らせる', hpCost: 0.2, windup: 0.35, anim: 'cast', ticks: 3, every: 0.25, mult: 2.6, radius: 5, color: 0x880e4f },
     trait: 'HP を払うと、払った分だけ必殺ゲージが溜まる',
     hpCostGauge: 0.8, breakMul: 1.2,
     look: { armorColor: 0x212121, swordColor: 0x880e4f, swordLen: 1.1, cape: 0x4a148c, weapon: 'sword' },

@@ -290,5 +290,6 @@ export function animateSpecial(V, k, Rp, Lp, setFlash) {
       setFlash(0x2a5a3a);
     }
   }
+  if (V.glow) setFlash(V.glow); // 技のあいだ武器を光らせる（暗黒剣の紫など）
   return out;
 }

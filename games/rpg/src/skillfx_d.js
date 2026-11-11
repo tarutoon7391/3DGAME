@@ -58,12 +58,12 @@ export function createSkillFxD({ game, root, add, mesh }) {
   const fx = () => game.skillFx;
 
   /** 稲妻を1本出す：lines（折れ線と太さ）を色の太い帯＋白い芯で描き、ちらつきながら消える */
-  function lightning(lines, color, dur, w) {
+  function lightning(lines, color, dur, w, core = 0xffffff) {
     const g = new THREE.Group();
     const gOuter = stripGeo(lines, w);
     const gCore = stripGeo(lines, w * 0.32);
     const mO = glow(color, 1);
-    const mC = glow(0xffffff, 1);
+    const mC = glow(core, 1); // 芯の色（闇の雷は薄紫）
     g.add(new THREE.Mesh(gOuter, mO), new THREE.Mesh(gCore, mC));
     g.traverse((o) => {
       o.frustumCulled = false;
@@ -89,7 +89,7 @@ export function createSkillFxD({ game, root, add, mesh }) {
   }
 
   /** 空から稲妻が落ちる（落雷）。枝わかれつき */
-  function bolt(x, z, color, size = 1) {
+  function bolt(x, z, color, size = 1, core = 0xffffff) {
     const top = new V3(x + (Math.random() - 0.5) * 3, 22, z + (Math.random() - 0.5) * 3);
     const main = jag(top, new V3(x, 0, z), 14, 0.9 * size);
     const lines = [{ pts: main, w: 1 }];
@@ -104,9 +104,9 @@ export function createSkillFxD({ game, root, add, mesh }) {
       const r = 1.5 + Math.random() * 2 * size;
       lines.push({ pts: jag(new V3(x, 0.1, z), new V3(x + Math.sin(a) * r, 0.15, z + Math.cos(a) * r), 4, 0.35), w: 0.35 });
     }
-    lightning(lines, color, 0.45, 0.55 * size);
+    lightning(lines, color, 0.45, 0.55 * size, core);
     flash(x, 0.8, z, color, 7 * size, 0.4);
-    flash(x, 0.8, z, 0xffffff, 3.5 * size, 0.25);
+    flash(x, 0.8, z, core, 3.5 * size, 0.25);
   }
 
   /** 足元から小さな雷がはじける（雷嵐を踏んでいる敵） */

@@ -152,7 +152,7 @@ export function createSkillVis({ game, add, mesh, slash, column, slam, streak })
             const w = where(c, o.where ?? 'target');
             const a = Math.random() * Math.PI * 2;
             const sp = n > 1 ? (o.spread ?? 2.5) * Math.random() : 0;
-            fx().bolt?.(w.x + Math.sin(a) * sp, w.z + Math.cos(a) * sp, col, o.size ?? 1);
+            fx().bolt?.(w.x + Math.sin(a) * sp, w.z + Math.cos(a) * sp, col, o.size ?? 1, o.core ?? 0xffffff);
           });
         }
         break;
@@ -286,6 +286,7 @@ export function createSkillVis({ game, add, mesh, slash, column, slam, streak })
 
   return {
     has: (id) => !!SKILL_VIS[id],
+    hasTick: (id) => !!SKILL_VIS[id]?.tick,
     /** 技を使った瞬間 */
     cast(p, sk, d) {
       const R = SKILL_VIS[sk?.id];
