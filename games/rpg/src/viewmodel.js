@@ -67,9 +67,48 @@ export function createViewModel(renderer, camera) {
     const hp = weapon.pos || HOLD_POS[weapon.hold] || HOLD_POS.up;
     holder.position.set(hp[0], hp[1], hp[2]);
     handMesh.visible = weapon.hold !== 'fist'; // 籠手・爪は手にかぶせる
+    if (ghostWeapon) {
+      ghostHolder.remove(ghostWeapon.group);
+      ghostWeapon.mats.forEach((m) => m.dispose());
+    }
+    ghostWeapon = buildWeapon(jobId, { metal: lk.swordColor, accent, armor: lk.armorColor }, (c) => ghostMat(c));
+    ghostWeapon.group.traverse((o) => {
+      if (!o.isMesh) return;
+      o.renderOrder = ORDER + 1;
+      o.frustumCulled = false;
+    });
+    ghostHolder.add(ghostWeapon.group);
+    ghostHolder.rotation.set(r[0], -r[1], -r[2]); // 左手なので左右反転
+    ghostHolder.position.set(-hp[0], hp[1], hp[2]);
+    ghostHandMesh.visible = handMesh.visible;
     flashMats = weapon.flashMats;
     weaponId = jobId;
   }
+  // ---- 影分身中だけ出る、左側の薄い手（本体より少し遅れて同じ動きをする＝2回攻撃） ----
+  const ghostRoot = new THREE.Group();
+  ghostRoot.position.set(-0.3, 0.03, 0.05);
+  ghostRoot.visible = false;
+  root.add(ghostRoot);
+  const ghostPivot = new THREE.Group();
+  ghostRoot.add(ghostPivot);
+  const ghostMat = (color) => new THREE.MeshBasicMaterial({
+    color: new THREE.Color(color).lerp(new THREE.Color(0xb388ff), 0.65), transparent: true, opacity: 0.38,
+    depthWrite: false, blending: THREE.AdditiveBlending,
+  });
+  const ghostArmMat = ghostMat(0x7e57c2);
+  mats.push(ghostArmMat);
+  add(new THREE.BoxGeometry(0.11, 0.11, 0.42), ghostArmMat, 0, 0, -0.19, ghostPivot);
+  const ghostHand = new THREE.Group();
+  ghostHand.position.set(0, 0, -0.42);
+  ghostPivot.add(ghostHand);
+  const ghostHandMesh = add(new THREE.BoxGeometry(0.1, 0.1, 0.1), ghostArmMat, 0, 0, 0, ghostHand);
+  const ghostHolder = new THREE.Group();
+  ghostHand.add(ghostHolder);
+  let ghostWeapon = null;
+  const history = []; // 本体の腕の向きの記録 [{ t, rx, ry, rz }]
+  let clock = 0;
+  const GHOST_DELAY = 0.12; // 分身の追い打ち（combat.js）と同じ遅れ
+
   equip(DEFAULT_JOB, look, 0xffd54f);
 
   // 深度を消すための見えない板（ビューモデルより先に描かれる）
@@ -166,10 +205,30 @@ export function createViewModel(renderer, camera) {
         x += 0.06 * k;
         rz -= 0.5 * k;
       }
+      // 矢の雨など：真上へ向けて放つ（p.aimUpT 秒）
+      if (p.aimUpT > 0) {
+        const k = Math.sin(Math.min(1, 1 - p.aimUpT / 0.45) * Math.PI);
+        rx += 1.15 * k;
+        y += 0.1 * k;
+        p.aimUpT -= dt;
+      }
       if (p.waveT <= 0 && a !== 'cast') setFlash(spinVis > 0 ? 0x1f4f6f : 0x000000);
       spinVis = Math.max(0, spinVis - dt * 4);
       root.position.set(x, y, z);
       pivot.rotation.set(rx, ry, rz, 'YXZ');
+      // 影分身：左の薄い手が少し遅れて同じ動きをする
+      clock += dt;
+      history.push({ t: clock, rx, ry, rz });
+      while (history.length > 2 && history[1].t <= clock - GHOST_DELAY) history.shift();
+      const clone = p.buffs?.clone;
+      ghostRoot.visible = !!(clone && clone.t > 0);
+      if (ghostRoot.visible) {
+        const h = history[0];
+        ghostPivot.rotation.set(h.rx, -h.ry, -h.rz, 'YXZ'); // 左右反転した動き
+        const o = 0.3 + 0.12 * Math.sin(clock * 6);
+        ghostArmMat.opacity = o;
+        ghostWeapon?.mats.forEach((m) => (m.opacity = o));
+      }
     },
     /** 職業の見た目に替える（防具の色と、手に持つ武器） */
     setLook(lk, jobId = DEFAULT_JOB, color = '#ffd54f') {
@@ -181,6 +240,7 @@ export function createViewModel(renderer, camera) {
       geos.forEach((g) => g.dispose());
       mats.forEach((m) => m.dispose());
       weapon?.mats.forEach((m) => m.dispose());
+      ghostWeapon?.mats.forEach((m) => m.dispose());
     },
   };
   return vm;

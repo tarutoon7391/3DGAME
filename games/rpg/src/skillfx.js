@@ -6,7 +6,8 @@
 // 数値は src/data/skillfx.js
 import * as THREE from 'three';
 import { DUR, HIT, BUFF_COLOR, BUFF_IGNORE } from './data/skillfx.js';
-import { slashTexture, streakTexture, starTexture, crackTexture, sigilTexture } from './fxtex.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { slashTexture, streakTexture, starTexture, crackTexture, sigilTexture, noteTexture, staffTexture, hexGridTexture } from './fxtex.js';
 import { wallTexture, fillTexture } from './auratex.js';
 
 const geoCache = new Map();
@@ -29,6 +30,34 @@ function glow(color, opacity = 1, map = null) {
     blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -2,
   });
 }
+/** 矢（矢じり・羽根つき）。+Y 向き、長さ約 1.5m。色は頂点色 */
+function arrowGeo() {
+  return geo('arrow', () => {
+    const parts = [];
+    const paint = (g, hex) => {
+      g = g.index ? g.toNonIndexed() : g;
+      const c = new THREE.Color(hex);
+      const n = g.attributes.position.count;
+      const arr = new Float32Array(n * 3);
+      for (let i = 0; i < n; i++) arr.set([c.r, c.g, c.b], i * 3);
+      g.setAttribute('color', new THREE.BufferAttribute(arr, 3));
+      g.deleteAttribute('uv');
+      parts.push(g);
+    };
+    paint(new THREE.CylinderGeometry(0.035, 0.035, 1.3, 5), 0x8d6e63);
+    paint(new THREE.ConeGeometry(0.1, 0.3, 4).translate(0, 0.8, 0), 0xcfd8dc);
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2;
+      paint(new THREE.BoxGeometry(0.012, 0.28, 0.15).translate(0, -0.5, 0.08).rotateY(a), 0xa5d6a7);
+    }
+    paint(new THREE.CylinderGeometry(0.05, 0.05, 0.05, 6).translate(0, -0.64, 0), 0x4e342e);
+    return mergeGeometries(parts, false);
+  });
+}
+
+/** 矢の雨：上へ放った矢が落ちてくるまでの間（秒）。この間は矢を降らせない（見た目だけ） */
+const RAIN_DELAY = 0.4;
+
 const hotOf = (color, k = 0.5) => new THREE.Color(color).lerp(new THREE.Color(0xffffff), k).getHex();
 const ease = (k) => 1 - (1 - k) * (1 - k);
 
@@ -194,12 +223,8 @@ export function createSkillFx(game) {
       root.add(trail);
       mats.push(mT, mT2);
     } else if (z.kind === 'arrowrain') {
-      const mA = new THREE.MeshLambertMaterial({ color: 0xd7ccc8, emissive: 0x8d6e63 });
-      const ag = geo('rainArrow', () => {
-        const shaft = new THREE.CylinderGeometry(0.05, 0.05, 1.2, 5);
-        return shaft.translate(0, 0.55, 0);
-      });
-      arrows = new THREE.InstancedMesh(ag, mA, 24);
+      const mA = new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0x3e2723 });
+      arrows = new THREE.InstancedMesh(arrowGeo(), mA, 24);
       arrows.userData.seeds = Array.from({ length: 24 }, () => [Math.random(), Math.random(), Math.random()]);
       g.add(arrows);
       mats.push(mA);
@@ -231,11 +256,13 @@ export function createSkillFx(game) {
         if (arrows) {
           const tmp = new THREE.Object3D();
           arrows.userData.seeds.forEach(([a, b, c], i) => {
-            const ph = (age * 1.6 + c) % 1;
+            // 上に放った矢が落ちてくるまで（RAIN_DELAY 秒）は降らせない
+            const ph = (Math.max(0, age - RAIN_DELAY) * 1.6 + c) % 1;
             const rr = Math.sqrt(a) * z.r;
-            tmp.position.set(Math.sin(b * 6.28) * rr, 6 * (1 - ph), Math.cos(b * 6.28) * rr);
-            tmp.rotation.set(Math.PI, 0, 0);
-            tmp.scale.setScalar(ph > 0.95 ? 0.01 : 1);
+            const yy = 9 * (1 - ph) + 0.6;
+            tmp.position.set(Math.sin(b * 6.28) * rr + 0.25 * (1 - ph), yy, Math.cos(b * 6.28) * rr);
+            tmp.rotation.set(Math.PI, b * 6.28, 0.12);
+            tmp.scale.setScalar(ph > 0.96 || age < RAIN_DELAY + c * 0.5 ? 0.01 : 1);
             tmp.updateMatrix();
             arrows.setMatrixAt(i, tmp.matrix);
           });
@@ -322,6 +349,29 @@ export function createSkillFx(game) {
       rec.rings.forEach((m) => m.material.dispose());
       buffRings.delete(p);
     }
+  }
+
+  // ---------------- 影分身中の紫の枠（画面の縁） ----------------
+  let cloneFrame = null;
+  let frameT = 0;
+  function updateCloneFrame(dt) {
+    if (typeof document === 'undefined') return;
+    const me = game.me?.();
+    const b = me?.alive ? me.buffs?.clone : null;
+    if (!b && !cloneFrame) return;
+    if (!cloneFrame) {
+      cloneFrame = document.createElement('div');
+      cloneFrame.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:4;opacity:0;transition:opacity .2s;'
+        + 'box-shadow:inset 0 0 70px 16px rgba(179,136,255,.55);border:4px solid rgba(179,136,255,.75);box-sizing:border-box';
+      document.body.appendChild(cloneFrame);
+    }
+    frameT += dt;
+    let o = 0;
+    if (b && b.t > 0) {
+      o = 0.75 + 0.25 * Math.sin(frameT * 4);
+      if (b.t < 1.5) o *= Math.sin(frameT * 18) > 0 ? 1 : 0.25; // もうすぐ切れる
+    }
+    cloneFrame.style.opacity = o.toFixed(2);
   }
 
   return {
@@ -433,6 +483,148 @@ export function createSkillFx(game) {
       }, [m]);
       hits.push(f);
     },
+    /** 盾の壁（シールドバッシュ）：構えた盾の前に水色の六角の壁を出し、そのまま突っ込む。p についていく */
+    shieldWall(p, dur, color = 0x80d8ff) {
+      const tex = hexGridTexture();
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.repeat.set(2, 1);
+      const g = new THREE.Group();
+      const wallG = geo('shieldWall', () => new THREE.CylinderGeometry(1.8, 1.8, 2.3, 24, 1, true, -0.95, 1.9).translate(0, 1.15, 0));
+      const mW = glow(color, 0.8, tex);
+      const mF = glow(hotOf(color, 0.6), 0.9);
+      const wall = mesh(wallG, mW);
+      const front = new THREE.Sprite(new THREE.SpriteMaterial({ map: starTexture(), color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+      front.position.set(0, 1.2, 1.85);
+      const mFr = front.material;
+      const base = mesh(geo('shieldBase', () => new THREE.RingGeometry(1.7, 1.85, 24, 1, -Math.PI / 2 - 0.95, 1.9).rotateX(-Math.PI / 2)), mF);
+      base.position.y = 0.06;
+      g.add(wall, base, front);
+      add(g, dur + 0.25, (k) => {
+        g.position.set(p.pos.x, 0, p.pos.z);
+        g.rotation.y = p.yaw;
+        const T = dur + 0.25;
+        const t = k * T;
+        const grow = Math.min(1, t / 0.1);
+        const end = t > dur ? (t - dur) / 0.25 : 0; // 突撃が終わったら砕けて消える
+        const s = (0.5 + 0.5 * ease(grow)) * (1 + end * 0.35);
+        g.scale.set(s, 0.8 + 0.2 * ease(grow), s);
+        mW.opacity = 0.8 * (1 - end) * (0.85 + 0.15 * Math.sin(t * 40));
+        mF.opacity = 0.9 * (1 - end);
+        front.scale.setScalar(1.6 + Math.sin(t * 30) * 0.3);
+        mFr.opacity = 0.8 * (1 - end);
+      }, [mW, mF, mFr]);
+    },
+
+    /** 矢の雨の前に、上へ矢を放つ（見た目だけ） */
+    volleyUp(p, color = 0xc5e1a5) {
+      const g = new THREE.Group();
+      g.position.set(p.pos.x, 1.5, p.pos.z);
+      const mA = new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0x3e2723 });
+      const mT = glow(color, 0.8, streakTexture());
+      const arrows = [];
+      for (let i = 0; i < 7; i++) {
+        const a = new THREE.Group();
+        const ang = (i - 3) * 0.09;
+        a.rotation.order = 'YXZ';
+        a.rotation.set(0.18, p.yaw, ang); // 扇に広げ、少し前へ傾けて真上へ
+        const m = mesh(arrowGeo(), mA);
+        const tr = mesh(ribbonGeo(), mT); // 後ろに伸びる光の筋（下向き）
+        tr.rotation.z = -Math.PI / 2;
+        tr.position.y = -0.6;
+        a.add(m, tr);
+        g.add(a);
+        arrows.push({ a, m, tr, sp: 34 + Math.random() * 8 });
+      }
+      add(g, 0.5, (k) => {
+        const t = k * 0.5;
+        for (const o of arrows) {
+          o.m.position.y = o.sp * t;
+          o.tr.position.y = o.sp * t - 0.6;
+          o.tr.scale.set(Math.min(4, o.sp * t), 0.25, 1);
+        }
+        mT.opacity = 0.8 * (1 - k);
+      }, [mA, mT]);
+    },
+
+    /**
+     * 楽譜の輪：五線譜の輪が広がり、音符が乗って踊る。mood：'hype'（疾風の旋律：速く・にぎやか）／'lonely'（勇気の歌：ゆっくり・寂しげ）
+     */
+    songRing(x, z, r, color, mood = 'hype') {
+      const hype = mood === 'hype';
+      const base = hype ? color : new THREE.Color(color).lerp(new THREE.Color(0x90a4ae), 0.5).getHex();
+      const dur = hype ? 1.7 : 2.6;
+      const grow = hype ? 0.45 : 1.3;
+      const g = new THREE.Group();
+      g.position.set(x, 0, z);
+      const staffTex = staffTexture();
+      staffTex.wrapS = THREE.RepeatWrapping;
+      staffTex.repeat.set(10, 1);
+      const ringG = geo('staffRing', () => new THREE.CylinderGeometry(1, 1, 0.9, 64, 1, true));
+      const rings = [];
+      const mats = [];
+      for (let i = 0; i < (hype ? 2 : 1); i++) {
+        const m = glow(i ? hotOf(base, 0.5) : base, hype ? 0.95 : 0.6, staffTex);
+        const ring = mesh(ringG, m);
+        g.add(ring);
+        rings.push({ ring, m, delay: i * 0.15, y: i ? 2.0 : 1.3 });
+        mats.push(m);
+      }
+      // 地面の輪
+      const mGround = glow(base, hype ? 0.7 : 0.4);
+      const ground = mesh(ringGeo(), mGround);
+      ground.position.y = 0.06;
+      g.add(ground);
+      mats.push(mGround);
+      // 音符
+      const palette = hype ? [color, 0xffd740, 0x40c4ff, 0xffffff, 0xff80ab] : [base];
+      const notes = [];
+      const n = hype ? 18 : 7;
+      for (let i = 0; i < n; i++) {
+        const m = new THREE.SpriteMaterial({ map: noteTexture(i % 3 === 0 ? 'two' : 'one'), color: palette[i % palette.length], transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+        const sp = new THREE.Sprite(m);
+        g.add(sp);
+        mats.push(m);
+        notes.push({ sp, m, a: (i / n) * Math.PI * 2 + Math.random() * 0.3, ph: Math.random() * 6, lane: i % 2 });
+      }
+      add(g, dur, (k, dt) => {
+        const t = k * dur;
+        for (const o of rings) {
+          const tt = Math.max(0, t - o.delay);
+          const e = ease(Math.min(1, tt / grow));
+          const rr = Math.max(0.3, r * e);
+          o.ring.scale.set(rr, hype ? 1 + 0.15 * Math.sin(t * 18) : 1, rr);
+          o.ring.position.y = o.y + (hype ? Math.sin(t * 9) * 0.15 : -t * 0.15);
+          o.ring.rotation.y += dt * (hype ? 2.2 : 0.35) * (o.delay ? -1 : 1);
+          const fade = k < 0.6 ? 1 : 1 - (k - 0.6) / 0.4;
+          o.m.opacity = (hype ? 0.95 : 0.6) * fade * (tt > 0 ? 1 : 0);
+        }
+        const e0 = ease(Math.min(1, t / grow));
+        const gr = Math.max(0.3, r * e0);
+        ground.scale.set(gr, 1, gr);
+        mGround.opacity = (hype ? 0.7 : 0.4) * (1 - k);
+        for (const o of notes) {
+          const ang = o.a + t * (hype ? 1.4 : 0.25);
+          const rr = gr * (hype ? 1 : 0.95 + 0.05 * Math.sin(o.ph));
+          let y;
+          let s;
+          if (hype) {
+            // 跳ねながら上へ（盛り上がる）
+            y = 1.2 + o.lane * 0.7 + Math.abs(Math.sin(t * 7 + o.ph)) * 0.9 + t * 0.8;
+            s = 0.55 + 0.25 * Math.abs(Math.sin(t * 7 + o.ph));
+          } else {
+            // ゆっくり沈みながら揺れる（寂しげ）
+            y = 1.6 + o.lane * 0.4 - t * 0.45 + Math.sin(t * 1.5 + o.ph) * 0.12;
+            s = 0.45;
+          }
+          o.sp.position.set(Math.sin(ang) * rr, Math.max(0.3, y), Math.cos(ang) * rr);
+          o.sp.scale.setScalar(s * Math.min(1, t / 0.15));
+          o.m.opacity = (k < 0.65 ? 1 : 1 - (k - 0.65) / 0.35) * (hype ? 1 : 0.7);
+          o.m.rotation = hype ? Math.sin(t * 6 + o.ph) * 0.4 : Math.sin(t * 1.2 + o.ph) * 0.2;
+        }
+      }, mats);
+      if (hype) column(x, z, 1.3, 4.5, color, 0.7);
+    },
+
     /** メテオ・矢の雨・落雷（auras.js の zoneAdded から回ってくる） */
     zoneAdded(z) {
       if (z.kind === 'meteor' || z.kind === 'arrowrain' || z.kind === 'strike') zoneFx(z);
@@ -454,6 +646,7 @@ export function createSkillFx(game) {
       }
       for (const z of zoneSet) z.tick(dt);
       updateBuffRings(dt);
+      updateCloneFrame(dt);
     },
 
     clear() {

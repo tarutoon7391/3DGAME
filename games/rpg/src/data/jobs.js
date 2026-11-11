@@ -124,7 +124,7 @@ export const JOBS = {
     basic: { type: 'shot', cd: 0.55, speed: 20, mult: 0.75, color: 0x80cbc4, size: 0.28, range: 22 },
     q: { id: 'spirit', name: '精霊召喚', desc: 'その場に12秒間、ボスを撃ち続ける精霊を出す（最大2体）', cd: 9, dur: 12, every: 0.6, mult: 0.7, max: 2 },
     e: { id: 'detonate', name: '精霊爆破', desc: '自分の精霊をすべて爆発させる（1体ごとに範囲ダメージ）', cd: 10, mult: 2.6, radius: 3.5 },
-    r: { id: 'golem', name: '岩巨人召喚', desc: 'ボスの狙いを引きつけ、殴りかかる岩巨人を12秒間出す', dur: 12, hp: 600, mult: 1.6 },
+    r: { id: 'golem', name: '岩巨人召喚', desc: 'ボスの狙いを引きつけ、地面から岩を引き抜いて投げつける岩巨人を12秒間出す', dur: 12, hp: 600, mult: 1.6 },
     trait: '召喚物がいる間、自分の被ダメージ -20%',
     summonGuard: 0.8, breakMul: 1,
     look: { armorColor: 0x00695c, swordColor: 0x80cbc4, swordLen: 0.9, cape: 0x004d40, weapon: 'staff', hat: 0x00695c },
