@@ -15,7 +15,7 @@ export function createAllies(game) {
   /** 召喚物が攻撃するときの「攻撃者」（召喚した人の攻撃力を使う） */
   const attacker = (a) => ({
     id: a.owner, job: JOBS.summoner, pos: a.pos, buffs: {}, pending: [],
-    atkNow: () => JOBS.summoner.stats.atk, addGauge() {},
+    atkNow: () => JOBS.summoner.stats.atk * (JOBS.summoner.power ?? 1), addGauge() {},
   });
 
   function makeModel(kind) {

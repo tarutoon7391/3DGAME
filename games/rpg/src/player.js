@@ -35,7 +35,7 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
     radius: PLAYER.radius,
     maxHp: J.stats.hp,
     hp: J.stats.hp,
-    staminaMax: STAMINA.max + (J.staminaBonus || 0), // 近接は +100
+    staminaMax: STAMINA.max + (J.staminaBonus || 0), // 特性でスタミナが多い職だけ（いまは無し）
     stamina: STAMINA.max + (J.staminaBonus || 0),
     tired: false, // バテ状態（満タンに戻るまで回避・ダッシュ不可、足が遅い）
     staminaWait: 0, // 回復が始まるまでの残り秒
@@ -101,7 +101,7 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
 
     /** 今の攻撃力（バフ込み） */
     atkNow() {
-      let a = J.stats.atk * (p.buffs.courage ? p.buffs.courage.mul : 1);
+      let a = J.stats.atk * (J.power ?? 1) * (p.buffs.courage ? p.buffs.courage.mul : 1); // power：職ごとの火力係数
       // 汎用：バフの atkMul（怒号・竜化・星占いなど）をすべて掛ける
       for (const b of Object.values(p.buffs)) if (b.atkMul) a *= b.atkMul;
       if (J.barrierAtk && p.buffs.barrier) a *= J.barrierAtk; // 結界師：バリアがある間 攻撃力アップ

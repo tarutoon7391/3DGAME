@@ -8,6 +8,31 @@ import { angleDiff, yawTo } from './util.js';
 
 const fwd = (yaw, d) => [Math.sin(yaw) * d, Math.cos(yaw) * d];
 
+/**
+ * 支援係数（職業データの support）を味方への効果に掛ける
+ * 回復量・継続回復・バリア・必殺ゲージ配りは量に、攻撃力アップ・被ダメ軽減は「1 からの差」に掛ける
+ */
+export function scaleVals(v, s = 1) {
+  if (!v || s === 1) return v;
+  const o = { ...v };
+  const up = (x) => 1 + (x - 1) * s; // 1.3 → 1 + 0.3s
+  const down = (x) => 1 - (1 - x) * s; // 0.7 → 1 - 0.3s
+  if (o.atkMul) o.atkMul = up(o.atkMul);
+  if (o.mul) o.mul = o.mul > 1 ? up(o.mul) : down(o.mul);
+  if (o.dmgMul && o.dmgMul < 1) o.dmgMul = down(o.dmgMul);
+  if (o.regen) o.regen *= s;
+  if (o.shield) o.shield *= s;
+  if (o.critAdd) o.critAdd *= s;
+  return o;
+}
+export function scaleSupport(eff, s = 1) {
+  if (!eff || s === 1) return eff;
+  const e = { ...eff };
+  if ((e.kind === 'heal' || e.kind === 'gauge') && e.amount !== undefined) e.amount *= s;
+  if (e.vals) e.vals = scaleVals(e.vals, s);
+  return e;
+}
+
 /** スキル本体。run(game, p, d, local)。d はデータ（位置・向きなど。ネットで送れる形） */
 const SKILLS = {
   // ---- 剣士 ----
@@ -877,12 +902,13 @@ const GENERIC = {
     }
   },
   mimic(game, p, d, local, sk) {
-    // ものまね師：ランダムな職業の Q を借りて使う（何を借りたかは d.pick で他の人にも同じものを見せる）
-    if (d.pick === undefined) {
+    // ものまね師：ランダムな職業の Q を借りて使う（何を借りたかは d.mimic で他の人にも同じものを見せる）
+    // d.pick は借りた技の側（精霊術士の属性・道化師の手品など）が使うので、ものまね師は別の名前で持つ
+    if (d.mimic === undefined) {
       const pool = JOB_ORDER.filter((j) => j !== p.jobId && JOBS[j].q.kind !== 'mimic');
-      d.pick = pool[Math.floor(Math.random() * pool.length)];
+      d.mimic = pool[Math.floor(Math.random() * pool.length)];
     }
-    const src = JOBS[d.pick];
+    const src = JOBS[d.mimic];
     if (!src) return;
     game.toastOnce(`ものまね：${src.name}の「${src.q.name}」`, 1400);
     if (SKILLS[src.q.id]) SKILLS[src.q.id](game, p, d, local);
@@ -1086,6 +1112,12 @@ let zoneGroup = null;
 const geoCache = {};
 
 function addZone(game, z) {
+  // 支援係数：置いた人の職業の support を、回復の場・トーテムの効き目に掛ける
+  const sup = z.p?.job?.support ?? 1;
+  if (sup !== 1) {
+    if (z.heal) z.heal *= sup;
+    if (z.buff?.vals) z.buff = { ...z.buff, vals: scaleVals(z.buff.vals, sup) };
+  }
   if (!zoneGroup) {
     zoneGroup = new THREE.Group();
     game.scene.add(zoneGroup);
