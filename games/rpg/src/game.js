@@ -146,8 +146,8 @@ export function createGame() {
       case 'heal':
         if (me.alive && near) {
           me.hp = Math.min(me.maxHp, me.hp + me.maxHp * eff.amount);
-          game.fx.burst(me.pos.x, 1.5, me.pos.z, 0xfff59d, 16, { speed: 2, up: 4, life: 0.7 });
-          game.toastOnce('癒しの光で回復した！', 1200);
+          game.fx.burst(me.pos.x, 1.5, me.pos.z, eff.quiet ? 0xce93d8 : 0xfff59d, eff.quiet ? 3 : 16, { speed: 2, up: 4, life: 0.7 });
+          if (!eff.quiet) game.toastOnce('癒しの光で回復した！', 1200);
         }
         break;
       case 'buff':
@@ -180,6 +180,8 @@ export function createGame() {
   };
   function handleCommand(cmd) {
     if (cmd.type === 'taunt') game.boss?.setTaunt(cmd.id, cmd.dur);
+    else if (cmd.type === 'debuff') game.boss?.setDebuff(cmd.name, cmd.dur, cmd.mul);
+    else if (cmd.type === 'freeze') game.boss?.freeze(cmd.dur);
     else if (cmd.type === 'summon') {
       if (cmd.kind === 'spirit') {
         // 上限を超えたら古い精霊から消える

@@ -94,12 +94,17 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
 
     /** 今の攻撃力（バフ込み） */
     atkNow() {
-      return J.stats.atk * (p.buffs.courage ? p.buffs.courage.mul : 1);
+      let a = J.stats.atk * (p.buffs.courage ? p.buffs.courage.mul : 1);
+      if (p.buffs.warcry) a *= p.buffs.warcry.atkMul; // 狂戦士の怒号
+      if (J.chainPer) a *= 1 + (p.chain || 0) * J.chainPer; // 格闘家の連打
+      if (J.lowHpBonus) a *= 1 + J.lowHpBonus * (1 - p.hp / p.maxHp); // 狂戦士：HP が減るほど強い
+      return a;
     },
     /** 被ダメージの倍率（職業の特性・バフ込み） */
     dmgTakenMul() {
       let m = J.dmgTaken ?? 1;
       if (p.buffs.taunt) m *= 0.5;
+      if (p.buffs.warcry) m *= p.buffs.warcry.dmgMul;
       if (p.buffs.aegis) m *= 0.5;
       if (J.summonGuard && game.allies?.ownedBy(p.id)) m *= J.summonGuard;
       return m;
@@ -121,6 +126,7 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
       }
       p.flash = 0.25;
       p.hurtT = 0.3;
+      p.chain = 0; // 格闘家の連打は被弾でリセット
       if (p.action === 'attack' && !J.noKnock) p.action = 'none';
       game.onPlayerHurt?.(p, -dx, -dz); // 攻撃してきた方向（画面の縁のマーカー用）
     },
@@ -201,7 +207,7 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
         p.actT = 0;
         p.dodgeX = Math.sin(y);
         p.dodgeZ = Math.cos(y);
-        p.invuln = Math.max(p.invuln, PLAYER.dodgeInvuln);
+        p.invuln = Math.max(p.invuln, PLAYER.dodgeInvuln + (J.dodgeInvulnBonus || 0));
         p.dodgeCd = PLAYER.dodgeCd + PLAYER.dodgeTime;
         if (moving && !intent.lockYaw) p.yaw = y;
         p.useStamina(STAMINA.dodgeCost * (J.dodgeCostMul ?? 1));
