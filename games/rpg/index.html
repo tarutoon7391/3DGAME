@@ -57,6 +57,35 @@
     .rpg-talk-text{font-size:17px;line-height:1.7;min-height:3em}
     .rpg-talk-next{text-align:right;color:#9fb1c2;font-size:12px;animation:rpgblink 1s infinite}
     @keyframes rpgblink{50%{opacity:.4}}
+    /* ---- 必殺ゲージ・ブレイク・パーティ ---- */
+    .rpg-skill.ready{border-color:#ffee58;box-shadow:0 0 10px #ffee58aa;animation:rpgblink .8s infinite}
+    .rpg-gauge{position:absolute;left:0;bottom:0;height:4px;background:#ffee58}
+    .rpg-brk{height:6px;background:#000b;border:1px solid #ffee5888;border-radius:3px;overflow:hidden;margin-top:3px}
+    .rpg-brk>div{height:100%;background:linear-gradient(90deg,#f9a825,#ffee58);transition:width .2s}
+    .rpg-boss.stun .rpg-brk{box-shadow:0 0 10px #ffee58}
+    .rpg-party{position:absolute;right:12px;top:12px;display:flex;flex-direction:column;gap:4px;font-size:12px}
+    .rpg-party>div{background:#0b0f16b0;border:1px solid #30363d;border-radius:8px;padding:4px 8px;min-width:170px}
+    .rpg-party .down{color:#ff5252;font-weight:bold}
+    /* ---- レイドの準備画面 ---- */
+    .rpg-lobby{position:fixed;inset:0;z-index:20;background:#05070bcc;display:flex;align-items:center;justify-content:center;font-family:system-ui,"Segoe UI","Hiragino Sans","Yu Gothic UI",sans-serif;color:#f0f4f8;overflow:auto;padding:16px;box-sizing:border-box}
+    .rpg-lobby-panel{background:#0d1424f2;border:1px solid #30363d;border-radius:14px;padding:16px 20px;width:min(1040px,100%);max-height:100%;overflow:auto;box-sizing:border-box}
+    .rpg-lobby h2{margin:0 0 6px;color:#ffd54f;font-size:20px}
+    .rpg-small{font-size:12px;color:#9fb1c2;line-height:1.6}
+    .rpg-lobby-msg{color:#ffcc80}
+    .rpg-lobby-row{margin:8px 0}
+    .rpg-lobby input{background:#000a;border:1px solid #58a6ff88;color:#fff;border-radius:6px;padding:6px 8px;font-size:14px}
+    .rpg-jobs{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;margin:10px 0}
+    .rpg-job{text-align:left;background:#0b0f16;border:2px solid #30363d;border-radius:10px;color:#dfe7ef;padding:8px 10px;cursor:pointer;display:flex;flex-direction:column;gap:3px;font-size:12px;line-height:1.45;font-family:inherit}
+    .rpg-job b{font-size:16px;color:var(--c)}
+    .rpg-job .role{color:#9fb1c2}
+    .rpg-job em{font-style:normal;background:#ffd54f;color:#000;border-radius:3px;padding:0 4px;margin-right:4px;font-weight:bold}
+    .rpg-job .trait{color:#ffe082}
+    .rpg-job.sel{border-color:var(--c);box-shadow:0 0 12px var(--c);background:#141c2e}
+    .rpg-lobby-btns{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+    .rpg-join{display:inline-flex;gap:6px;align-items:center}
+    .rpg-room{background:#0b0f16;border:1px solid #30363d;border-radius:10px;padding:8px 12px;margin:8px 0}
+    .rpg-room-code{font-size:26px;letter-spacing:.2em;color:#ffd54f}
+    .rpg-members{margin:6px 0;padding-left:18px;line-height:1.8}
   </style>
 </head>
 <body>

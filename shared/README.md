@@ -83,3 +83,42 @@ start((dt) => {
 });
 showTitle({ title: '…', controls: '…', onStart: () => { playing = true; } });
 ```
+
+## net.js（オンライン／フェーズ3から使う）
+
+サーバーは汎用のルーム中継だけ。**ゲームのルールはサーバーに無い**ので、ホスト役のクライアントが進行（状態の正本）を持ち、他の参加者は入力を送って状態を受け取る。1人プレイは必ず残す（net を使わない経路で動くこと）。
+
+```js
+import { createNet } from '/shared/net.js';
+const net = createNet('sports', { name: 'たろう' }); // 作っただけでは接続しない
+
+// ホスト側
+const { code } = await net.createRoom({ maxPlayers: 2 });     // 合言葉を自動生成（code: 'K7QX' など）
+// await net.createRoom({ code: 'TENNIS1', maxPlayers: 2 });   // 合言葉を指定（英数字3〜12、大文字小文字は区別しない）
+// 参加側
+await net.joinRoom('k7qx');                                   // 失敗時は例外（満員・合言葉違い・接続不可）
+
+net.send('state', state);                    // 自分以外の全員へ（自分には届かない）。JSON 化できる値、64KB まで
+net.send('input', inputs, { to: hostId });   // 1人だけへ
+const off = net.onMessage('input', (data, fromId, type) => { /* ... */ }); // '*' で全種類。戻り値で解除
+
+net.players;   // [{ id, name }]（参加順。先頭が一番古い）
+net.myId; net.myIndex; net.isHost; net.room; net.connected;
+
+net.onRoomChange((room) => {});              // 参加・退出・ホスト交代のたび（room.players / room.hostId）
+net.onPlayerJoin(({ id, name }) => {});
+net.onPlayerLeave(({ id, reason }) => {});   // reason: 'leave' | 'disconnect' | 'switch'
+net.onHostChange(({ hostId, isHost }) => {}); // ホストが抜けると一番古い参加者が自動で引き継ぐ
+net.onDisconnect((reason) => {});            // 自分の切断（自動再接続はしない → 1人プレイに戻す等）
+net.onError(({ error, type }) => {});        // メッセージが大きすぎる等
+await net.transferHost(otherId);             // ホストを譲る（ホストのみ）
+net.leaveRoom();                             // 退出して接続を閉じる
+```
+
+### 推奨の作り（ホスト権威）
+
+- 状態は1つのオブジェクト（JSON 化できる）に集約し、`update(state, inputsByPlayer, dt)` の形で進める
+- ホスト：全員の `input` を受けて状態を進め、`state` を一定間隔（例 1秒に10〜20回）で送る
+- 参加者：毎フレームの入力を `input` で送り、届いた `state` を描画する（必要なら補間）
+- プレイヤーは `state.players` 配列で持ち、自分は `net.myIndex` / `net.myId` で特定する（`players[0]` 決め打ち禁止）
+- ホスト交代（`onHostChange` で `isHost` が true）になったら、最後に受け取った `state` から進行を引き継ぐ

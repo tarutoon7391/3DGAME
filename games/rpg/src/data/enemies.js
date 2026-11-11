@@ -57,14 +57,17 @@ export const AI = {
 
 /**
  * ボスのデータ。patterns の kind（省略時はキー名）で動きが決まる：
- *   sweep 前方扇の近接 / slam 跳躍叩きつけ（着地で ring 発の弾） / ring 全方位弾（waves 回）
- *   fan 狙い撃ちの扇弾（volleys 回） / spiral 渦巻き弾（arms 本。twin で逆回りも同時）
- *   charge 突進（通った跡から左右に弾） / rain 足元に落ちる隕石（赤円。着弾で burst 発の弾）
+ *   sweep 前方扇の近接（after で連続攻撃） / slam 跳躍叩きつけ（着地で ring 発の弾）
+ *   ring 全方位弾（waves 回） / fan 狙い撃ちの扇弾（volleys 回） / spiral 渦巻き弾（arms 本。twin で逆回りも同時）
+ *   charge 突進（trailEvery があれば通った跡から左右に弾） / rain 足元に落ちる隕石（赤円。着弾で burst 発の弾）
+ *   beam 放射状の光線（dirs 本。twice でずらしてもう1回） / erupt 地割れ（プレイヤーの方へ手前から順に噴き上がる）
+ *   nova 広がる衝撃波の輪（回避の無敵でくぐる） / teleport 標的の背後へ瞬間移動して then の技を出す
  * near / far：プレイヤーとの距離が nearRange 未満か以上かで選ぶパターンの重み
- * after：そのパターンのあと続けて出す追撃（近接の後に弾幕など）
- * shotHit：弾1発で削る最大 HP の割合（近接・叩きつけ・突進・隕石は HIT.boss）
+ * after：そのパターンのあと続けて出す追撃
+ * shotHit：弾1発で削る最大 HP の割合。meleeHit：弾以外（近接・叩きつけ・突進・隕石・光線・輪）の割合（省略時は HIT.boss）
  * rage：HP 割合 at で怒り。speedMul・windupMul・countMul（弾の数の倍率）、summon で手下を呼ぶ
  * rage 中は rageWaves／rageRing／rageCount／rageTwin があればそちらを使う
+ * 弾の間隔：輪は 12〜14 発、扇は 0.3 ラジアン以上あけて、すき間を走り抜けられるようにしている
  * look：見た目（models.js の makeBossModel）
  */
 export const BOSSES = {
@@ -95,67 +98,77 @@ export const BOSSES = {
     look: {},
   },
 
-  // ---- ステージ2 中ボス1：突進と扇弾で攻めてくる騎士 ----
+  // ---- ステージ2 中ボス1：剣の連撃・突進・地割れで攻める騎士 ----
   ignis: {
     name: '業火の騎士イグニス', color: 0xd84315,
-    hp: 950, def: 6, speed: 4.4, radius: 1.4, hpY: 5,
-    shotHit: 1 / 5,
+    hp: 650, def: 6, speed: 4.4, radius: 1.4, hpY: 5,
+    shotHit: 1 / 8, meleeHit: 1 / 5, // 弾1発 約15、それ以外 約24（職業の HP で変わる）
     nearRange: 6,
-    near: { sweep: 0.45, fan: 0.2, charge: 0.2, ring: 0.15 },
-    far: { charge: 0.4, fan: 0.4, ring: 0.2 },
+    near: { sweep: 0.4, nova: 0.15, charge: 0.15, erupt: 0.15, fan: 0.15 },
+    far: { charge: 0.35, erupt: 0.35, fan: 0.3 },
     patterns: {
-      sweep: { name: '炎の薙ぎ払い', windup: 0.8, range: 5.5, arc: Math.PI * 1.2, after: 'fan' },
-      fan: { name: '火炎の扇', windup: 0.75, count: 9, spread: 0.16, volleys: 3, interval: 0.32, speed: 12, color: 0xff7043 },
-      charge: { name: '業火の突進', windup: 0.75, speed: 22, time: 0.8, width: 2.8, trailEvery: 0.07, trailSpeed: 6, color: 0xffab40 },
-      ring: { name: '爆炎の輪', windup: 0.9, count: 18, speed: 9, color: 0xff5722, waves: 2, rageWaves: 3, waveGap: 0.35 },
+      sweep: { name: '炎の薙ぎ払い', windup: 0.8, range: 5.5, arc: Math.PI * 1.2, after: 'sweep2', color: 0xff7043 },
+      sweep2: { kind: 'sweep', name: '返し斬り', windup: 0.45, range: 5.5, arc: Math.PI * 1.2, color: 0xff7043 },
+      fan: { name: '火炎の扇', windup: 0.75, count: 5, spread: 0.32, volleys: 3, interval: 0.4, speed: 11, color: 0xff7043, alternate: true },
+      charge: { name: '業火の突進', windup: 0.75, speed: 22, time: 0.8, width: 2.8, trailEvery: 0.16, trailSpeed: 5, color: 0xffab40 },
+      erupt: { name: '炎の地割れ', windup: 0.6, count: 7, rageCount: 9, spacing: 2.6, gap: 0.12, radius: 1.7, color: 0xff5722 },
+      nova: { name: '爆炎の波動', windup: 0.7, max: 16, speed: 9, width: 0.55, waves: 1, rageWaves: 2, gap: 0.7, color: 0xff7043 },
     },
-    rage: { at: 0.5, speedMul: 1.3, windupMul: 0.75, countMul: 1.35 },
-    restMin: 0.5, restMax: 1.1,
+    rage: { at: 0.5, speedMul: 1.25, windupMul: 0.8, countMul: 1.15 },
+    restMin: 0.6, restMax: 1.2,
     look: { scale: 2.1, horn: 0xffcc80, eye: 0xffffff, weapon: 'sword', metal: 0x5d4037 },
   },
 
-  // ---- ステージ2 中ボス2：距離を取って弾幕を張る魔導士 ----
+  // ---- ステージ2 中ボス2：瞬間移動と光線で翻弄する魔導士 ----
   frosga: {
     name: '氷霧の魔導士フロスガ', color: 0x4fc3f7,
-    hp: 820, def: 4, speed: 3.0, radius: 1.3, hpY: 5, keep: 9,
-    shotHit: 1 / 5,
+    hp: 560, def: 4, speed: 3.0, radius: 1.3, hpY: 5, keep: 9,
+    shotHit: 1 / 8, meleeHit: 1 / 5,
     nearRange: 5,
-    near: { ring: 0.35, slam: 0.35, spiral: 0.3 },
-    far: { spiral: 0.35, fan: 0.35, rain: 0.3 },
+    near: { blink: 0.3, nova: 0.3, slam: 0.2, ring: 0.2 },
+    far: { beam: 0.3, spiral: 0.2, rain: 0.25, fan: 0.25 },
     patterns: {
-      spiral: { name: '氷の渦', windup: 0.9, arms: 4, dur: 2.4, interval: 0.12, turn: 0.21, speed: 7.5, color: 0x80deea, twin: false, rageTwin: true },
-      fan: { name: '氷柱の扇', windup: 0.6, count: 7, spread: 0.2, volleys: 4, interval: 0.28, speed: 13, color: 0xb3e5fc, alternate: true },
-      ring: { name: '凍える輪', windup: 0.8, count: 20, speed: 7, color: 0x81d4fa, waves: 3, rageWaves: 4, waveGap: 0.3 },
-      slam: { name: '氷塊落とし', windup: 0.7, air: 0.8, radius: 3.8, height: 6, ring: 12, rageRing: 18, color: 0x80deea },
-      rain: { name: '雹の雨', windup: 0.5, count: 6, rageCount: 9, radius: 2.4, spreadR: 7, delay: 1.0, burst: 6, color: 0xb3e5fc },
+      blink: { kind: 'teleport', name: '氷霧の転移', windup: 0.7, dist: 4, then: 'nova' },
+      nova: { name: '凍てつく波動', windup: 0.55, max: 14, speed: 8, width: 0.55, waves: 1, rageWaves: 2, gap: 0.8, color: 0x80deea },
+      beam: { name: '氷槍の光線', windup: 0.9, dirs: 4, len: 26, width: 1.6, aim: true, twice: false, rageTwice: true, gap: 0.7, color: 0xb3e5fc },
+      spiral: { name: '氷の渦', windup: 0.9, arms: 3, dur: 2.2, interval: 0.17, turn: 0.26, speed: 7, color: 0x80deea, twin: false, rageTwin: true },
+      fan: { name: '氷柱の扇', windup: 0.6, count: 5, spread: 0.34, volleys: 3, interval: 0.38, speed: 12, color: 0xb3e5fc, alternate: true },
+      ring: { name: '凍える輪', windup: 0.8, count: 12, speed: 7, color: 0x81d4fa, waves: 2, rageWaves: 3, waveGap: 0.45 },
+      slam: { name: '氷塊落とし', windup: 0.7, air: 0.8, radius: 3.8, height: 6, ring: 8, rageRing: 12, color: 0x80deea },
+      rain: { name: '雹の雨', windup: 0.5, count: 5, rageCount: 7, radius: 2.4, spreadR: 7, delay: 1.0, burst: 0, color: 0xb3e5fc },
     },
-    rage: { at: 0.5, speedMul: 1.25, windupMul: 0.8, countMul: 1.3 },
-    restMin: 0.6, restMax: 1.2,
+    rage: { at: 0.5, speedMul: 1.2, windupMul: 0.8, countMul: 1.15 },
+    restMin: 0.7, restMax: 1.3,
     look: { scale: 2.0, horn: 0xe1f5fe, eye: 0x00e5ff, weapon: 'staff', metal: 0x1a237e },
   },
 
-  // ---- ステージ2 ボス：全種類の弾幕＋手下召喚 ----
+  // ---- ステージ2 ボス：近接の連撃・光線・地割れ・瞬間移動・弾幕を織り交ぜる＋手下召喚 ----
   zarvan: {
     name: '冥王ザルヴァーン', color: 0x6a1b9a,
-    hp: 2300, def: 8, speed: 3.6, radius: 1.9, hpY: 7,
-    shotHit: 1 / 5,
+    hp: 1500, def: 8, speed: 3.6, radius: 1.9, hpY: 7,
+    shotHit: 1 / 8, meleeHit: 1 / 5,
     nearRange: 7,
-    near: { sweep: 0.3, slam: 0.2, ring: 0.2, spiral: 0.15, charge: 0.15 },
-    far: { spiral: 0.25, fan: 0.25, rain: 0.2, ring: 0.15, slam: 0.15 },
+    near: { sweep: 0.25, slam: 0.15, nova: 0.15, blink: 0.1, charge: 0.15, erupt: 0.1, ring: 0.1 },
+    far: { beam: 0.25, erupt: 0.2, blink: 0.15, spiral: 0.1, fan: 0.15, rain: 0.15 },
     patterns: {
-      sweep: { name: '冥刃', windup: 0.85, range: 6.5, arc: Math.PI * 1.25, after: 'ring' },
-      ring: { name: '冥弾の輪', windup: 0.9, count: 22, speed: 8.5, color: 0xea80fc, waves: 3, rageWaves: 4, waveGap: 0.32 },
-      spiral: { name: '冥獄の渦', windup: 0.9, arms: 4, dur: 2.6, interval: 0.11, turn: 0.2, speed: 7.5, color: 0xce93d8, twin: true },
-      fan: { name: '冥槍の扇', windup: 0.6, count: 11, spread: 0.14, volleys: 4, interval: 0.3, speed: 13, color: 0xf48fb1, alternate: true },
-      slam: { name: '冥王の鉄槌', windup: 0.85, air: 0.85, radius: 4.6, height: 8, ring: 16, rageRing: 24, color: 0xea80fc },
-      charge: { name: '冥王の突撃', windup: 0.8, speed: 21, time: 0.9, width: 3.2, trailEvery: 0.06, trailSpeed: 6.5, color: 0xe040fb },
-      rain: { name: '冥星の雨', windup: 0.6, count: 8, rageCount: 12, radius: 2.6, spreadR: 9, delay: 1.0, burst: 8, color: 0xea80fc },
+      sweep: { name: '冥刃', windup: 0.85, range: 6.5, arc: Math.PI * 1.25, after: 'sweep2', color: 0xea80fc },
+      sweep2: { kind: 'sweep', name: '冥刃・返し', windup: 0.5, range: 6.5, arc: Math.PI * 1.25, after: 'nova', color: 0xea80fc },
+      nova: { name: '冥王の波動', windup: 0.5, max: 18, speed: 9, width: 0.6, waves: 1, rageWaves: 2, gap: 0.7, color: 0xea80fc },
+      blink: { kind: 'teleport', name: '冥界渡り', windup: 0.65, dist: 4.5, then: 'sweep' },
+      beam: { name: '冥光十字', windup: 0.95, dirs: 4, len: 30, width: 1.8, aim: false, twice: true, gap: 0.75, color: 0xea80fc },
+      erupt: { name: '冥府の地割れ', windup: 0.6, count: 8, rageCount: 10, spacing: 2.6, gap: 0.11, radius: 1.9, color: 0xce93d8 },
+      ring: { name: '冥弾の輪', windup: 0.9, count: 14, speed: 8, color: 0xea80fc, waves: 2, rageWaves: 3, waveGap: 0.45 },
+      spiral: { name: '冥獄の渦', windup: 0.9, arms: 3, dur: 2.4, interval: 0.16, turn: 0.22, speed: 7, color: 0xce93d8, twin: true },
+      fan: { name: '冥槍の扇', windup: 0.6, count: 7, spread: 0.3, volleys: 3, interval: 0.4, speed: 12, color: 0xf48fb1, alternate: true },
+      slam: { name: '冥王の鉄槌', windup: 0.85, air: 0.85, radius: 4.6, height: 8, ring: 10, rageRing: 14, color: 0xea80fc },
+      charge: { name: '冥王の突撃', windup: 0.8, speed: 21, time: 0.9, width: 3.2, trailEvery: 0.15, trailSpeed: 5.5, color: 0xe040fb },
+      rain: { name: '冥星の雨', windup: 0.6, count: 6, rageCount: 8, radius: 2.6, spreadR: 9, delay: 1.0, burst: 4, color: 0xea80fc },
     },
     rage: {
-      at: 0.5, speedMul: 1.3, windupMul: 0.75, countMul: 1.3,
+      at: 0.5, speedMul: 1.25, windupMul: 0.8, countMul: 1.15,
       summon: 'wraith', summonEvery: 18, summonMax: 3, summonOffset: [5, 2],
     },
-    restMin: 0.5, restMax: 1.0,
+    restMin: 0.55, restMax: 1.1,
     look: { scale: 2.8, horn: 0xffd54f, eye: 0xff1744, weapon: 'scythe', metal: 0x212121 },
   },
 };

@@ -17,6 +17,7 @@
 - 大量オブジェクトは InstancedMesh。不要な geometry/material は dispose。毎フレームの new を避ける
 - 全ゲーム共通の流れ：タイトル（操作説明）→ プレイ → リザルト → リトライ／ハブへ戻る。Esc でポーズ
 - セーブは `shared/save.js`（localStorage、キー `3dgame:<slug>`）
+- オンラインは `shared/net.js`（Socket.io の汎用ルーム中継。ルールはホスト役クライアントが持つ）。方針は計画書 §10
 
 ## 所有権・凍結
 
