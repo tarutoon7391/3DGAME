@@ -8,6 +8,7 @@ import { PLAYER } from './data/player.js';
 import { VIEW } from './data/view.js';
 import { DEFAULT_JOB } from './data/jobs.js';
 import { buildWeapon, HOLD_ROT, HOLD_POS } from './weaponmodel.js';
+import { animateSpecial } from './vmanim.js';
 
 const ORDER = 10000; // 透明物よりも後に描く
 const LEFT_X = -0.72; // 左手の肩（右手の肩から見た位置）
@@ -128,6 +129,19 @@ export function createViewModel(renderer, camera) {
   let swayX = 0;
   let swayY = 0;
   let spinVis = 0;
+  // 見切りのときだけ見える、左下の鞘
+  const sheath = new THREE.Group();
+  sheath.position.set(-0.42, -0.2, -0.38);
+  sheath.rotation.set(-1.2, 0, 0.9);
+  root.add(sheath);
+  const sheathMat = vmMat(0x212121);
+  const sheathTrim = vmMat(0xb71c1c);
+  mats.push(sheathMat, sheathTrim);
+  add(new THREE.BoxGeometry(0.06, 0.62, 0.04), sheathMat, 0, 0.31, 0, sheath);
+  add(new THREE.BoxGeometry(0.075, 0.05, 0.055), sheathTrim, 0, 0.02, 0, sheath);
+  add(new THREE.BoxGeometry(0.075, 0.03, 0.055), sheathTrim, 0, 0.3, 0, sheath);
+  sheath.visible = false;
+  let sheathVis = false;
   const history = []; // 右手の動きの記録（影分身の手が少し遅れてまねる）
   let clock = 0;
 
@@ -239,88 +253,14 @@ export function createViewModel(renderer, camera) {
       }
     }
 
-    // ---- 技ごとの特別な動き ----
+    // ---- 技ごとの特別な動き（src/vmanim.js） ----
     const V = p.vmAnim;
+    sheathVis = false;
     if (V) {
       V.t += dt;
-      const k = clamp01(V.t / V.dur);
-      if (V.kind === 'kiblast') {
-        // 気功波：両手をそろえて前へ突き出す（波動拳）
-        for (const P of [Rp, Lp]) {
-          P.x = -0.24;
-          P.y = 0.06;
-          P.z = 0.08 - 0.32 * Math.sin(Math.min(1, k * 1.6) * Math.PI * 0.5) * (1 - smooth(0.75, 1, k));
-          P.rx = 0.15;
-          P.ry = 0;
-          P.rz = 0;
-        }
-        setFlash(k < 0.7 ? 0x6a4a10 : 0x000000);
-      } else if (V.kind === 'uppercut') {
-        // 昇竜拳：右腕を真上へ突き上げる
-        Rp.rx = 1.45 * smooth(0, 0.3, k);
-        Rp.x = -0.22;
-        Rp.y = 0.0;
-        Rp.z = -0.12;
-        Rp.ry = 0;
-        Rp.rz = 0;
-      } else if (V.kind === 'barrage') {
-        // 百裂拳：左右の拳を目にもとまらぬ速さで交互に突き出す
-        const step = 0.07;
-        const i = Math.floor(V.t / step);
-        const f = (V.t % step) / step;
-        const P = i % 2 ? Lp : Rp;
-        P.z -= 0.45 * Math.sin(f * Math.PI);
-        P.rx -= 0.3;
-        P.y += (i % 3 - 1) * 0.04;
-      } else if (V.kind === 'bigchop') {
-        // 大地割り：斧を思い切り振り上げ、刃を縦にして一気に振り下ろす
-        Rp.twist = Math.PI / 2;
-        Rp.ry = 0;
-        Rp.rz = 0;
-        if (k < 0.4) {
-          const u = ease(k / 0.4);
-          Rp.rx = 0.85 * u;
-          Rp.y = 0.3 * u;
-          Rp.z = -0.08 * u;
-        } else {
-          const u = smooth(0.4, 0.55, k);
-          Rp.rx = 0.85 - 2.45 * u;
-          Rp.y = 0.3 - 0.37 * u;
-          Rp.z = -0.08 - 0.17 * u;
-          if (k < 0.7) setFlash(0x5a2a10);
-        }
-        Rp.x = -0.15;
-      } else if (V.kind === 'frenzy') {
-        // 死の宣告：一瞬で左右に何度も斬る（左へは鎌を反転、右へは戻す）
-        const n = 4;
-        const f = k * n;
-        const i = Math.min(n - 1, Math.floor(f));
-        const u = ease(f - i);
-        const toLeft = i % 2 === 0;
-        Rp.ry = toLeft ? -1.3 + u * 2.6 : 1.3 - u * 2.6;
-        Rp.rx = -1.05;
-        Rp.rz = toLeft ? 0.45 : -0.45;
-        Rp.x = -0.22;
-        Rp.y = 0.22;
-        Rp.twist = toLeft ? Math.PI : 0;
-        spinVis = 1;
-      } else if (V.kind === 'dive') {
-        // 天穿ち：空中で槍を振りかぶり、着地点へ槍を前に構えて急降下
-        if (k < 0.45) {
-          const u = ease(k / 0.45);
-          Rp.rx = 0.9 * u;
-          Rp.y = 0.15 * u;
-          Rp.z = 0.1 * u;
-        } else {
-          Rp.aim = true;
-          Rp.rx = -0.1;
-          Rp.ry = 0.12;
-          Rp.x = -0.1;
-          Rp.y = 0.1;
-          Rp.z = -0.12;
-          setFlash(0x2a5a3a);
-        }
-      }
+      const r = animateSpecial(V, clamp01(V.t / V.dur), Rp, Lp, setFlash);
+      if (r?.spin) spinVis = 1;
+      sheathVis = !!r?.sheath;
       if (V.t >= V.dur) p.vmAnim = null;
     }
   }
@@ -368,6 +308,7 @@ export function createViewModel(renderer, camera) {
       R.off.position.set(Rp.x, Rp.y, Rp.z);
       R.pivot.rotation.set(Rp.rx, Rp.ry, Rp.rz, 'YXZ');
       R.twist.rotation.y = Rp.twist;
+      sheath.visible = sheathVis;
       if (Rp.aim) R.holder.rotation.set(AIM_ROT[0], AIM_ROT[1], AIM_ROT[2]);
       else if (R.baseRot) R.holder.rotation.copy(R.baseRot);
       // 左手（両手の拳の職業だけ）。左右反転して置く

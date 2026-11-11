@@ -342,3 +342,74 @@ export function windTexture() {
     }
   });
 }
+
+/** 花びら（剣の舞） */
+export function petalTexture() {
+  return make('petal', 64, 64, (c, w) => {
+    const R = w / 2;
+    c.translate(R, R);
+    const g = c.createLinearGradient(0, -R, 0, R);
+    g.addColorStop(0, 'rgba(255,255,255,1)');
+    g.addColorStop(1, 'rgba(255,255,255,0.7)');
+    c.fillStyle = g;
+    c.beginPath();
+    c.moveTo(0, R * 0.85);
+    c.bezierCurveTo(R * 0.9, R * 0.3, R * 0.6, -R * 0.7, R * 0.1, -R * 0.75);
+    c.lineTo(0, -R * 0.55);
+    c.lineTo(-R * 0.1, -R * 0.75);
+    c.bezierCurveTo(-R * 0.6, -R * 0.7, -R * 0.9, R * 0.3, 0, R * 0.85);
+    c.fill();
+  });
+}
+
+/** 歪んだ音符（不協和音）：ぎざぎざに欠けた音符。普通の重ね方で暗い色に塗る */
+export function brokenNoteTexture(seed = 1) {
+  return make('bnote:' + seed, 128, 128, (c, w) => {
+    const R = w / 2;
+    let s = seed * 97;
+    const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
+    c.translate(R, R);
+    c.rotate((rnd() - 0.5) * 0.9);
+    c.fillStyle = '#fff';
+    // ゆがんだ玉
+    c.beginPath();
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2;
+      const rr = R * (0.2 + rnd() * 0.12);
+      c.lineTo(-R * 0.1 + Math.cos(a) * rr * 1.3, R * 0.42 + Math.sin(a) * rr);
+    }
+    c.closePath();
+    c.fill();
+    // 折れ曲がった棒
+    c.beginPath();
+    c.moveTo(R * 0.12, R * 0.4);
+    c.lineTo(R * 0.2, -R * 0.05);
+    c.lineTo(R * 0.05, -R * 0.2);
+    c.lineTo(R * 0.22, -R * 0.7);
+    c.lineTo(R * 0.3, -R * 0.68);
+    c.lineTo(R * 0.15, -R * 0.2);
+    c.lineTo(R * 0.3, -R * 0.05);
+    c.lineTo(R * 0.2, R * 0.4);
+    c.closePath();
+    c.fill();
+    // ぎざぎざの旗
+    c.beginPath();
+    c.moveTo(R * 0.26, -R * 0.68);
+    for (let i = 1; i <= 5; i++) c.lineTo(R * (0.26 + i * 0.08), -R * (0.68 - i * 0.09) + (i % 2 ? R * 0.1 : 0));
+    c.lineTo(R * 0.3, -R * 0.4);
+    c.closePath();
+    c.fill();
+    // 欠け
+    c.globalCompositeOperation = 'destination-out';
+    for (let i = 0; i < 4; i++) {
+      c.beginPath();
+      const x = (rnd() - 0.5) * R;
+      const y = (rnd() - 0.2) * R;
+      c.moveTo(x, y);
+      c.lineTo(x + R * 0.25, y + R * 0.05);
+      c.lineTo(x + R * 0.05, y + R * 0.12);
+      c.closePath();
+      c.fill();
+    }
+  });
+}

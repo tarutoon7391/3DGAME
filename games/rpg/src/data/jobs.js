@@ -244,7 +244,7 @@ export const JOBS = {
     basic: { type: 'melee', combo: [{ dur: 0.32, hit: 0.11, mult: 1.0 }, { dur: 0.32, hit: 0.11, mult: 1.05 }, { dur: 0.5, hit: 0.2, mult: 1.8 }], range: 2.9, arc: 2.0, heavyBonus: 0.4 },
     q: { id: 'iai', kind: 'cone', name: '居合', desc: '前方へ一閃。必ず会心', cd: 6, mult: 2.4, range: 4.5, arc: 1.2, crit: true, color: 0xffffff },
     e: { id: 'mikiri', kind: 'counter', name: '見切り', desc: '1秒間 構える。その間に攻撃されると無傷で受け流し、強烈に反撃', cd: 8, dur: 1, mult: 4, range: 6 },
-    r: { id: 'tsubame', kind: 'burst', name: '奥義・燕返し', desc: '目にも止まらぬ6連斬り（周囲）', ticks: 6, every: 0.12, mult: 1.3, radius: 3.6, color: 0xffffff },
+    r: { id: 'tsubame', kind: 'burst', name: '奥義・燕返し', desc: '一瞬溜めてから、目にも止まらぬ6連斬り（周囲）。最後は溜めた縦斬り', ticks: 6, every: 0.12, windup: 0.25, lastGap: 0.2, mult: 1.3, radius: 3.6, color: 0xffffff },
     trait: '会心のダメージがさらに +50%',
     critDmgBonus: 0.5, breakMul: 1.1,
     look: { armorColor: 0x37474f, swordColor: 0xeceff1, swordLen: 1.1, cape: 0xb71c1c, weapon: 'sword' },
