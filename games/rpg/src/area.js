@@ -44,6 +44,7 @@ export function createLights(scene) {
   scene.add(sun, sun.target);
   // ダンジョン用の手持ちランタン
   const lantern = new THREE.PointLight(0xffd8a0, 0, 16, 1.3);
+  let sunOff = { x: 18, y: 32, z: 12 };
   scene.add(lantern);
   return {
     hemi, sun, lantern,
@@ -55,13 +56,15 @@ export function createLights(scene) {
       sun.color.setHex(def.sun.color);
       sun.intensity = def.sun.intensity * (B ? B.sun : 1);
       hemi.intensity = def.sun.hemi * (B ? B.hemi : 1);
-      hemi.color.setHex(def.dark ? 0xb8b0d8 : 0xffffff);
-      hemi.groundColor.setHex(def.dark ? 0x4a4058 : 0x445533);
+      hemi.color.setHex(def.sun.sky ?? (def.dark ? 0xb8b0d8 : 0xffffff));
+      hemi.groundColor.setHex(def.sun.ground ?? (def.dark ? 0x4a4058 : 0x445533));
       lantern.intensity = B ? B.lantern : 0;
       lantern.distance = B ? B.lanternRange : 16;
+      // 太陽の位置（プレイヤーからのずれ）。夕方は低く横から当てて影を長くする
+      sunOff = def.sun.offset || { x: 18, y: 32, z: 12 };
     },
     follow(p) {
-      sun.position.set(p.x + 18, 32, p.z + 12);
+      sun.position.set(p.x + sunOff.x, sunOff.y, p.z + sunOff.z);
       sun.target.position.set(p.x, 0, p.z);
       lantern.position.set(p.x, 3.2, p.z);
     },

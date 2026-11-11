@@ -147,6 +147,7 @@ export function createRaid(game, net, handlers) {
   });
   on('restart', (d) => handlers.onRestart(d));
   on('wipe', (d) => handlers.onWipe?.(d));
+  on('wipeready', (d, from) => handlers.onWipeReady?.(d, from));
   on('clear', (d) => handlers.onClear(d));
   on('start', (d) => handlers.onStart?.(d));
 

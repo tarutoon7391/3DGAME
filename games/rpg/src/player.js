@@ -35,7 +35,8 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
     radius: PLAYER.radius,
     maxHp: J.stats.hp,
     hp: J.stats.hp,
-    stamina: STAMINA.max,
+    staminaMax: STAMINA.max + (J.staminaBonus || 0), // 近接は +100
+    stamina: STAMINA.max + (J.staminaBonus || 0),
     tired: false, // バテ状態（満タンに戻るまで回避・ダッシュ不可、足が遅い）
     staminaWait: 0, // 回復が始まるまでの残り秒
     dashing: false,
@@ -84,7 +85,7 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
       p.downed = false;
       p.reviveT = 0;
       p.hp = p.maxHp;
-      p.stamina = STAMINA.max;
+      p.stamina = p.staminaMax;
       p.tired = false;
       p.invuln = 0;
       p.cd.q = 0;
@@ -229,6 +230,23 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
         animateDown();
         return;
       }
+      if (J.idleCharge) p.idleT = (p.idleT || 0) + dt;
+      // 太鼓叩き：リズムの拍ごとに小さく光る（拍がわかるように）
+      if (J.beat) {
+        const ph = (performance.now() / 1000) % J.beat.period;
+        if (ph < (p.lastPh ?? 0)) game.fx.burst(p.pos.x, 2.4, p.pos.z, 0xffeb3b, 4, { speed: 1, up: 1, life: 0.25, grav: 0 });
+        p.lastPh = ph;
+      }
+      // 先駆け：ボス戦が始まってから15秒間 攻撃力アップ（ボスごとに）
+      if (J.vanguard) {
+        const b = game.bosses.find((o) => o.active && o.alive);
+        const key = b ? `${b.idx}` : null;
+        if (key && p.vanguardKey !== key) {
+          p.vanguardKey = key;
+          p.buff('vanguard', J.vanguard.dur, { atkMul: J.vanguard.atkMul });
+          game.toastOnce('先陣を切る！ 攻撃力アップ', 1400);
+        }
+      }
       // 狩人の印の残り時間
       if (p.mark) {
         p.mark.t -= dt;
@@ -350,7 +368,11 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
         if (!p.didHit && p.actT >= c.hit) {
           p.didHit = true;
           const crit = p.critNext || (last && J === JOBS.swordsman);
-          if (meleeArc(game, p, p.yaw, c.mult, J.basic.range + (last ? J.basic.heavyBonus : 0), J.basic.arc, { crit })) p.critNext = false;
+          const bonus = meleeBonus();
+          if (meleeArc(game, p, p.yaw, c.mult * bonus, J.basic.range + (last ? J.basic.heavyBonus : 0), J.basic.arc, { crit })) {
+            p.critNext = false;
+            p.idleT = 0; // 溜め斬り：当てたら溜めはリセット
+          }
           // 剣の軌跡
           const sx = p.pos.x + Math.sin(p.yaw) * 1.6;
           const sz = p.pos.z + Math.cos(p.yaw) * 1.6;
@@ -394,8 +416,8 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
       } else if (p.action !== 'dodge') {
         p.staminaWait = Math.max(0, p.staminaWait - dt);
         if (p.staminaWait <= 0) {
-          p.stamina = Math.min(STAMINA.max, p.stamina + (p.tired ? STAMINA.tiredRegenPerSec : STAMINA.regenPerSec) * dt);
-          if (p.tired && p.stamina >= STAMINA.max) p.tired = false;
+          p.stamina = Math.min(p.staminaMax, p.stamina + (p.tired ? STAMINA.tiredRegenPerSec : STAMINA.regenPerSec) * dt);
+          if (p.tired && p.stamina >= p.staminaMax) p.tired = false;
         }
       }
       if (p.tired && !p.buffs.gale) speedMul *= PLAYER.tiredMul;
@@ -481,6 +503,26 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
       glow = Math.floor(performance.now() / 250) % 2 ? 0xaa0000 : 0x440000;
     }
     model.armorMat.emissive.setHex(p.flash > 0 ? 0x880000 : glow);
+  }
+
+  /** 通常攻撃（近接）の倍率：太鼓叩きのリズム・溜め斬りの溜め */
+  function meleeBonus() {
+    let m = 1;
+    if (J.beat) {
+      // 一定のリズム（period 秒ごと）にぴったり合わせて当てると 2倍
+      const ph = (performance.now() / 1000) % J.beat.period;
+      if (ph < J.beat.window || ph > J.beat.period - J.beat.window) {
+        m *= J.beat.mult;
+        game.fx.text(p.pos.x, 2.6, p.pos.z, '♪ジャスト', '#ffeb3b');
+      }
+    }
+    if (J.idleCharge) {
+      // 当てていない時間が長いほど強い（最大 max 倍）
+      const k = Math.min(J.idleCharge.max, 1 + (p.idleT || 0) * J.idleCharge.per);
+      if (k > 1.3) game.fx.text(p.pos.x, 2.6, p.pos.z, `溜め ×${k.toFixed(1)}`, '#ffab40');
+      m *= k;
+    }
+    return m;
   }
 
   function startCombo(i, intent) {

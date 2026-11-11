@@ -222,6 +222,21 @@ export function createGame() {
           game.toastOnce(`必殺ゲージをもらった！（+${eff.amount}）`, 1400);
         }
         break;
+      case 'cdreset':
+        // 指揮者：みんなの Q・E がすぐ使えるようになる
+        if (me.alive) {
+          me.cd.q = 0;
+          me.cd.e = 0;
+          game.toastOnce('指揮者の号令：Q・E がすぐ使える！', 1600);
+        }
+        break;
+      case 'reviveall':
+        // 献身者：倒れた仲間を全員蘇生
+        if (me.downed) {
+          me.revive(eff.hp);
+          game.toast('献身者に救われた！', 1600);
+        }
+        break;
       case 'revive':
         if (eff.id === me.id && me.downed) {
           me.revive();
@@ -256,6 +271,8 @@ export function createGame() {
         game.world.collide(b.pos, b.radius);
         game.fx.burst(b.pos.x, 2, b.pos.z, 0x7c4dff, 20, { speed: 4, up: 2, life: 0.5 });
       }
+    } else if (cmd.type === 'shred') {
+      alive.filter((b) => b.sub === cmd.sub).forEach((b) => b.addShred(cmd.per, cmd.max));
     } else if (cmd.type === 'detonate') game.allies.detonate(cmd.owner, cmd.mult, cmd.radius);
     else if (cmd.type === 'freeze') alive.forEach((b) => b.freeze(cmd.dur, cmd.immune));
     else if (cmd.type === 'summon') {
@@ -382,6 +399,7 @@ export function createGame() {
     input.unlockPointer();
     game.hudView.show(false);
     const retry = () => {
+      resetOnceOnWipe();
       game.down = null;
       loadArea(game, pr.area);
       game.hudView.show(true);
@@ -411,30 +429,26 @@ export function createGame() {
     });
   }
 
-  /** 協力プレイ：全員倒れたら（ホストが判定）全員に職業の選び直しを出し、WIPE_WAIT 秒後に部屋の前からやり直し */
-  const WIPE_WAIT = 8;
-  let wipeT = 0;
-  function checkWipe(dt) {
-    if (!game.raid || game.isClient) return;
-    if (game.players.every((p) => !p.alive)) {
-      if (wipeT === 0) {
-        game.raid.broadcast('wipe', { wait: WIPE_WAIT });
-        onWipe({ wait: WIPE_WAIT });
-      }
-      wipeT += dt;
-      if (wipeT > WIPE_WAIT) {
-        wipeT = 0;
-        const d = { step: game.state.progress.bossStep || 0 };
-        game.raid.broadcast('restart', d);
-        onRestart(d);
-      }
-    } else wipeT = 0;
+  /**
+   * 協力プレイ：全員倒れたら（ホストが判定）全員に職業の選び直しを出す。時間制限はなく、
+   * 全員が「準備OK」を押すとホストが「再開」を押せて、部屋の前から選んだ職業でやり直す
+   */
+  let wiped = false;
+  const wipeReady = new Map(); // id → { ready, job }
+  function checkWipe() {
+    if (!game.raid || game.isClient || wiped) return;
+    if (game.players.length && game.players.every((p) => !p.alive)) {
+      game.raid.broadcast('wipe', {});
+      onWipe();
+    }
   }
   /** 全滅：職業を選び直せる（決まった職業はやり直すときに反映） */
   let pendingJob = null;
   let picker = null;
-  function onWipe(d) {
-    game.toast(`全滅…… ${d.wait}秒後に部屋の前からやり直し。職業を変えられる`, 3000);
+  function onWipe() {
+    wiped = true;
+    wipeReady.clear();
+    game.toast('全滅…… 職業を選び直して「準備OK」。全員そろったらホストが再開', 3200);
     if (document.pointerLockElement) {
       expectUnlock = true;
       input.unlockPointer();
@@ -444,12 +458,46 @@ export function createGame() {
     picker = openJobPicker({
       current: game.me().jobId,
       title: '全滅…… 職業を選び直す',
-      seconds: d.wait,
       onPick: (job) => { pendingJob = job; },
       onClose: () => { picker = null; },
+      ready: {
+        isHost: () => !game.isClient,
+        members: () => game.players.map((p) => ({
+          name: p.name, me: p === game.me(),
+          job: wipeReady.get(p.id)?.job || p.jobId,
+          ready: !!wipeReady.get(p.id)?.ready,
+        })),
+        onReady: (job, ready) => {
+          wipeReady.set(game.me().id, { job, ready });
+          game.raid?.broadcast('wipeready', { job, ready });
+          picker?.refresh();
+        },
+        onStart: () => {
+          const d = { step: game.state.progress.bossStep || 0 };
+          game.raid.broadcast('restart', d);
+          onRestart(d);
+        },
+      },
     });
   }
+  /** 仲間の準備OK が届いた */
+  function onWipeReady(d, from) {
+    wipeReady.set(from, { job: d.job, ready: d.ready });
+    picker?.refresh();
+  }
+  /** 全滅してやり直すとき：僧侶の女神の祈り（一度きりの R）は使えるように戻す */
+  function resetOnceOnWipe() {
+    const u = game.state.progress.usedOnce;
+    if (u?.prayer) {
+      delete u.prayer;
+      if (game.me()?.jobId === 'priest') game.toastOnce('全滅したので「女神の祈り」がまた使える', 1800);
+    }
+    if (u?.lastrites) delete u.lastrites; // 献身者の身代わりの儀も同じく戻る
+  }
   function onRestart(d) {
+    resetOnceOnWipe();
+    wiped = false;
+    wipeReady.clear();
     closeAll();
     picker?.close();
     if (pendingJob) changeMyJob(pendingJob);
@@ -512,7 +560,7 @@ export function createGame() {
     game.down = null;
     game.trans = null;
     game.playing = true;
-    wipeT = 0;
+    wiped = false;
     const pr = game.state.progress;
     loadArea(game, pr.area);
     game.hudView.show(true);
@@ -520,6 +568,7 @@ export function createGame() {
     input.lockPointer();
     if (pr.area === AREA_ORDER[0]) setTimeout(() => toast('迷路を抜けて北の出口へ。赤い結界は番人を全部倒すと消える', 4000), 800);
     if (pr.area === COURSES[1].start && !pr.bossStep) setTimeout(() => toast('中ボス2体を倒して、最奥の冥王を討て。近接で殴るとボスがブレイク（気絶）する', 4000), 800);
+    if (pr.area === 'dusk' && !pr.bossStep) setTimeout(() => toast('夕暮れの5連戦。最後は黄昏竜ラグナ', 4000), 800);
     if (pr.area === 'wilds' && !pr.bossStep) setTimeout(() => toast('屋外の5連戦。竜や魔獣が相手。最後は古竜エルドラード', 4000), 800);
     if (pr.area === COURSES[2].start && !pr.bossStep) setTimeout(() => toast('5連戦。4戦目と5戦目はボスが2体同時に出る。攻撃は重い、油断するな', 4000), 800);
   }
@@ -608,7 +657,8 @@ export function createGame() {
       }
     },
     onRestart: (d) => (d.again ? againRaid(d) : onRestart(d)),
-    onWipe: (d) => onWipe(d),
+    onWipe: () => onWipe(),
+    onWipeReady,
     onClear: () => showClear(),
     onBecomeHost() {
       game.isClient = false;
@@ -791,7 +841,7 @@ export function createGame() {
     updateJobZones(game, dt);
     if (game.raid) {
       updateRevive(dt, me);
-      checkWipe(dt);
+      checkWipe();
       game.raid.update(dt);
     }
     priestAura(dt, me);

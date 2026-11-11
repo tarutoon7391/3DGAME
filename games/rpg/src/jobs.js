@@ -299,7 +299,7 @@ const SKILLS = {
       for (let k = 0.15; k < 1; k += 0.17) game.fx.burst(t.pos.x + (p.pos.x - t.pos.x) * k, 1.4, t.pos.z + (p.pos.z - t.pos.z) * k, 0xce93d8, 1, { speed: 0.5, up: 0.3, life: 0.3, grav: 0 });
       if (local) {
         strike(game, p, t, e.mult, { gauge: 0, knock: 0, color: 0xce93d8 });
-        game.teamEffect({ kind: 'heal', amount: e.heal, quiet: true });
+        game.teamEffect({ kind: 'heal', x: +p.pos.x.toFixed(1), z: +p.pos.z.toFixed(1), r: e.healRadius, amount: e.heal, quiet: true });
       }
     };
   },
@@ -542,6 +542,17 @@ function cast(game, p, id, d) {
     game.fx.burst(p.pos.x, 1.2, p.pos.z, 0x880e4f, 14, { speed: 3, up: 3, life: 0.5 });
   }
   run(game, p, id, d, true);
+  // 残響術士：汎用の型の技は、少し遅れて威力を下げてもう一度出る
+  const echo = p.job.echo;
+  if (echo && sk?.kind && GENERIC[sk.kind]) {
+    const weak = { ...sk, mult: (sk.mult || 0) * echo.mult, amount: (sk.amount || 0) * echo.mult };
+    p.pending.push({ t: echo.delay, fn: () => {
+      if (!p.alive) return;
+      game.fx.burst(p.pos.x, 2, p.pos.z, 0xb39ddb, 16, { speed: 3, up: 3, life: 0.5 });
+      GENERIC[sk.kind](game, p, { ...d, x: p.pos.x, z: p.pos.z }, true, weak);
+      game.raid?.sendSkill(p, id, d);
+    } });
+  }
   // 魔剣士：スキルを使うたびに必殺ゲージ
   if (p.job.gaugeOnSkill && sk && sk !== p.job.r) p.addGauge(p.job.gaugeOnSkill);
   game.raid?.sendSkill(p, id, d);
@@ -637,7 +648,7 @@ const GENERIC = {
     if (sk.aim && d.bx !== undefined) yaw = Math.atan2(d.bx - d.x, d.bz - d.z);
     const fire = (i) => {
       const a = yaw + (i - (n - 1) / 2) * (sk.spread || 0) + (sk.jitter ? (Math.random() - 0.5) * sk.jitter : 0);
-      const o = { speed: sk.speed || 22, mult: sk.mult, color: sk.color, size: sk.size || 0.3, range: sk.range || 24, pierce: sk.pierce, explode: sk.explode, dot: sk.dot, local, gauge: sk.gaugeSelf ?? GAUGE.gainSkill };
+      const o = { speed: sk.speed || 22, mult: sk.mult, color: sk.color, size: sk.size || 0.3, range: sk.range || 24, pierce: sk.pierce, explode: sk.explode, dot: sk.dot, split: sk.split, boomerang: sk.boomerang, local, gauge: sk.gaugeSelf ?? GAUGE.gainSkill };
       if (sk.debuff) o.onHit = (t) => { if (t && game.bosses.includes(t)) game.bossCommand({ type: 'debuff', ...sk.debuff, sub: t.sub }); };
       if (sk.chain) o.onHit = chainHit(game, p, sk.chain, sk.color);
       game.projectiles.playerShot(p, p.pos.x, p.pos.z, a, o);
@@ -694,7 +705,7 @@ const GENERIC = {
         kind: sk.zone, x: at.x + Math.sin(a) * off, z: at.z + Math.cos(a) * off, r: sk.radius, t: sk.dur, delay: sk.delay,
         every: sk.every, tick: sk.every || 0, mult: (sk.mult || 0) * (sk.zone === 'trap' ? p.job.trapBonus || 1 : 1), color: sk.color,
         trigger: sk.trigger, buff: sk.buff, debuff: sk.debuff, heal: sk.heal, owner: p.id, local, p,
-        range: sk.range, explode: sk.explode,
+        range: sk.range, explode: sk.explode, endBurst: sk.endBurst,
       });
     }
   },
@@ -711,6 +722,7 @@ const GENERIC = {
     if (local) {
       p.buff(sk.buff, sk.dur, { ...sk.vals });
       if (sk.invuln) p.invuln = Math.max(p.invuln, sk.invuln);
+      if (sk.taunt) game.bossCommand({ type: 'taunt', id: p.id, dur: sk.taunt }); // 棘の鎧：ボスに狙われる
       if (sk.msg) game.toastOnce(sk.msg, 1600);
     }
   },
@@ -771,6 +783,86 @@ const GENERIC = {
       n++;
       fire();
     };
+  },
+  cdreset(game, p, d, local, sk) {
+    // 指揮者：全員の Q・E をすぐ使えるように
+    startAction(p, 'cast', 0.5);
+    game.sound.se('seal');
+    ringFx(game, p.pos.x, p.pos.z, 12, sk.color);
+    game.fx.burst(p.pos.x, 2.4, p.pos.z, sk.color, 40, { speed: 6, up: 5, life: 0.8 });
+    if (local) game.teamEffect({ kind: 'cdreset' });
+  },
+  reviveall(game, p, d, local, sk) {
+    // 献身者：自分の HP を 1 にして、倒れた仲間を全員起こす
+    startAction(p, 'cast', 0.6);
+    game.sound.se('seal');
+    game.fx.burst(p.pos.x, 1.5, p.pos.z, sk.color, 60, { speed: 7, up: 6, life: 1 });
+    if (local) {
+      p.hp = 1;
+      game.teamEffect({ kind: 'reviveall', hp: sk.hp });
+    }
+  },
+  absorb(game, p, d, local, sk) {
+    // 吸収術士：周りの敵弾を吸い込み、1発ごとに必殺ゲージと HP に変える
+    startAction(p, 'cast', 0.35);
+    game.sound.se('seal');
+    const n = game.projectiles.clearShotsNear(p.pos.x, p.pos.z, sk.radius);
+    ringFx(game, p.pos.x, p.pos.z, sk.radius, sk.color);
+    if (local && n) {
+      p.addGauge(n * sk.gaugePer);
+      p.hp = Math.min(p.maxHp, p.hp + p.maxHp * sk.healPer * n);
+      game.toastOnce(`敵弾を ${n} 個 吸収！`, 1200);
+    }
+  },
+  reflect(game, p, d, local, sk) {
+    // 反射術士：周りの敵弾をはね返し、数に応じて一番近い敵にダメージ
+    startAction(p, 'cast', 0.35);
+    game.sound.se('wave');
+    const n = game.projectiles.clearShotsNear(p.pos.x, p.pos.z, sk.radius);
+    ringFx(game, p.pos.x, p.pos.z, sk.radius, sk.color);
+    if (!local) return;
+    let best = null;
+    let bd = 40;
+    forEachTarget(game, (e) => {
+      const dd = Math.hypot(e.pos.x - p.pos.x, e.pos.z - p.pos.z);
+      if (dd < bd) { bd = dd; best = e; }
+    });
+    if (best) {
+      const mult = sk.base + Math.min(sk.cap, n) * sk.per;
+      for (let k = 0; k < 1; k += 0.15) game.fx.burst(p.pos.x + (best.pos.x - p.pos.x) * k, 1.4, p.pos.z + (best.pos.z - p.pos.z) * k, sk.color, 2, { speed: 1, up: 0.5, life: 0.3, grav: 0 });
+      strike(game, p, best, mult, { gauge: GAUGE.gainSkill, color: sk.color, knock: 0.5 });
+      if (n) game.toastOnce(`敵弾を ${n} 個 はね返した！`, 1200);
+    }
+  },
+  bell(game, p, d, local, sk) {
+    // 鐘撞き：鐘を鳴らして敵弾を遅くする（弾は各自のブラウザにあるので、見た人のブラウザでもそれぞれ遅くなる）
+    startAction(p, 'cast', 0.4);
+    game.sound.se('seal');
+    game.projectiles.slowShots(sk.mul, sk.dur);
+    ringFx(game, p.pos.x, p.pos.z, 10, sk.color);
+    if (local && sk.mult) radiusHit(game, p, sk.mult, sk.radius || 4, { gauge: GAUGE.gainSkill, color: sk.color, melee: false });
+    game.toastOnce(`鐘の音：${sk.dur}秒間 敵弾が遅くなる`, 1400);
+  },
+  sticky(game, p, d, local, sk) {
+    // 吸着爆弾：一番近いボスに貼り付いて、時間差で爆発（ボスが動いてもついていく）
+    startAction(p, 'cast', 0.3);
+    game.sound.se('windup');
+    const n = sk.count || 1;
+    for (let k = 0; k < n; k++) {
+      let best = null;
+      let bd = sk.range || 18;
+      for (const b of game.bosses) {
+        if (!b.active || !b.alive) continue;
+        const dd = Math.hypot(b.pos.x - p.pos.x, b.pos.z - p.pos.z);
+        if (dd < bd) { bd = dd; best = b; }
+      }
+      if (!best) {
+        if (local && k === 0) game.toastOnce('貼り付ける相手が近くにいない', 1000);
+        return;
+      }
+      const a = (k / n) * Math.PI * 2;
+      addZone(game, { kind: 'sticky', target: best, ox: Math.sin(a) * best.radius * 0.6, oz: Math.cos(a) * best.radius * 0.6, x: best.pos.x, z: best.pos.z, r: sk.radius, t: sk.delay + k * 0.25, mult: sk.mult, color: sk.color, owner: p.id, local, p });
+    }
   },
   cleanse(game, p, d, local, sk) {
     // メイドのお掃除：周りの敵弾を一瞬で消す（弾は各自のブラウザにあるので、見た人のブラウザでもそれぞれ消える）
@@ -999,7 +1091,12 @@ function addZone(game, z) {
     game.scene.add(zoneGroup);
   }
   z.age = 0;
-  if (z.kind === 'turret' || z.kind === 'talisman') {
+  if (z.kind === 'sticky') {
+    geoCache.sticky ||= new THREE.SphereGeometry(0.35, 8, 6);
+    z.mat = new THREE.MeshBasicMaterial({ color: z.color });
+    z.mesh = new THREE.Mesh(geoCache.sticky, z.mat);
+    z.mesh.position.y = 2;
+  } else if (z.kind === 'turret' || z.kind === 'talisman') {
     geoCache.turret ||= new THREE.CylinderGeometry(0.35, 0.5, 1.2, 8);
     geoCache.talisman ||= new THREE.BoxGeometry(0.5, 0.8, 0.06);
     z.mat = new THREE.MeshBasicMaterial({ color: z.color });
@@ -1112,7 +1209,15 @@ export function updateJobZones(game, dt) {
           if (me?.alive && Math.hypot(me.pos.x - z.x, me.pos.z - z.z) <= z.r) me.hp = Math.min(me.maxHp, me.hp + me.maxHp * z.heal);
         }
       }
-      if (z.t <= 0) removeZone(i);
+      if (z.t <= 0) {
+        // 庭師：花が咲き終わると爆発する
+        if (z.endBurst) {
+          game.fx.burst(z.x, 0.8, z.z, z.color, 45, { speed: 8, up: 7, life: 0.7, size: 0.26 });
+          game.sound.se('slam');
+          if (z.local) radiusHit(game, z.p, z.endBurst, z.r, { color: z.color, knock: 1, gauge: GAUGE.gainSkill }, z.x, z.z);
+        }
+        removeZone(i);
+      }
     } else if (z.kind === 'strike') {
       // 時間差の一撃（落雷・流星など）
       z.mat.opacity = 0.4 + 0.4 * Math.sin(z.age * 20);
@@ -1144,6 +1249,20 @@ export function updateJobZones(game, dt) {
             if (z.debuff) game.bossCommand({ type: 'debuff', ...z.debuff, sub: hit.sub });
           }
         }
+        removeZone(i);
+      }
+    } else if (z.kind === 'sticky') {
+      // ボスについていく。時間が来たら爆発
+      if (z.target?.alive) {
+        z.x = z.target.pos.x + z.ox;
+        z.z = z.target.pos.z + z.oz;
+      }
+      z.mesh.position.set(z.x, 1.5 + z.target?.hpY * 0.3 || 2, z.z);
+      z.mat.color.setHex(Math.floor(z.age * 6) % 2 ? z.color : 0xffffff);
+      if (z.t <= 0) {
+        game.fx.burst(z.x, 1.5, z.z, z.color, 40, { speed: 9, up: 6, life: 0.6, size: 0.26 });
+        game.sound.se('slam');
+        if (z.local) radiusHit(game, z.p, z.mult, z.r, { color: z.color, knock: 1, gauge: GAUGE.gainSkill }, z.x, z.z);
         removeZone(i);
       }
     } else if (z.kind === 'turret') {

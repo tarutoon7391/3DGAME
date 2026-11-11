@@ -1,9 +1,13 @@
 // ダメージ計算と、攻撃の当たり判定（プレイヤー→敵、敵→プレイヤー）
 // 協力プレイ：自分の攻撃の当たり判定は自分のブラウザで行い、ホストのボス・雑魚には「何ダメージ当てた」を送る
 // 敵→他の人への攻撃は、その人のブラウザへ「当たった」を送り、向こうで無敵などを見て判定する
+import { courseOf, COURSES } from './data/areas.js';
 import { angleDiff, yawTo } from './util.js';
 import { PLAYER } from './data/player.js';
 import { GAUGE } from './data/jobs.js';
+
+/** 敵の攻撃の基準 HP：frac × この値がダメージ（遠距離職の標準 HP。変更前と同じ痛さ） */
+const ENEMY_HIT_BASE_HP = 110;
 
 /**
  * 攻撃力×倍率を、防御で割合カット（防御 8 で約 2割減）して ±10% のぶれ。最低1（プレイヤー→敵）
@@ -39,6 +43,8 @@ export function strike(game, pl, target, mult, opts = {}) {
     const toMe = Math.atan2(pl.pos.x - target.pos.x, pl.pos.z - target.pos.z);
     if (Math.abs(angleDiff(target.yaw, toMe)) > Math.PI * 0.55) mult *= J.backstab;
   }
+  // エクソシスト：怒っている・気絶しているボスに強い
+  if (J.vsRage && (target.raged || target.state === 'stun')) mult *= J.vsRage;
   // 狩人：印を付けた相手には自分のダメージが上がる
   if (pl.mark && pl.mark.t > 0 && pl.mark.target === target) mult *= pl.job.markBonus || 1.5;
   // 職業の特性による倍率：腐食中のボス（錬金術師）・瀕死のボス（処刑人）
@@ -55,11 +61,19 @@ export function strike(game, pl, target, mult, opts = {}) {
     // 吸血（呪術師の特性・狂戦士の血の旋風）
     let ls = (J.lifesteal || 0) + (opts.lifesteal || 0);
     for (const b of Object.values(pl.buffs)) if (b.lifesteal) ls += b.lifesteal; // 吸血鬼の蝙蝠化など
-    if (ls && pl.alive && pl.hp !== undefined) pl.hp = Math.min(pl.maxHp, pl.hp + dmg * ls);
+    if (ls && pl.alive && pl.hp !== undefined) {
+      const gain = J.lifestealCap ? Math.min(dmg * ls, pl.maxHp * J.lifestealCap) : dmg * ls; // 呪術師は1回の回復に上限
+      pl.hp = Math.min(pl.maxHp, pl.hp + gain);
+    }
     // 格闘家：当て続けるほど強くなる
     if (J.chainPer && melee) pl.chain = Math.min(J.chainMax, (pl.chain || 0) + 1);
     if (J.soulPer && !opts.clone) pl.soul = Math.min(J.soulMax, (pl.soul || 0) + J.soulPer); // 魂喰い
     if (J.healPool && melee) pl.healPool = (pl.healPool || 0) + dmg; // 治癒拳士：殴った分を仲間の回復に回す
+    // 鎧砕き：近接で殴るたびにボスの鎧が砕けて、被ダメが重なって上がる（送るのは 0.25 秒に1回まで）
+    if (J.shred && melee && game.bosses.includes(target) && performance.now() - (pl.shredAt || 0) > 250) {
+      pl.shredAt = performance.now();
+      game.bossCommand({ type: 'shred', sub: target.sub, per: J.shred.per, max: J.shred.max });
+    }
   }
   game.fx.text(target.pos.x, target.hpY ?? 2, target.pos.z, crit ? `${dmg}!` : String(dmg), clone ? '#ce93d8' : crit ? '#ffd54f' : '#ffffff', crit);
   game.fx.burst(target.pos.x, 1, target.pos.z, color, crit ? 14 : 8, { speed: 5, up: 3, life: 0.4 });
@@ -113,7 +127,7 @@ export function radiusHit(game, pl, mult, radius, opts = {}, cx = pl.pos.x, cz =
 /**
  * 敵の攻撃をプレイヤーに当てる。無敵中は false
  * 他の人（remote）なら、その人のブラウザへ送って向こうで判定する
- * @param {number} frac 最大 HP に対する割合（data/player.js の HIT）
+ * @param {number} frac 攻撃の重さ（data/player.js の HIT）。ステージ1 は最大 HP の割合、ステージ2〜5 は frac × 110 の固定ダメージ
  */
 export function hurtPlayer(game, pl, frac, fromX, fromZ) {
   if (!pl.alive) return false;
@@ -148,7 +162,10 @@ export function hurtPlayer(game, pl, frac, fromX, fromZ) {
   }
   // 重騎士の守護結界の中にいれば被ダメ半減
   if (game.inAegis?.(pl.pos.x, pl.pos.z)) pl.buff('aegis', 0.2);
-  let dmg = Math.max(1, Math.ceil(pl.maxHp * frac * pl.dmgTakenMul()));
+  // 敵の攻撃は「決まった量」のダメージ（frac × 基準 HP 110）。HP が多い職ほど実際に硬い
+  // ステージ1 だけは剣士固定で調整してあるので、従来どおり最大 HP の割合
+  const base = courseOf(game.state.progress.area) === COURSES[0] ? pl.maxHp : ENEMY_HIT_BASE_HP;
+  let dmg = Math.max(1, Math.ceil(base * frac * pl.dmgTakenMul()));
   // 剣闘士：正面（向いている方向の左右60°）からの攻撃は 40% カット
   if (pl.job.frontGuard) {
     const toFrom = Math.atan2(fromX - pl.pos.x, fromZ - pl.pos.z);
@@ -169,6 +186,16 @@ export function hurtPlayer(game, pl, frac, fromX, fromZ) {
     }
   }
   pl.hp = Math.max(0, pl.hp - dmg);
+  // 棘の騎士：殴られたら近くの敵にとげで反撃
+  if (pl.job.thorns && pl.hp > 0) {
+    let best = null;
+    let bd = 9;
+    forEachTarget(game, (e) => {
+      const d = Math.hypot(e.pos.x - pl.pos.x, e.pos.z - pl.pos.z) - e.radius;
+      if (d < bd) { bd = d; best = e; }
+    });
+    if (best) strike(game, pl, best, pl.job.thorns, { gauge: 4, knock: 0.3, color: 0x8bc34a });
+  }
   // 修羅：攻撃を受けるほど強くなる（倒れると0に戻る）
   if (pl.job.rageOnHurt) pl.rage = Math.min(pl.job.rageMax, (pl.rage || 0) + pl.job.rageOnHurt);
   const dx = pl.pos.x - fromX;
