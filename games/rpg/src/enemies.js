@@ -6,9 +6,12 @@ import { angleDiff, lerpAngle, yawTo, rand } from './util.js';
 import { hurtPlayer, nearestPlayer } from './combat.js';
 import { createBars } from './ui/bars.js';
 
-import { RAID_SCALE } from './data/jobs.js';
+import { RAID_SCALE, STAGE1_SCALE } from './data/jobs.js';
+import { courseOf, COURSES } from './data/areas.js';
 
 export function createEnemies(game) {
+  /** 敵 HP の倍率：ステージ1 は固定、ほかは人数の表 */
+  const scaleNow = () => (courseOf(game.state.progress.area) === COURSES[0] ? STAGE1_SCALE : RAID_SCALE(game.players.length));
   const list = [];
   const bars = createBars(game.scene);
   let nextId = 1;
@@ -21,7 +24,7 @@ export function createEnemies(game) {
     game.scene.add(m.group);
     const e = {
       id, type, def, model: m, pos: m.group.position, net: null,
-      yaw: rand(0, Math.PI * 2), hp: Math.round(def.hp * RAID_SCALE(game.players.length)), maxHp: Math.round(def.hp * RAID_SCALE(game.players.length)), defense: def.def,
+      yaw: rand(0, Math.PI * 2), hp: Math.round(def.hp * scaleNow()), maxHp: Math.round(def.hp * scaleNow()), defense: def.def,
       radius: def.radius, hpY: def.hpY, alive: true, removed: false,
       state: 'idle', t: rand(0, 2), home: { x, z }, target: null,
       cd: rand(AI.firstCd[0], AI.firstCd[1]), sealId, seen: false, sightT: rand(0, AI.sightEvery), lostT: 0, lastX: x, lastZ: z, flash: 0, kx: 0, kz: 0, tele: null, dirX: 0, dirZ: 0, hitDone: false,

@@ -15,4 +15,4 @@
   味方の火力を上げる効果が測れない支援職（鈍化・弾消し・ゲージ配りなど）は、火力を帯の上端に置いて埋め合わせる
 - ステージ1（剣士固定）は従来の難しさのまま
 
-計測のやり方：`node games/rpg/tools/balance/run.mjs <名前>`（職業）／`bosses.mjs`（ボス）／`tune.mjs <名前>`（帯を外れた職の係数を直す）。playwright と Chrome が要る
+計測のやり方：`node tools/rpg-balance/run.mjs <名前>`（職業）／`bosses.mjs`（ボス）／`tune.mjs <名前>`（帯を外れた職の係数を直す）。playwright と Chrome が要る

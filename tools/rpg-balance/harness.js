@@ -1,6 +1,6 @@
 // バランス計測：ブラウザの中で動く部分（games/rpg/index.html?debug を開いたページに読み込む）
 // 本物のゲームのコード（技・弾・設置物・ゲージ）をそのまま使い、動かない木人ボスに一定時間攻撃させて数値を取る
-// 使い方は tools/balance/README.md
+// 使い方は docs/balance/policy.md の末尾
 (function () {
   const ROOM = { area: 'abyss', bx: 0, bz: 13 }; // ステージ3 の第1の間（ボスの防御はステージ3相当）
   const MELEE_GAP = 1.0; // 近接はボスの表面からこの距離で殴る

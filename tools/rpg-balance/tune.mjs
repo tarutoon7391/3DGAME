@@ -1,12 +1,12 @@
 // 計測結果（docs/balance/<名前>.json）から、目標帯を外れた職の火力係数 power・支援係数 support を決めて data/jobs.js に書き込む
-//   node games/rpg/tools/balance/tune.mjs <計測名>
+//   node tools/rpg-balance/tune.mjs <計測名>
 // 帯の中にいる職は動かさない（職ごとの個性を残す）。外れた職だけ、帯の端から少し内側へ寄せる
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(here, '../../../..');
+const root = path.resolve(here, '../..');
 const jobsPath = path.join(root, 'games/rpg/src/data/jobs.js');
 const [name = 'stats'] = process.argv.slice(2);
 const rows = JSON.parse(fs.readFileSync(path.join(root, `docs/balance/${name}.json`), 'utf8'));

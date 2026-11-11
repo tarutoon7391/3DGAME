@@ -11,7 +11,7 @@
 // 基本ステータス（HP・攻撃・移動）はロールで決まる（data/roles.js）。職ごとのデータに書くのは技と特性と、
 //   power   … 火力係数。その職のすべての攻撃（通常攻撃・技・召喚物・設置物）のダメージに掛かる
 //   support … 支援係数。味方への回復・バリア・強化と、ボスへの被ダメ増（腐食・鎧砕き）の効き目に掛かる
-// の2つ。どちらも docs/balance の計測（games/rpg/tools/balance）で決める
+// の2つ。どちらも docs/balance の計測（tools/rpg-balance）で決める
 
 import { ROLES, roleStats } from './roles.js';
 
@@ -295,7 +295,7 @@ export const JOBS = {
   },
   astrologer: {
     name: '占星術師', role: 'ランダム強化', color: '#b39ddb',
-    power: 0.71, support: 2.13, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 0.71, support: 1.7, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.5, speed: 20, mult: 0.8, color: 0xd1c4e9, size: 0.3, range: 22 },
     q: { id: 'card', kind: 'random', name: '星のカード', desc: 'カードを引く：攻撃・守り・速さ・回復のどれかを周りの味方に（10秒）', cd: 9, pool: [
       { name: '太陽（攻撃 +25%）', kind: 'teambuff', radius: 9, buff: 'card', dur: 10, vals: { atkMul: 1.25 }, color: 0xffd54f },
@@ -1211,8 +1211,28 @@ for (const id of JOB_ORDER) {
 }
 export const DEFAULT_JOB = 'swordsman';
 
-/** 人数補正：敵（ボス・雑魚）の HP とブレイク値の上限に掛ける。人数 × 1.5 で固定（1人 1.5 → 4人 6 → 8人 12） */
-export const RAID_SCALE = (n) => Math.max(1, n) * 1.5;
+/**
+ * 人数補正：敵（ボス・雑魚）の HP とブレイク値の上限に掛ける。どの人数でも撃破時間が揃うように、
+ * 人数ごとの標準編成（STANDARD_PARTY）の火力の合計 ÷ 剣士1人の火力 で決めた表（docs/balance/policy.md・bosses.md）
+ */
+const RAID_SCALE_TABLE = [1, 1, 1.42, 2.37, 3.07, 4.07, 5.03, 5.72, 6.14];
+export const RAID_SCALE = (n) => RAID_SCALE_TABLE[Math.min(8, Math.max(1, n))];
+/** ステージ1（剣士固定）の敵 HP 倍率。ステータス統一の前と同じ手ごたえになる値 */
+export const STAGE1_SCALE = 1.34;
+/** 人数ごとの標準編成（計測と人数補正の基準） */
+export const STANDARD_PARTY = [null,
+  ['swordsman'],
+  ['swordsman', 'priest'],
+  ['swordsman', 'priest', 'mage'],
+  ['swordsman', 'priest', 'mage', 'knight'],
+  ['swordsman', 'priest', 'mage', 'knight', 'swordsman'],
+  ['swordsman', 'priest', 'mage', 'knight', 'swordsman', 'mage'],
+  ['swordsman', 'priest', 'mage', 'knight', 'swordsman', 'mage', 'knight'],
+  ['swordsman', 'priest', 'mage', 'knight', 'swordsman', 'mage', 'knight', 'priest']];
+/** 実戦で攻撃できている時間の割合の見積もり（避ける・追いかける・倒れるぶんを引く）。ボスの HP を決めるのに使う */
+export const UPTIME = 0.55;
+/** ひとりで挑むとき、敵の与ダメージに掛ける倍率（協力よりやや簡単に） */
+export const SOLO_DAMAGE = 0.7;
 
 /** 1ルームの最大人数（ルーム中継の上限も 8） */
 export const MAX_RAID_PLAYERS = 8;

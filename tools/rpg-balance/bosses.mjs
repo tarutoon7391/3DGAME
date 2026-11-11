@@ -1,6 +1,6 @@
 // ボスの計測（node）：各部屋のボスの「痛さ」（棒立ちの剣士が毎秒削られる量）を測り、
 // 職業の計測結果（docs/balance/after.json）と合わせて、人数ごとの撃破時間の見積もりを docs/balance/bosses.md に出す
-//   node games/rpg/tools/balance/bosses.mjs
+//   node tools/rpg-balance/bosses.mjs
 import { spawn, execSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
@@ -8,7 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(here, '../../../..');
+const root = path.resolve(here, '../..');
 const PORT = 3191;
 const req = createRequire(import.meta.url);
 let pw;
@@ -53,7 +53,7 @@ const lines = ['# ボスの計測結果', '',
   `撃破時間：標準編成が、実戦で攻撃できている時間を ${Math.round(up * 100)}% として見積もった時間（分:秒）。部屋のボス全員を倒すまで`, '',
   `| ステージ | ボス | HP（1人） | 痛さ 通常 | 痛さ 怒り | ${[1, 2, 3, 4, 5, 6, 7, 8].map((n) => `${n}人`).join(' | ')} |`,
   `|---|---|---|---|---|${'---|'.repeat(8)}`];
-const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
+const mmss = (s0) => { const s = Math.round(s0); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 for (const r of rows) {
   const times = [];
   for (let n = 1; n <= 8; n++) {

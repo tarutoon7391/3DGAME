@@ -1,5 +1,5 @@
 // バランス計測の実行役（node）。サーバーを立ててヘッドレス Chrome で harness.js を動かし、全職の数値を表にする
-//   node games/rpg/tools/balance/run.mjs [出力名=jobs] [秒数=60] [職業ID,...]
+//   node tools/rpg-balance/run.mjs [出力名=jobs] [秒数=60] [職業ID,...]
 // 必要なもの：playwright（グローバルに入っていれば NODE_PATH で解決）と Chrome。リポジトリの依存には足さない
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -9,7 +9,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(here, '../../../..');
+const root = path.resolve(here, '../..');
 const outDir = path.join(root, 'docs/balance');
 const [outName = 'jobs', secsArg = '60', only = ''] = process.argv.slice(2);
 const SECS = Number(secsArg);
