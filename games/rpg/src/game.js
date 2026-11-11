@@ -33,7 +33,7 @@ const TITLE = '3DRPG 〜魔窟の主〜';
 const CONTROLS = [
   'WASD：移動　Shift：ダッシュ　マウス：視点（画面クリックで視点ロック／右ドラッグでも可）',
   'V：一人称／三人称の切り替え（はじめは一人称）',
-  '左クリック：通常攻撃　Space：回避（無敵時間あり）　F：看板を調べる',
+  '左クリック：通常攻撃（長押しで出し続ける）　Space：回避（無敵時間あり）　F：看板を調べる',
   'Q・E：スキル（クールダウン）　R：必殺技（攻撃を当てて溜める。近接ほど早く溜まる）',
   'ダッシュと回避はスタミナを使う。0 になるとバテて、満タンに戻るまで使えない',
   'ホイール：カメラ距離（三人称）　Esc：ポーズ',
@@ -636,7 +636,8 @@ export function createGame() {
     it.moveZ = v.z;
     it.aimYaw = game.cam.forwardYaw();
     it.lockYaw = game.cam.fps; // 一人称：体の向き＝視点の水平方向
-    it.attack = input.wasPressed('Mouse0');
+    // 左クリックは押しっぱなしで通常攻撃を出し続ける（近接はコンボが続き、飛び道具は撃てる間隔ごとに撃つ）
+    it.attack = input.isDown('Mouse0') || input.wasPressed('Mouse0');
     it.dodge = input.wasPressed('Space');
     it.dash = k('ShiftLeft') || k('ShiftRight');
     it.skillQ = input.wasPressed('KeyQ');
