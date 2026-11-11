@@ -728,6 +728,55 @@ const GENERIC = {
     for (const b of game.bosses) if (b.alive) ringFx(game, b.pos.x, b.pos.z, b.radius + 2, sk.color);
     if (local) for (const db of sk.debuffs) game.bossCommand({ type: 'debuff', ...db });
   },
+  beam(game, p, d, local, sk) {
+    // 光線：前方 len m・幅 width の一直線に、ticks 回（every 秒ごと）即着弾。fan があれば扇状に何本も
+    const ticks = sk.ticks || 1;
+    startAction(p, 'cast', ticks > 1 ? ticks * sk.every + 0.1 : 0.3);
+    p.waveT = 0.3;
+    const lines = sk.fan ? Array.from({ length: sk.fan }, (_, i) => d.yaw + (i - (sk.fan - 1) / 2) * (sk.fanSpread || 0.25)) : [d.yaw];
+    let n = 0;
+    let tick = 0;
+    game.sound.se('wave');
+    const fire = () => {
+      for (const a of lines) {
+        const s0 = Math.sin(a);
+        const c0 = Math.cos(a);
+        for (let k = 1; k < sk.len; k += 1.2) {
+          const x = p.pos.x + s0 * k;
+          const z = p.pos.z + c0 * k;
+          if (game.world.blocked(x, z, true)) break;
+          game.fx.burst(x, 1.2, z, sk.color, 1, { speed: 0.5, up: 0.3, life: 0.25, size: 0.2, grav: 0 });
+        }
+        if (!local) continue;
+        forEachTarget(game, (e) => {
+          const dx = e.pos.x - p.pos.x;
+          const dz = e.pos.z - p.pos.z;
+          const along = dx * s0 + dz * c0;
+          const side = Math.abs(dx * c0 - dz * s0);
+          if (along > 0 && along < sk.len + e.radius && side < sk.width / 2 + e.radius) strike(game, p, e, sk.mult, { gauge: sk.gaugeSelf ?? GAUGE.gainSkill, knock: 0.3, color: sk.color, brkMul: sk.brkMul });
+        });
+      }
+    };
+    p.skillTick = (dt) => {
+      tick -= dt;
+      if (n >= ticks || tick > 0) return;
+      tick = sk.every || 0.2;
+      n++;
+      fire();
+    };
+  },
+  cleanse(game, p, d, local, sk) {
+    // メイドのお掃除：周りの敵弾を一瞬で消す（弾は各自のブラウザにあるので、見た人のブラウザでもそれぞれ消える）
+    startAction(p, 'spin', 0.4);
+    game.sound.se('seal');
+    const n = game.projectiles.clearShotsNear(p.pos.x, p.pos.z, sk.radius);
+    ringFx(game, p.pos.x, p.pos.z, sk.radius, sk.color);
+    if (local) {
+      if (sk.mult) radiusHit(game, p, sk.mult, sk.radius * 0.6, { gauge: GAUGE.gainSkill, color: sk.color, melee: false });
+      if (n) game.toastOnce(`お掃除！ 敵弾を ${n} 個 消した`, 1200);
+      if (sk.team) game.teamEffect({ kind: 'buff', name: sk.team.name, dur: sk.team.dur, vals: sk.team.vals, x: p.pos.x, z: p.pos.z, r: sk.radius, msg: sk.team.msg });
+    }
+  },
   selfhurt(game, p, d, local, sk) {
     // ギャンブラーの外れ：自分が痛い
     startAction(p, 'cast', 0.3);
@@ -774,7 +823,12 @@ function shoot(game, p, d, local) {
   const mult = b.mult * (d.still && p.job.stillBonus ? p.job.stillBonus : 1);
   // 双子：通常攻撃が2発（count・spread）
   const n = b.count || 1;
-  for (let i = 0; i < n; i++) game.projectiles.playerShot(p, d.x, d.z, d.yaw + (i - (n - 1) / 2) * (b.spread || 0), { ...b, mult, local });
+  const o = { ...b, mult, local };
+  if (b.debuff) o.onHit = (t) => { if (t && game.bosses.includes(t)) game.bossCommand({ type: 'debuff', ...b.debuff, sub: t.sub }); };
+  for (let i = 0; i < n; i++) {
+    const jit = b.jitter ? (Math.random() - 0.5) * b.jitter : 0; // マシンガン：少しばらける
+    game.projectiles.playerShot(p, d.x, d.z, d.yaw + (i - (n - 1) / 2) * (b.spread || 0) + jit, o);
+  }
   game.sound.se('shoot');
 }
 SKILLS._shot = (game, p, d, local) => {

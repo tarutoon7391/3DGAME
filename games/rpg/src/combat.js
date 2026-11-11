@@ -5,11 +5,15 @@ import { angleDiff, yawTo } from './util.js';
 import { PLAYER } from './data/player.js';
 import { GAUGE } from './data/jobs.js';
 
-/** 攻撃力×倍率 − 防御÷2 に ±10% のぶれ。最低1（プレイヤー→敵） */
+/**
+ * 攻撃力×倍率を、防御で割合カット（防御 8 で約 2割減）して ±10% のぶれ。最低1（プレイヤー→敵）
+ * 以前は「− 防御÷2」の固定値引きで、1発の軽い攻撃（連射・多段）がほぼ 1 ダメージになっていたので割合にした
+ */
 export function calcDamage(atk, mult, def) {
-  const base = atk * mult - def * 0.5;
+  const base = atk * mult * (DEF_K / (DEF_K + def));
   return Math.max(1, Math.round(base * (0.9 + Math.random() * 0.2)));
 }
+const DEF_K = 30; // 防御の効き方（大きいほど防御が効きにくい）
 
 /** 生きている攻撃対象（雑魚＋戦闘中のボス）に fn を呼ぶ */
 export function forEachTarget(game, fn) {
@@ -42,7 +46,8 @@ export function strike(game, pl, target, mult, opts = {}) {
   pl.addGauge(opts.gauge ?? (melee ? GAUGE.gainMelee : GAUGE.gainShot));
   if (!pl.remote) {
     // 吸血（呪術師の特性・狂戦士の血の旋風）
-    const ls = (J.lifesteal || 0) + (opts.lifesteal || 0);
+    let ls = (J.lifesteal || 0) + (opts.lifesteal || 0);
+    for (const b of Object.values(pl.buffs)) if (b.lifesteal) ls += b.lifesteal; // 吸血鬼の蝙蝠化など
     if (ls && pl.alive && pl.hp !== undefined) pl.hp = Math.min(pl.maxHp, pl.hp + dmg * ls);
     // 格闘家：当て続けるほど強くなる
     if (J.chainPer && melee) pl.chain = Math.min(J.chainMax, (pl.chain || 0) + 1);
@@ -151,6 +156,8 @@ export function hurtPlayer(game, pl, frac, fromX, fromZ) {
     }
   }
   pl.hp = Math.max(0, pl.hp - dmg);
+  // 修羅：攻撃を受けるほど強くなる（倒れると0に戻る）
+  if (pl.job.rageOnHurt) pl.rage = Math.min(pl.job.rageMax, (pl.rage || 0) + pl.job.rageOnHurt);
   const dx = pl.pos.x - fromX;
   const dz = pl.pos.z - fromZ;
   const len = Math.hypot(dx, dz) || 1;

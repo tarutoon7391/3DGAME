@@ -1,4 +1,4 @@
-// 職業48種のデータ（調整用の数値はここに集約）。処理は src/jobs.js
+// 職業64種のデータ（調整用の数値はここに集約）。処理は src/jobs.js
 //
 // 共通ルール：
 //   通常攻撃（左クリック） … melee（近接コンボ）か shot（飛び道具）
@@ -612,6 +612,187 @@ export const JOBS = {
     breakMul: 1,
     look: { armorColor: 0xad1457, swordColor: 0x90caf9, swordLen: 0.6, cape: 0x1565c0, weapon: 'gun' },
   },
+
+  // ================= 追加の16職（今までの職業と仕組みがかぶらないもの） =================
+  machinegunner: {
+    name: 'マシンガンナー', role: '超連射', color: '#bdbdbd',
+    stats: { hp: 115, atk: 11, speed: 6.3 },
+    basic: { type: 'shot', cd: 0.08, speed: 38, mult: 0.28, color: 0xffe082, size: 0.12, range: 26, jitter: 0.12 },
+    q: { id: 'suppress', kind: 'shots', name: '制圧射撃', desc: '2秒間 弾をばらまきながらボスを鈍らせる', cd: 9, count: 24, every: 0.08, jitter: 0.25, speed: 38, mult: 0.4, size: 0.13, range: 26, color: 0xffe082, debuff: { name: 'slow', dur: 3, mul: 0.75 } },
+    e: { id: 'reloadroll', kind: 'selfbuff', name: '弾込め回避', desc: '0.6秒 無敵になり、6秒間 攻撃力 +25%', cd: 9, buff: 'reload', dur: 6, vals: { atkMul: 1.25 }, invuln: 0.6, color: 0xbdbdbd, sound: 'dodge' },
+    r: { id: 'gatling', kind: 'shots', name: 'ガトリング', desc: '4秒間 一番近いボスへ大量の弾を撃ち込む', aim: true, count: 50, every: 0.08, jitter: 0.15, speed: 42, mult: 0.55, size: 0.15, range: 30, color: 0xffab40 },
+    trait: '撃ちっぱなしの超連射（1発は軽い）',
+    breakMul: 1,
+    look: { armorColor: 0x546e7a, swordColor: 0x424242, swordLen: 1.0, cape: 0x37474f, weapon: 'gun' },
+  },
+  flamer: {
+    name: '火炎放射兵', role: '近距離で焼く', color: '#ff7043',
+    stats: { hp: 135, atk: 12, speed: 6.3 },
+    // 射程が短く、当たると燃える（継続ダメージ）
+    basic: { type: 'shot', cd: 0.12, speed: 16, mult: 0.3, color: 0xff7043, size: 0.35, range: 8, pierce: true, jitter: 0.25, dot: { mult: 0.12, every: 0.5, dur: 3 } },
+    q: { id: 'napalm', kind: 'zone', zone: 'field', name: 'ナパーム', desc: '狙った場所を5秒間 燃やし続ける', cd: 8, at: 'aim', dist: 6, radius: 4, dur: 5, every: 0.3, mult: 0.5, color: 0xff5722 },
+    e: { id: 'flameburst', kind: 'burst', name: '炎の噴射', desc: '周りに炎を噴き出して焼く', cd: 7, mult: 1.8, radius: 4.2, color: 0xff7043, melee: false },
+    r: { id: 'inferno', kind: 'cone', name: '大火炎', desc: '前方8mを大きく焼き払い、燃やし続ける', mult: 3, range: 8, arc: 1.6, color: 0xff3d00, melee: false, sound: 'wave', dot: { mult: 0.5, every: 0.5, dur: 6 } },
+    trait: '燃料タンク持ち：被ダメージ -10%',
+    dmgTaken: 0.9, breakMul: 1,
+    look: { armorColor: 0x6d4c41, swordColor: 0xff7043, swordLen: 0.9, cape: 0xbf360c, weapon: 'gun', mask: true },
+  },
+  rocketeer: {
+    name: 'ロケット兵', role: '爆発する重い弾', color: '#ffab91',
+    stats: { hp: 120, atk: 15, speed: 6.2 },
+    basic: { type: 'shot', cd: 1.0, speed: 22, mult: 1.6, color: 0xff7043, size: 0.35, range: 30, explode: 2.8 },
+    q: { id: 'multirocket', kind: 'shots', name: '多連装ロケット', desc: '爆発するロケットを6発ばらまく', cd: 8, count: 6, spread: 0.18, speed: 20, mult: 1.2, size: 0.3, range: 26, explode: 2.6, color: 0xff7043 },
+    e: { id: 'rocketjump', kind: 'leap', name: 'ロケットジャンプ', desc: '足元を爆発させて跳び、着地点の周りを吹き飛ばす', cd: 8, dist: 7, time: 0.5, radius: 3.5, mult: 2, color: 0xff7043, height: 5 },
+    r: { id: 'airstrike', kind: 'zone', zone: 'strike', name: '爆撃要請', desc: '一番近いボスの周りに1.5秒後 爆弾を8つ落とす', at: 'boss', dist: 8, count: 8, scatter: 4, radius: 3.5, dur: 1.5, mult: 3.2, color: 0xff3d00 },
+    trait: 'ブレイク値 1.3倍（爆風）',
+    breakMul: 1.3,
+    look: { armorColor: 0x5d4037, swordColor: 0x2e7d32, swordLen: 1.1, cape: 0x33691e, weapon: 'gun' },
+  },
+  medic: {
+    healer: true,
+    name: '衛生兵', role: '回復（素早い）', color: '#ef9a9a',
+    stats: { hp: 110, atk: 12, speed: 7.0 },
+    basic: { type: 'shot', cd: 0.4, speed: 30, mult: 0.7, color: 0xffffff, size: 0.2, range: 24 },
+    q: { id: 'firstaid', kind: 'teamheal', name: '救急キット', desc: '周囲6mの味方の HP を 30% 回復', cd: 7, radius: 6, amount: 0.3, color: 0xef9a9a },
+    e: { id: 'stimpack', kind: 'teambuff', name: '興奮剤', desc: '周囲8mの味方を 6秒間 移動 +25%・毎秒 HP 2% 回復', cd: 12, radius: 8, buff: 'stim', dur: 6, vals: { speedMul: 1.25, regen: 0.02 }, color: 0xef9a9a, msg: '興奮剤：足が速くなり回復' },
+    r: { id: 'fieldhospital', kind: 'zone', zone: 'field', name: '野戦病院', desc: '足元を10秒間 回復の場にする（毎秒 HP 6% 回復）', radius: 6, dur: 10, every: 0.5, heal: 0.03, mult: 0, color: 0xef9a9a },
+    trait: '足が速い衛生兵',
+    breakMul: 1,
+    look: { armorColor: 0xeceff1, swordColor: 0xef5350, swordLen: 0.6, cape: 0xc62828, weapon: 'gun', hat: 0xeceff1 },
+  },
+  hammer: {
+    name: '大槌使い', role: 'ブレイク特化', color: '#a1887f',
+    stats: { hp: 150, atk: 17, speed: 5.9 },
+    basic: { type: 'melee', combo: [{ dur: 0.6, hit: 0.26, mult: 1.8 }, { dur: 0.85, hit: 0.38, mult: 3.0 }], range: 3.2, arc: 2.4, heavyBonus: 0.5 },
+    q: { id: 'quake', kind: 'burst', name: '地震', desc: '地面を叩いて周りを揺らす（ブレイク大）', cd: 7, mult: 2.4, radius: 4.8, color: 0xa1887f, brkMul: 2.5 },
+    e: { id: 'hammerleap', kind: 'leap', name: '飛び叩き', desc: '跳んで狙った場所に叩きつける', cd: 9, dist: 6, time: 0.55, radius: 3.8, mult: 2.8, color: 0x8d6e63, brkMul: 2 },
+    r: { id: 'meteorhammer', kind: 'burst', name: '隕石の槌', desc: '周りを3回 渾身の力で叩く（ブレイク特大）', ticks: 3, every: 0.35, mult: 4, radius: 5.2, color: 0x6d4c41, brkMul: 3 },
+    trait: 'ブレイク値 2倍',
+    breakMul: 2.0,
+    look: { armorColor: 0x5d4037, swordColor: 0x757575, swordLen: 1.0, cape: 0x3e2723, weapon: 'mace' },
+  },
+  dualblade: {
+    name: '双剣士', role: '高速6段コンボ', color: '#80deea',
+    stats: { hp: 120, atk: 13, speed: 7.1 },
+    basic: { type: 'melee', combo: [{ dur: 0.16, hit: 0.05, mult: 0.6 }, { dur: 0.16, hit: 0.05, mult: 0.6 }, { dur: 0.16, hit: 0.05, mult: 0.65 }, { dur: 0.16, hit: 0.05, mult: 0.65 }, { dur: 0.18, hit: 0.06, mult: 0.7 }, { dur: 0.34, hit: 0.12, mult: 1.4 }], range: 2.5, arc: 2.4, heavyBonus: 0.2 },
+    q: { id: 'crosscut', kind: 'cone', name: '十字斬り', desc: '前方を十字に斬る', cd: 5, mult: 2.0, range: 3.6, arc: 1.6, color: 0x80deea },
+    e: { id: 'spinrush', kind: 'dash', name: '回転突進', desc: '回りながら6m 突っ込む（無敵）', cd: 6, mult: 1.5, dist: 6, time: 0.22, width: 1.6, color: 0x80deea },
+    r: { id: 'bladedance', kind: 'burst', name: '双刃乱舞', desc: '周りを12回 切り刻む', ticks: 12, every: 0.07, mult: 0.8, radius: 3.6, color: 0x4dd0e1 },
+    trait: '必殺ゲージの溜まり方 1.2倍（手数が多い）',
+    gaugeMul: 1.2, breakMul: 1,
+    look: { armorColor: 0x006064, swordColor: 0x80deea, swordLen: 0.7, cape: 0x00838f, weapon: 'dagger' },
+  },
+  shielder: {
+    name: '盾投げ士', role: '盾で守って投げる', color: '#90caf9',
+    stats: { hp: 165, atk: 13, speed: 6.1 },
+    basic: { type: 'shot', cd: 0.7, speed: 22, mult: 1.1, color: 0x90caf9, size: 0.5, range: 14, pierce: true },
+    q: { id: 'shieldrush', kind: 'dash', name: '盾の突撃', desc: '盾を構えて5m 突進（ブレイク大）', cd: 6, mult: 1.6, dist: 5, time: 0.25, width: 1.8, color: 0x90caf9, brkMul: 2.5 },
+    e: { id: 'shieldwall', kind: 'selfbuff', name: '盾構え', desc: '3秒間 被ダメージ -60%', cd: 9, buff: 'shieldwall', dur: 3, vals: { dmgMul: 0.4, speedMul: 0.7 }, color: 0x90caf9 },
+    r: { id: 'shieldstorm', kind: 'shots', name: '盾の嵐', desc: '盾を全方向に8枚 投げる（貫通）', count: 8, spread: 0.785, speed: 22, mult: 2, size: 0.55, range: 16, pierce: true, color: 0x64b5f6 },
+    trait: '被ダメージ -15%',
+    dmgTaken: 0.85, breakMul: 1.3,
+    look: { armorColor: 0x1565c0, swordColor: 0x90caf9, swordLen: 0.6, cape: 0x0d47a1, weapon: 'mace', bigShield: true },
+  },
+  knifer: {
+    name: 'ナイフ投げ', role: '3本同時投げ', color: '#cfd8dc',
+    stats: { hp: 105, atk: 13, speed: 7.0 },
+    basic: { type: 'shot', cd: 0.38, speed: 32, mult: 0.45, color: 0xcfd8dc, size: 0.18, range: 20, count: 3, spread: 0.12 },
+    q: { id: 'poisonknife', kind: 'shots', name: '毒ナイフ', desc: '当たると6秒間 毒で削るナイフを5本', cd: 7, count: 5, spread: 0.15, speed: 30, mult: 0.5, size: 0.2, range: 20, color: 0x9ccc65, dot: { mult: 0.25, every: 0.5, dur: 6 } },
+    e: { id: 'backflip', kind: 'dash', name: 'バク転', desc: '後ろへ跳ねて間合いを取る（無敵）', cd: 5, mult: 0, dist: -5, time: 0.25, width: 0.1, color: 0xcfd8dc },
+    r: { id: 'knifestorm', kind: 'zone', zone: 'field', name: 'ナイフの雨', desc: '一番近いボスの足元に4秒間 ナイフを降らせ続ける', at: 'boss', dist: 8, radius: 5, dur: 4, every: 0.2, mult: 0.7, color: 0xcfd8dc },
+    trait: '会心率 +10%',
+    critBonus: 0.1, breakMul: 1,
+    look: { armorColor: 0x37474f, swordColor: 0xcfd8dc, swordLen: 0.5, cape: 0x263238, weapon: 'dagger' },
+  },
+  laser: {
+    name: '光線術士', role: '一直線のビーム', color: '#e1f5fe',
+    stats: { hp: 100, atk: 14, speed: 6.4 },
+    basic: { type: 'shot', cd: 0.5, speed: 50, mult: 0.85, color: 0xe1f5fe, size: 0.18, range: 28, pierce: true },
+    q: { id: 'ray', kind: 'beam', name: '光線', desc: '前方20m に光線を走らせる（即着弾・貫通）', cd: 5, len: 20, width: 1.6, mult: 2.2, color: 0xe1f5fe },
+    e: { id: 'prism', kind: 'beam', name: 'プリズム', desc: '光線を扇状に3本', cd: 7, len: 16, width: 1.4, mult: 1.4, fan: 3, fanSpread: 0.3, color: 0xb3e5fc },
+    r: { id: 'megaray', kind: 'beam', name: '極太レーザー', desc: '2秒間 前方24m を太い光線で焼き続ける', len: 24, width: 3, mult: 1.2, ticks: 10, every: 0.2, color: 0x40c4ff },
+    trait: '光線は弾と違って一瞬で届く',
+    breakMul: 1,
+    look: { armorColor: 0x0277bd, swordColor: 0xe1f5fe, swordLen: 0.9, cape: 0x01579b, weapon: 'staff', hat: 0x0288d1 },
+  },
+  cryo: {
+    name: '氷結術士', role: '当てるたびに鈍らせる', color: '#b3e5fc',
+    stats: { hp: 105, atk: 13, speed: 6.4 },
+    // 当たったボスが少し鈍る
+    basic: { type: 'shot', cd: 0.55, speed: 22, mult: 0.8, color: 0xb3e5fc, size: 0.3, range: 22, debuff: { name: 'slow', dur: 1.5, mul: 0.85 } },
+    q: { id: 'frostnova', kind: 'burst', name: '凍てつく波', desc: '周りを凍らせる', cd: 7, mult: 1.8, radius: 4.5, color: 0xb3e5fc, melee: false },
+    e: { id: 'icefield', kind: 'zone', zone: 'field', name: '氷原', desc: '狙った場所を6秒間 凍らせる（継続ダメージ）', cd: 10, at: 'aim', dist: 7, radius: 4.5, dur: 6, every: 0.4, mult: 0.45, color: 0x81d4fa },
+    r: { id: 'absolutezero', kind: 'debuff', name: '絶対零度', desc: 'ボスを凍えさせ、8秒間 動きを大きく鈍らせ被ダメージ +20%', color: 0x81d4fa, debuffs: [{ name: 'slow', dur: 8, mul: 0.5 }, { name: 'vuln', dur: 8, mul: 1.2 }] },
+    trait: '通常攻撃が当たるとボスが少し鈍る',
+    breakMul: 1,
+    look: { armorColor: 0x0277bd, swordColor: 0xb3e5fc, swordLen: 0.9, cape: 0xe1f5fe, weapon: 'staff', hat: 0x01579b },
+  },
+  asura: {
+    name: '修羅', role: '受けるほど強い', color: '#ff5252',
+    stats: { hp: 140, atk: 15, speed: 6.6 },
+    basic: { type: 'melee', combo: [{ dur: 0.3, hit: 0.1, mult: 1.0 }, { dur: 0.3, hit: 0.1, mult: 1.05 }, { dur: 0.48, hit: 0.18, mult: 1.7 }], range: 2.8, arc: 2.3, heavyBonus: 0.3 },
+    q: { id: 'asurastrike', kind: 'cone', name: '修羅の一撃', desc: '前方を力いっぱい打つ', cd: 5, mult: 2.4, range: 3.8, arc: 1.4, color: 0xff5252 },
+    e: { id: 'endure', kind: 'selfbuff', name: '耐え忍ぶ', desc: '5秒間 被ダメージ -50%', cd: 12, buff: 'endure', dur: 5, vals: { dmgMul: 0.5 }, color: 0xff5252 },
+    r: { id: 'asurarage', kind: 'burst', name: '修羅の怒り', desc: '周りを6回 打ちのめす（怒りが溜まるほど強い）', ticks: 6, every: 0.15, mult: 1.6, radius: 4.4, color: 0xd50000 },
+    trait: '攻撃を受けるたびに攻撃力 +6%（最大 +60%）。倒れると0に戻る',
+    rageOnHurt: 0.06, rageMax: 0.6, breakMul: 1.1,
+    look: { armorColor: 0x4a0000, swordColor: 0xff5252, swordLen: 0.5, cape: 0x880e4f, weapon: 'fist' },
+  },
+  falconer: {
+    name: '鷹匠', role: '鷹が自動で攻撃', color: '#bcaaa4',
+    stats: { hp: 110, atk: 13, speed: 6.7 },
+    basic: { type: 'shot', cd: 0.45, speed: 28, mult: 0.75, color: 0xbcaaa4, size: 0.22, range: 24 },
+    q: { id: 'divebomb', kind: 'zone', zone: 'strike', name: '鷹の急襲', desc: '一番近いボスへ0.6秒後 鷹が急降下', cd: 5, at: 'boss', dist: 8, radius: 2.5, dur: 0.6, mult: 2.6, color: 0xbcaaa4 },
+    e: { id: 'hawkfrenzy', kind: 'selfbuff', name: '鷹の猛攻', desc: '8秒間 鷹の攻撃が2.5倍速', cd: 14, buff: 'hawkfrenzy', dur: 8, vals: {}, color: 0xbcaaa4 },
+    r: { id: 'hawkflock', kind: 'shots', name: '鷹の群れ', desc: '一番近いボスへ鷹の群れ（8羽）が襲いかかる', aim: true, count: 8, spread: 0.12, speed: 30, mult: 1.5, size: 0.35, range: 30, color: 0x8d6e63 },
+    trait: '鷹が1.2秒ごとに一番近い敵（20m以内）を自動で攻撃する',
+    hawk: { every: 1.2, mult: 0.9, range: 20 }, breakMul: 1,
+    look: { armorColor: 0x5d4037, swordColor: 0x8d6e63, swordLen: 0.9, cape: 0x33691e, weapon: 'bow' },
+  },
+  vampire: {
+    name: '吸血鬼', role: '吸血と蝙蝠化', color: '#ce93d8',
+    stats: { hp: 120, atk: 14, speed: 6.8 },
+    basic: { type: 'melee', combo: [{ dur: 0.26, hit: 0.09, mult: 0.9 }, { dur: 0.26, hit: 0.09, mult: 0.95 }, { dur: 0.42, hit: 0.16, mult: 1.5 }], range: 2.6, arc: 2.2, heavyBonus: 0.3 },
+    q: { id: 'bite', kind: 'cone', name: '吸血', desc: '噛みついて、与えたダメージの50% を吸う', cd: 6, mult: 2, range: 3, arc: 1.2, color: 0xb71c1c, lifesteal: 0.5 },
+    e: { id: 'batswarm', kind: 'dash', name: '蝙蝠の群れ', desc: '蝙蝠になって7m すり抜ける（無敵）', cd: 6, mult: 1.2, dist: 7, time: 0.22, width: 1.6, color: 0x4a148c },
+    r: { id: 'nightlord', kind: 'selfbuff', name: '夜の王', desc: '10秒間 攻撃力 +30%・与ダメの30% を吸う・移動 +20%', buff: 'nightlord', dur: 10, vals: { atkMul: 1.3, lifesteal: 0.3, speedMul: 1.2 }, color: 0x7b1fa2, sound: 'roar', msg: '夜の王！' },
+    trait: '与えたダメージの 8% だけ HP 回復',
+    lifesteal: 0.08, breakMul: 1,
+    look: { armorColor: 0x212121, swordColor: 0xb71c1c, swordLen: 0.7, cape: 0x4a148c, weapon: 'dagger' },
+  },
+  gunblade: {
+    name: 'ガンブレード', role: '斬って撃つ', color: '#b0bec5',
+    stats: { hp: 125, atk: 14, speed: 6.6 },
+    basic: { type: 'melee', combo: [{ dur: 0.32, hit: 0.11, mult: 1.0 }, { dur: 0.32, hit: 0.11, mult: 1.05 }, { dur: 0.5, hit: 0.2, mult: 1.6 }], range: 2.8, arc: 2.2, heavyBonus: 0.3 },
+    q: { id: 'gunslash', kind: 'shots', name: '斬撃弾', desc: '剣先から3発の弾を撃つ', cd: 4, count: 3, spread: 0.12, speed: 34, mult: 1.0, size: 0.22, range: 22, color: 0xb0bec5 },
+    e: { id: 'triggercut', kind: 'cone', name: 'トリガー斬り', desc: '引き金を引いて爆発する斬撃', cd: 6, mult: 2.4, range: 3.6, arc: 1.6, color: 0xffab40 },
+    r: { id: 'fullburst', kind: 'shots', name: 'フルバースト', desc: '一番近いボスへ弾を撃ち尽くす（12発）', aim: true, count: 12, every: 0.06, jitter: 0.1, speed: 40, mult: 1.1, size: 0.2, range: 28, color: 0xffab40 },
+    trait: '近接でも射撃でもゲージが溜まりやすい（1.15倍）',
+    gaugeMul: 1.15, breakMul: 1.1,
+    look: { armorColor: 0x455a64, swordColor: 0xb0bec5, swordLen: 1.0, cape: 0x263238, weapon: 'sword' },
+  },
+  javelin: {
+    name: '投槍兵', role: '貫く槍', color: '#ffe0b2',
+    stats: { hp: 115, atk: 15, speed: 6.6 },
+    basic: { type: 'shot', cd: 0.75, speed: 26, mult: 1.4, color: 0xffe0b2, size: 0.3, range: 26, pierce: true },
+    q: { id: 'burstjavelin', kind: 'shots', name: '爆裂槍', desc: '当たると爆発する槍', cd: 6, speed: 26, mult: 2.4, size: 0.35, range: 24, explode: 3.2, color: 0xffab40 },
+    e: { id: 'javelinrain', kind: 'zone', zone: 'strike', name: '槍の雨', desc: '狙った場所の周りに1秒後 槍を5本降らせる', cd: 9, at: 'aim', dist: 8, count: 5, scatter: 2.5, radius: 2.4, dur: 1, mult: 2, color: 0xffe0b2 },
+    r: { id: 'godspear', kind: 'shots', name: '神槍', desc: '巨大な槍を投げる（貫通・とても強い）', speed: 30, mult: 7, size: 0.9, range: 34, pierce: true, color: 0xffd54f, sound: 'wave' },
+    trait: 'ブレイク値 1.2倍',
+    breakMul: 1.2,
+    look: { armorColor: 0x8d6e63, swordColor: 0xffe0b2, swordLen: 1.1, cape: 0xbf360c, weapon: 'spear' },
+  },
+  maid: {
+    name: 'メイド', role: '敵弾のお掃除', color: '#f8bbd0',
+    stats: { hp: 110, atk: 12, speed: 6.9 },
+    basic: { type: 'shot', cd: 0.45, speed: 24, mult: 0.75, color: 0xf8bbd0, size: 0.26, range: 22 },
+    q: { id: 'sweepup', kind: 'cleanse', name: 'お掃除', desc: '周り6mの敵弾を一瞬で消して、近くの敵を叩く', cd: 6, radius: 6, mult: 1.2, color: 0xf8bbd0 },
+    e: { id: 'teatime', kind: 'teamheal', name: 'お茶の時間', desc: '周囲8mの味方の HP を 20% 回復', cd: 12, radius: 8, amount: 0.2, color: 0xf8bbd0 },
+    r: { id: 'springclean', kind: 'cleanse', name: '大掃除', desc: '周り14mの敵弾をすべて消し、周りの味方に8秒のバリア', radius: 14, mult: 1.5, color: 0xff80ab, team: { name: 'barrier', dur: 8, vals: { shield: 0.3 }, msg: 'メイドの大掃除！ バリアが張られた' } },
+    trait: '身のこなし：回避の無敵時間 +0.1秒',
+    dodgeInvulnBonus: 0.1, breakMul: 1,
+    look: { armorColor: 0x212121, swordColor: 0xf8bbd0, swordLen: 0.6, cape: 0xffffff, weapon: 'staff', hat: 0xffffff },
+  },
 };
 
 export const JOB_ORDER = ['swordsman', 'knight', 'mage', 'priest', 'archer', 'ninja', 'bard', 'summoner',
@@ -619,7 +800,21 @@ export const JOB_ORDER = ['swordsman', 'knight', 'mage', 'priest', 'archer', 'ni
   'trapper', 'samurai', 'dancer', 'storm', 'barrier', 'thief', 'astrologer', 'spellblade',
   'dragonkin', 'jester', 'paladin', 'gunslinger', 'chainer', 'darkknight', 'shaman', 'whip',
   'shifter', 'gambler', 'bomber', 'souleater', 'mirror', 'gravity', 'speedster', 'cursed',
-  'desperado', 'cook', 'drunkard', 'sniper', 'prophet', 'oni', 'ghost', 'twins'];
+  'desperado', 'cook', 'drunkard', 'sniper', 'prophet', 'oni', 'ghost', 'twins',
+  'machinegunner', 'flamer', 'rocketeer', 'medic', 'hammer', 'dualblade', 'shielder', 'knifer',
+  'laser', 'cryo', 'asura', 'falconer', 'vampire', 'gunblade', 'javelin', 'maid'];
+
+/**
+ * 近接職の底上げ（被弾しやすいのに火力が出ていなかったので）：通常攻撃が近接の職業は HP・攻撃力を一括で上げる
+ * 職業データを書いた後に掛けるので、準備画面の数字にも反映される
+ */
+export const MELEE_BUFF = { hp: 1.3, atk: 1.25 };
+for (const id of JOB_ORDER) {
+  const J = JOBS[id];
+  if (J.basic.type !== 'melee') continue;
+  J.stats.hp = Math.round(J.stats.hp * MELEE_BUFF.hp);
+  J.stats.atk = Math.round(J.stats.atk * MELEE_BUFF.atk);
+}
 export const DEFAULT_JOB = 'swordsman';
 
 /** レイドの人数補正：ボスの HP・ブレイク値の上限に掛ける（1人 1.0 → 4人 2.65 → 8人 4.85） */

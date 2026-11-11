@@ -221,11 +221,24 @@ export function createProjectiles(game) {
     waves.length = 0;
   }
 
+  /** (x,z) から r 以内の敵弾を消して、消した数を返す（メイドのお掃除） */
+  function clearShotsNear(x, z, r) {
+    let n = 0;
+    shots.forEach((s, i) => {
+      if (!s.active || (s.x - x) ** 2 + (s.z - z) ** 2 > r * r) return;
+      killShot(i);
+      game.fx.burst(s.x, 1.1, s.z, 0xffffff, 3, { speed: 2, up: 2, life: 0.3 });
+      n++;
+    });
+    drawShots();
+    return n;
+  }
+
   /** 敵弾だけ消す（中ボス撃破時） */
   function clearEnemyShots() {
     shots.forEach((s, i) => { if (s.active) killShot(i); });
     drawShots();
   }
 
-  return { enemyShot, playerShot, playerWave, update, clear, clearEnemyShots, activeEnemyShots: () => MAX_SHOTS - free.length };
+  return { enemyShot, playerShot, playerWave, update, clear, clearEnemyShots, clearShotsNear, activeEnemyShots: () => MAX_SHOTS - free.length };
 }
