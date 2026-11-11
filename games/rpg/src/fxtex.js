@@ -413,3 +413,75 @@ export function brokenNoteTexture(seed = 1) {
     }
   });
 }
+
+/** 盾のマーク（守りの結界の輪に並べる）：盾の形に縁どりと十字 */
+export function shieldIconTexture() {
+  return make('shieldIcon', 128, 128, (c, w) => {
+    const R = w / 2;
+    c.translate(R, R);
+    const path = () => {
+      c.beginPath();
+      c.moveTo(0, -R * 0.82);
+      c.quadraticCurveTo(R * 0.45, -R * 0.62, R * 0.72, -R * 0.66);
+      c.quadraticCurveTo(R * 0.78, R * 0.25, 0, R * 0.86);
+      c.quadraticCurveTo(-R * 0.78, R * 0.25, -R * 0.72, -R * 0.66);
+      c.quadraticCurveTo(-R * 0.45, -R * 0.62, 0, -R * 0.82);
+      c.closePath();
+    };
+    path();
+    const g = c.createLinearGradient(0, -R, 0, R);
+    g.addColorStop(0, 'rgba(255,255,255,0.75)');
+    g.addColorStop(1, 'rgba(255,255,255,0.35)');
+    c.fillStyle = g;
+    c.fill();
+    c.lineWidth = R * 0.12;
+    c.strokeStyle = 'rgba(255,255,255,1)';
+    c.stroke();
+    c.fillStyle = 'rgba(255,255,255,1)';
+    c.fillRect(-R * 0.07, -R * 0.5, R * 0.14, R * 1.0);
+    c.fillRect(-R * 0.38, -R * 0.2, R * 0.76, R * 0.14);
+  });
+}
+
+/** コインのマーク（大盤振る舞いの輪に並べる）：縁・内側の輪・まん中の「G」 */
+export function coinIconTexture() {
+  return make('coinIcon', 128, 128, (c, w) => {
+    const R = w / 2;
+    c.translate(R, R);
+    c.fillStyle = 'rgba(255,255,255,0.55)';
+    c.beginPath();
+    c.arc(0, 0, R * 0.9, 0, Math.PI * 2);
+    c.fill();
+    c.lineWidth = R * 0.12;
+    c.strokeStyle = 'rgba(255,255,255,1)';
+    c.stroke();
+    c.lineWidth = R * 0.05;
+    c.beginPath();
+    c.arc(0, 0, R * 0.66, 0, Math.PI * 2);
+    c.stroke();
+    c.fillStyle = 'rgba(255,255,255,1)';
+    c.font = `bold ${Math.round(R * 0.95)}px sans-serif`;
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    c.fillText('G', 0, R * 0.04);
+  });
+}
+
+/** やわらかい煙のかたまり（煙玉）：ふちがもやもやした丸 */
+export function smokeTexture() {
+  return make('smoke', 128, 128, (c, w) => {
+    const R = w / 2;
+    let s = 7;
+    const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
+    for (let i = 0; i < 9; i++) {
+      const x = R + (rnd() - 0.5) * R * 0.7;
+      const y = R + (rnd() - 0.5) * R * 0.7;
+      const r = R * (0.35 + rnd() * 0.3);
+      const g = c.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, 'rgba(255,255,255,0.45)');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      c.fillStyle = g;
+      c.fillRect(0, 0, w, w);
+    }
+  });
+}

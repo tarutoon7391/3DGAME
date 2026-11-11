@@ -74,7 +74,7 @@ export function createProjectiles(game) {
       vx: Math.sin(yaw) * o.speed, vz: Math.cos(yaw) * o.speed, dist: 0, age: 0,
       range: o.range || 24, size: o.size || 0.3, color: o.color || 0xffffff, mult: o.mult || 1,
       pierce: !!o.pierce, explode: o.explode || 0, wobble: !!o.wobble, local: o.local !== false,
-      gauge: o.gauge, basic: !!o.basic, hit: new Set(), onHit: o.onHit || null, dot: o.dot || null,
+      gauge: o.gauge, basic: !!o.basic, hit: new Set(), onHit: o.onHit || null, zap: !!o.zap, dot: o.dot || null,
       split: o.split || null, boomerang: !!o.boomerang, back: false,
       look: o.look || pickShotLook(jobIdOf(pl), o),
     });
@@ -120,6 +120,7 @@ export function createProjectiles(game) {
               dead = true;
               return;
             }
+            if (s.zap) game.skillFx?.zapHit?.(e, s.color); // 連鎖雷：当たった所でスパークし、近くの敵へ雷が走る（全員の画面で）
             if (s.local) {
               strike(game, s.owner, e, shotMult(s.owner, e, s.mult), { color: s.color, knock: 0.3, gauge: s.gauge, basic: s.basic });
               if (s.dot) addDot(game, s.owner, e, s.dot);

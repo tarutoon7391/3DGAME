@@ -432,9 +432,9 @@ export function createSkillFxB(core) {
       }, mats);
     },
 
-    /** ボスの頭の上の時計。mode：'reverse'（針が逆に回る）／'stop'（止まっている） */
-    clock(target, dur, mode = 'reverse') {
-      const C = makeClock(0xb388ff, mode === 'reverse' ? 7 : 0);
+    /** ボスの頭の上の時計。mode：'slow'（針がゆっくり順に回る）／'reverse'（逆に回る）／'stop'（止まっている） */
+    clock(target, dur, mode = 'slow') {
+      const C = makeClock(0xb388ff, mode === 'reverse' ? 7 : mode === 'slow' ? -1.6 : 0);
       add(C.g, dur, (k, dt) => {
         C.g.position.set(target.pos.x, (target.hpY ?? 2.5) + 1.7, target.pos.z);
         const a = k < 0.08 ? k / 0.08 : k > 0.9 ? 1 - (k - 0.9) / 0.1 : 1;

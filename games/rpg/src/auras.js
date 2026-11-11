@@ -115,6 +115,7 @@ export function createAuras(game) {
         game.skillFx?.zoneAdded(z); // メテオ・矢の雨・落雷は src/skillfx.js
         return;
       }
+      if (z.skill === 'tempest') game.skillFx?.crackle?.(z); // 雷嵐：魔法陣にイナヅマが走る
       const type = zoneType(z);
       const color = z.kind === 'aegis' ? 0x90caf9 : z.color ?? 0xffffff;
       const area = makeArea(root, { type, color, r: z.r, emblem: type !== 'hazard' });

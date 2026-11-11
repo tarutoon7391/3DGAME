@@ -226,7 +226,7 @@ export function createGame() {
       case 'buff':
         if (me.alive && near) {
           // 結界師のバリア：最大 HP の割合 → 吸収できる量
-          if (eff.vals?.shield) me.buff(eff.name, eff.dur, { hp: me.maxHp * eff.vals.shield });
+          if (eff.vals?.shield) me.buff(eff.name, eff.dur, { hp: me.maxHp * eff.vals.shield, big: eff.vals.shield >= 0.5 }); // big：大結界（画面の枠を青く）
           else me.buff(eff.name, eff.dur, { ...eff.vals });
           if (eff.msg) game.toastOnce(eff.msg, 1600);
         }
