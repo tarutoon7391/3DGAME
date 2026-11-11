@@ -6,7 +6,7 @@ import { makeHero, animateWalk } from './models.js';
 import { PLAYER, STAMINA } from './data/player.js';
 import { JOBS, DEFAULT_JOB, GAUGE, REVIVE } from './data/jobs.js';
 import { lerpAngle, lerpAngle as la } from './util.js';
-import { meleeArc } from './combat.js';
+import { meleeArc, strike, forEachTarget } from './combat.js';
 import { castQ, castE, castR, basicShot } from './jobs.js';
 
 /** 空の入力（何も押していない） */
@@ -103,6 +103,7 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
       for (const b of Object.values(p.buffs)) if (b.atkMul) a *= b.atkMul;
       if (J.barrierAtk && p.buffs.barrier) a *= J.barrierAtk; // 結界師：バリアがある間 攻撃力アップ
       if (J.soulPer) a *= 1 + (p.soul || 0); // 魂喰い：当てるほど永続的に強くなる
+      if (J.rageOnHurt) a *= 1 + (p.rage || 0); // 修羅：受けるほど強い
       if (J.moveAtk && p.walking) a *= J.moveAtk; // 韋駄天：動いている間は強い
       if (J.lastStand) {
         // 背水：倒れている仲間の数と、自分の HP の少なさで強くなる
@@ -168,6 +169,7 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
     /** 倒れる（協力プレイ）。蘇生されるまで動けない */
     knockDown() {
       p.soul = 0;
+      p.rage = 0;
       p.alive = false;
       p.downed = true;
       p.reviveT = 0;
@@ -223,6 +225,23 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
       if (!p.alive) {
         animateDown();
         return;
+      }
+      // 鷹匠：鷹が一定間隔で一番近い敵を自動で攻撃する
+      if (J.hawk) {
+        p.hawkT = (p.hawkT ?? J.hawk.every) - dt * (p.buffs.hawkfrenzy ? 2.5 : 1);
+        if (p.hawkT <= 0) {
+          p.hawkT = J.hawk.every;
+          let best = null;
+          let bd = J.hawk.range;
+          forEachTarget(game, (e) => {
+            const d = Math.hypot(e.pos.x - p.pos.x, e.pos.z - p.pos.z);
+            if (d < bd) { bd = d; best = e; }
+          });
+          if (best) {
+            game.fx.burst(best.pos.x, (best.hpY || 2) * 0.8, best.pos.z, 0xa1887f, 10, { speed: 4, up: 3, life: 0.4 });
+            strike(game, p, best, J.hawk.mult, { gauge: 2, knock: 0, color: 0xa1887f });
+          }
+        }
       }
       if (J.selfRegen) p.hp = Math.min(p.maxHp, p.hp + p.maxHp * J.selfRegen * dt); // 料理人のつまみ食い
       if (J.hpDrain && p.hp > 1) p.hp = Math.max(1, p.hp - p.maxHp * J.hpDrain * dt); // 呪いの騎士：HP が減り続ける
