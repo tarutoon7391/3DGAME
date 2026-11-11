@@ -106,7 +106,9 @@ export function createHudView(game) {
     const cd = me.cd.q;
     const full = me.gauge >= GAUGE.max;
     const html = `<div class="rpg-skill ${cd > 0 ? 'off' : ''}"><b>Q</b><span>${esc(J.q.name)}</span><small>CD ${J.q.cd}秒</small>${cd > 0 ? `<i>${cd.toFixed(1)}</i>` : ''}</div>
-      <div class="rpg-skill ${full ? 'ready' : 'off'}"><b>E</b><span>${esc(J.e.name)}</span><small>${full ? '撃てる！' : `${Math.floor(me.gauge)}%`}</small><div class="rpg-gauge" style="width:${Math.min(100, me.gauge)}%"></div></div>
+      ${J.e.oncePerRun && game.state.progress.usedOnce?.[J.e.id]
+        ? `<div class="rpg-skill off"><b>E</b><span>${esc(J.e.name)}</span><small>使用済み</small></div>`
+        : `<div class="rpg-skill ${full ? 'ready' : 'off'}"><b>E</b><span>${esc(J.e.name)}</span><small>${full ? '撃てる！' : `${Math.floor(me.gauge)}%`}</small><div class="rpg-gauge" style="width:${Math.min(100, me.gauge)}%"></div></div>`}
       <div class="rpg-skill ${me.dodgeCd > 0 || tired ? 'off' : ''}"><b>Space</b><span>回避</span><small>ST${STAMINA.dodgeCost}</small></div>
       <div class="rpg-skill ${tired ? 'off' : ''} ${me.dashing ? 'on' : ''}"><b>Shift</b><span>ダッシュ</span><small>ST消費</small></div>${potionSlot(me)}`;
     if (html !== lastSkills) {
