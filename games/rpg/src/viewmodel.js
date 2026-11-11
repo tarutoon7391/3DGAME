@@ -3,6 +3,8 @@
 import * as THREE from 'three';
 import { PLAYER } from './data/player.js';
 import { VIEW } from './data/view.js';
+import { DEFAULT_JOB } from './data/jobs.js';
+import { buildWeapon, HOLD_ROT, HOLD_POS } from './weaponmodel.js';
 
 const ORDER = 10000; // 透明物よりも後に描く
 
@@ -31,25 +33,44 @@ export function createViewModel(renderer, camera) {
   const look = PLAYER.look;
   const armorMat = vmMat(look.armorColor);
   const skinMat = vmMat(0xf1c27d);
-  const gripMat = vmMat(0x4e342e);
-  const guardMat = vmMat(0x8d6e63);
-  const bladeMat = vmMat(look.swordColor, { metalness: 0.5, roughness: 0.35, emissive: 0x000000 });
-  mats.push(armorMat, skinMat, gripMat, guardMat, bladeMat);
+  mats.push(armorMat, skinMat);
 
-  // 腕（肩から前へ）と手、剣（手から上へ伸びる）
+  // 腕（肩から前へ）と手。武器は職業ごとに src/weaponmodel.js で組み立てて手に持たせる
   // pivot は肩。腕は肩から前へ 0.42m、その先に手
   add(new THREE.BoxGeometry(0.11, 0.11, 0.42), armorMat, 0, 0, -0.19, pivot);
   const hand = new THREE.Group();
   hand.position.set(0, 0, -0.42);
   pivot.add(hand);
-  add(new THREE.BoxGeometry(0.1, 0.1, 0.1), skinMat, 0, 0, 0, hand);
-  const sword = new THREE.Group();
-  sword.rotation.set(0.45, 0, 0.3); // 少し前と内側へ傾けて持つ
-  hand.add(sword);
-  add(new THREE.BoxGeometry(0.035, 0.16, 0.035), gripMat, 0, 0.02, 0, sword);
-  add(new THREE.BoxGeometry(0.2, 0.03, 0.05), guardMat, 0, 0.11, 0, sword);
-  const bladeLen = 0.5 * look.swordLen;
-  add(new THREE.BoxGeometry(0.03, bladeLen, 0.07), bladeMat, 0, 0.12 + bladeLen / 2, 0, sword);
+  const handMesh = add(new THREE.BoxGeometry(0.1, 0.1, 0.1), skinMat, 0, 0, 0, hand);
+  const holder = new THREE.Group(); // 武器の向き（持ち方で変わる）
+  hand.add(holder);
+  let weapon = null; // { group, flashMats, mats }
+  let flashMats = [];
+  let weaponId = '';
+  const setFlash = (hex) => {
+    for (const m of flashMats) m.emissive.setHex(hex);
+  };
+  function equip(jobId, lk, accent) {
+    if (weapon) {
+      holder.remove(weapon.group);
+      weapon.mats.forEach((m) => m.dispose()); // 形（geometry）は weaponmodel.js で使い回すので消さない
+    }
+    weapon = buildWeapon(jobId, { metal: lk.swordColor, accent, armor: lk.armorColor }, vmMat);
+    weapon.group.traverse((o) => {
+      if (!o.isMesh) return;
+      o.renderOrder = ORDER + 1;
+      o.frustumCulled = false;
+    });
+    holder.add(weapon.group);
+    const r = weapon.rot || HOLD_ROT[weapon.hold] || HOLD_ROT.up;
+    holder.rotation.set(r[0], r[1], r[2]);
+    const hp = weapon.pos || HOLD_POS[weapon.hold] || HOLD_POS.up;
+    holder.position.set(hp[0], hp[1], hp[2]);
+    handMesh.visible = weapon.hold !== 'fist'; // 籠手・爪は手にかぶせる
+    flashMats = weapon.flashMats;
+    weaponId = jobId;
+  }
+  equip(DEFAULT_JOB, look, 0xffd54f);
 
   // 深度を消すための見えない板（ビューモデルより先に描かれる）
   const clearMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, depthTest: false, colorWrite: false });
@@ -104,7 +125,7 @@ export function createViewModel(renderer, camera) {
           const w = 1 - p.waveT / 0.4;
           z -= Math.sin(w * Math.PI) * 0.15;
           rx = 0.5 - w * 1.4;
-          bladeMat.emissive.setHex(0x2a6f8f);
+          setFlash(0x2a6f8f);
         } else if (p.combo === combo.length - 1) {
           // 3段目：振りかぶって真上から振り下ろし
           rx = 0.7 - e * 1.6;
@@ -123,7 +144,7 @@ export function createViewModel(renderer, camera) {
         const w = a === 'cast' ? Math.min(1, p.actT / (p.actDur || 0.4)) : 1 - Math.max(0, p.waveT) / 0.25;
         z -= Math.sin(Math.min(1, w) * Math.PI) * 0.12;
         rx = a === 'cast' ? 0.6 - w * 0.4 : -0.3;
-        bladeMat.emissive.setHex(0x2a3f6f);
+        setFlash(0x2a3f6f);
       } else if (a === 'dash') {
         // 瞬影斬：低く構えて突き抜ける
         rx = -1.2;
@@ -145,20 +166,21 @@ export function createViewModel(renderer, camera) {
         x += 0.06 * k;
         rz -= 0.5 * k;
       }
-      if (p.waveT <= 0 && a !== 'cast') bladeMat.emissive.setHex(spinVis > 0 ? 0x1f4f6f : 0x000000);
+      if (p.waveT <= 0 && a !== 'cast') setFlash(spinVis > 0 ? 0x1f4f6f : 0x000000);
       spinVis = Math.max(0, spinVis - dt * 4);
       root.position.set(x, y, z);
       pivot.rotation.set(rx, ry, rz, 'YXZ');
     },
-    /** 職業の色に塗り替える */
-    setLook(lk) {
+    /** 職業の見た目に替える（防具の色と、手に持つ武器） */
+    setLook(lk, jobId = DEFAULT_JOB, color = '#ffd54f') {
       armorMat.color.setHex(lk.armorColor);
-      bladeMat.color.setHex(lk.swordColor);
+      if (jobId !== weaponId) equip(jobId, lk, parseInt(String(color).replace('#', ''), 16));
     },
     dispose() {
       camera.remove(root);
       geos.forEach((g) => g.dispose());
       mats.forEach((m) => m.dispose());
+      weapon?.mats.forEach((m) => m.dispose());
     },
   };
   return vm;

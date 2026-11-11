@@ -1181,10 +1181,12 @@ function addZone(game, z) {
   z.mesh.position.z = z.z;
   zoneGroup.add(z.mesh);
   zones.push(z);
+  game.auras?.zoneAdded(z); // 範囲の見た目（src/auras.js）
 }
 
 function removeZone(i) {
   const z = zones[i];
+  z.aura?.remove();
   zoneGroup.remove(z.mesh);
   z.mat.dispose();
   if (z.rock) {
@@ -1364,6 +1366,7 @@ export function clearJobZones() {
 
 /** 地面に広がる輪（回復・強化の範囲表示） */
 function ringFx(game, x, z, r, color) {
+  game.auras?.pulse(x, z, r, color); // 範囲の大きさがわかる波紋（src/auras.js）
   for (let i = 0; i < 24; i++) {
     const a = (i / 24) * Math.PI * 2;
     game.fx.burst(x + Math.sin(a) * r, 0.3, z + Math.cos(a) * r, color, 1, { speed: 0.5, up: 2, life: 0.6, grav: 0 });
