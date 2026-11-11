@@ -1,6 +1,6 @@
 // ゲーム全体：初期化・メインループ・タイトル／ポーズ／全滅／クリアの流れ
 // 状態の正本は game.state.progress（JSON 化可能）。入力は readIntent() でデータにしてから更新処理へ渡す
-// ステージ2 はレイド（1〜4人）：準備画面（ui/lobby.js）で職業を選び、ひとりで、またはルームで協力して挑む。通信は raid.js
+// ステージ2 はレイド（1〜8人）：準備画面（ui/lobby.js）で職業を選び、ひとりで、またはルームで協力して挑む。通信は raid.js
 import { createApp } from '/shared/engine.js';
 import { createInput } from '/shared/input.js';
 import { createAudio } from '/shared/audio.js';
@@ -11,6 +11,7 @@ import { createPlayer, emptyIntent } from './player.js';
 import { createEnemies } from './enemies.js';
 import { createProjectiles } from './projectiles.js';
 import { createAllies } from './allies.js';
+import { createHazards } from './hazards.js';
 import { createEffects } from './effects.js';
 import { createSound } from './sound.js';
 import { createCameraRig } from './camera.js';
@@ -32,7 +33,7 @@ const CONTROLS = [
   'WASD：移動　Shift：ダッシュ　マウス：視点（画面クリックで視点ロック／右ドラッグでも可）',
   'V：一人称／三人称の切り替え（はじめは一人称）',
   '左クリック：通常攻撃　Space：回避（無敵時間あり）　F：看板を調べる',
-  'Q：スキル（クールダウン）　E：必殺技（攻撃を当てて溜める。近接ほど早く溜まる）　R：回復薬（ステージ2）',
+  'Q：スキル（クールダウン）　E：必殺技（攻撃を当てて溜める。近接ほど早く溜まる）',
   'ダッシュと回避はスタミナを使う。0 になるとバテて、満タンに戻るまで使えない',
   'ホイール：カメラ距離（三人称）　Esc：ポーズ',
 ].join('\n');
@@ -75,6 +76,7 @@ export function createGame() {
   game.enemies = createEnemies(game);
   game.projectiles = createProjectiles(game);
   game.allies = createAllies(game);
+  game.hazards = createHazards(game);
   game.hudView = createHudView(game);
   game.modal = createModalHost(game);
   game.dialog = createDialog(game, game.modal);
@@ -516,7 +518,7 @@ export function createGame() {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'g3-btn' + (has ? ' sub' : '');
-      b.textContent = `${c.label}　${c.name}（1〜4人・職業を選ぶ）`;
+      b.textContent = `${c.label}　${c.name}（1〜8人・職業を選ぶ）`;
       b.addEventListener('click', (e) => {
         e.stopPropagation();
         closeAll();
@@ -544,29 +546,8 @@ export function createGame() {
     it.dash = k('ShiftLeft') || k('ShiftRight');
     it.skillQ = input.wasPressed('KeyQ');
     it.skillE = input.wasPressed('KeyE');
-    it.potion = input.wasPressed('KeyR');
     it.interact = input.wasPressed('KeyF');
     return it;
-  }
-
-  /** 回復薬（R）：1つで全回復 */
-  function usePotion(me) {
-    const pr = game.state.progress;
-    if (!game.world.def.potions) return;
-    if (!me.alive) return;
-    if (!pr.potions) {
-      game.toastOnce('回復薬はもうない', 1200);
-      return;
-    }
-    if (me.hp >= me.maxHp) {
-      game.toastOnce('HP は満タン', 1000);
-      return;
-    }
-    pr.potions--;
-    me.hp = me.maxHp;
-    game.sound.se('seal');
-    game.fx.burst(me.pos.x, 1.2, me.pos.z, 0x69f0ae, 24, { speed: 3, up: 5, life: 0.7 });
-    game.toast(`回復薬で全回復！（残り ${pr.potions}）`, 1500);
   }
 
   /** 倒れた仲間のそばに立つと蘇生（だれでも同じ速さ） */
@@ -611,7 +592,6 @@ export function createGame() {
 
     if (!game.raid && game.fx.consumeStop(dt)) return; // ヒットストップ（協力プレイでは止めない）
     pr.stats.time += dt;
-    if (intent.potion) usePotion(me);
     game.players.forEach((p) => p.update(dt, p === me ? intent : idleIntent));
     game.world.update(dt, time);
     if (game.isClient) {
@@ -631,6 +611,7 @@ export function createGame() {
     }
     if (game.isClient && !game.down) updateAreaLogic(game, intent); // 看板だけ
     game.projectiles.update(dt);
+    game.hazards.update(dt);
     updateJobZones(game, dt);
     if (game.raid) {
       updateRevive(dt, me);

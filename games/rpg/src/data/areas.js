@@ -100,8 +100,6 @@ export const AREAS = {
       { key: 'frosga', x: 0, z: -22, triggerZ: -7, door: 1, respawn: { x: 0, z: 3 }, circle: 0x00b8d4 },
       { key: 'zarvan', x: 0, z: -62, triggerZ: -41, door: 2, respawn: { x: 0, z: -31 }, circle: 0xaa00ff },
     ],
-    midHeal: 1, // 中ボスを倒したときに回復する割合（最大 HP に対して。1 で全回復）
-    potions: 3, // 入ったとき（やり直し・つづきからも）に持たされる回復薬の数。R で使い、1つで全回復
     signs: [{ x: 3.5, z: 42, key: 'castle' }],
   },
 };
