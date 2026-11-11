@@ -4,7 +4,7 @@
 //   chainBind 鎖縛り（鎖を飛ばして体に巻きつける） / stormStart・stormTick 鎖嵐（×字の超高速斬り）
 import * as THREE from 'three';
 import { geo, glow, hotOf, ease } from './fxkit.js';
-import { starTexture, wingIconTexture } from './fxtex.js';
+import { starTexture, wingIconTexture, glyphTexture } from './fxtex.js';
 import { WEAPONS } from './weaponmodel.js';
 import { GUN_JOBS } from './data/skillvis.js';
 
@@ -338,5 +338,84 @@ export function createSkillFxG({ game, root, add, mesh, slash, column, slam }) {
     game.fx?.shake?.(0.15);
   }
 
-  return { smiteStart, smiteHit, divineFx, muzzle, grappleFx, chainBind, stormStart, stormTick };
+  // ---------------- 双子の入れ替わり ----------------
+  const twinMarks = new Map(); // プレイヤー → 場に置いたハート
+  function heartBurst(x, y, z, color, n, speed) {
+    const g = new THREE.Group();
+    const parts = [];
+    const mats = [];
+    for (let i = 0; i < n; i++) {
+      const m = sprite(glyphTexture('♥'), color);
+      const sp = new THREE.Sprite(m);
+      const a = (i / n) * Math.PI * 2 + Math.random() * 0.3;
+      g.add(sp);
+      mats.push(m);
+      parts.push({ sp, m, v: new THREE.Vector3(Math.sin(a) * speed, 1.5 + Math.random() * 3, Math.cos(a) * speed) });
+    }
+    g.position.set(x, y, z);
+    add(g, 0.7, (k, dt) => {
+      for (const q of parts) {
+        q.sp.position.addScaledVector(q.v, dt);
+        q.v.multiplyScalar(1 - dt * 3);
+        q.sp.scale.setScalar(0.55 * (1 - k * 0.5));
+        q.m.opacity = 1 - k;
+      }
+    }, mats);
+  }
+  /** 場に置くハート（次に使うと、ここまで斬り抜ける） */
+  function placeMark(p, x, z, color, killOldAfter = 0) {
+    const old = twinMarks.get(p);
+    if (old) setTimeout(() => { old.dead = true; }, killOldAfter * 1000); // 行き先のハートは、たどり着いたら消える
+    const g = new THREE.Group();
+    g.position.set(x, 0, z);
+    const mH = sprite(glyphTexture('♥'), color);
+    const heart = new THREE.Sprite(mH);
+    const mR = glow(color, 0.8);
+    const ring = mesh(geo('twinRing', () => new THREE.RingGeometry(0.8, 1, 40).rotateX(-Math.PI / 2)), mR);
+    ring.position.y = 0.08;
+    g.add(heart, ring);
+    const rec = { dead: false, x, z };
+    twinMarks.set(p, rec);
+    let fade = 1;
+    add(g, 600, (k, dt) => {
+      const t = k * 600;
+      if (rec.dead) fade -= dt * 4;
+      heart.position.y = 1.4 + Math.sin(t * 2.5) * 0.15;
+      heart.scale.setScalar(1.3 * Math.min(1, t * 4) * (1 + Math.sin(t * 5) * 0.06));
+      ring.scale.setScalar(1.2 + Math.sin(t * 3) * 0.1);
+      mH.opacity = Math.max(0, fade);
+      mR.opacity = 0.6 * Math.max(0, fade);
+      if (fade <= 0) return 'done';
+    }, [mH, mR]);
+    rec.g = g;
+  }
+
+  return {
+    smiteStart, smiteHit, divineFx, muzzle, grappleFx, chainBind, stormStart, stormTick,
+    /** 入れ替わり：使った場所でハートがはじけ、そこに次の目印のハートを置く。行き先のハートは消える */
+    twinSwap(p, d, color, sk) {
+      heartBurst(d.x, 1.3, d.z, color, 14, 5);
+      flash(d.x, 1.3, d.z, color, 4, 0.35);
+      if (d.sw) {
+        const to = d.sw;
+        // 行き先（前のハート）でももう一度はじける。たどり着いたころに
+        setTimeout(() => {
+          heartBurst(to.x, 1.3, to.z, color, 14, 5);
+          flash(to.x, 1.3, to.z, color, 5, 0.35);
+        }, (sk.time || 0.2) * 1000);
+        // 通り道にハートを並べる
+        const n = Math.max(2, Math.round(Math.hypot(to.x - d.x, to.z - d.z) / 1.5));
+        for (let i = 1; i < n; i++) {
+          const u = i / n;
+          setTimeout(() => heartBurst(d.x + (to.x - d.x) * u, 1.2, d.z + (to.z - d.z) * u, color, 2, 1), u * (sk.time || 0.2) * 1000);
+        }
+      }
+      placeMark(p, d.x, d.z, color, d.sw ? sk.time || 0.2 : 0);
+    },
+    /** 新しいボス：場のハートを全部消す */
+    twinMarkClear() {
+      for (const r of twinMarks.values()) r.dead = true;
+      twinMarks.clear();
+    },
+  };
 }

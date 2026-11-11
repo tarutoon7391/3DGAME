@@ -11,6 +11,12 @@ import { clearJobZones } from './jobs.js';
  * 部屋の定義 bd に pair（[{ key, x, z }, ...]）があれば2体同時。戻り値はボスの配列
  */
 export function makeRoom(game, bd, idx) {
+  // 新しいボス：双子の入れ替わりの印は消して、また青から
+  for (const p of game.players) {
+    p.swapMark = null;
+    p.swapN = 0;
+  }
+  game.skillFx?.twinMarkClear?.();
   const o = { puppet: !!game.isClient, scale: courseOf(game.state.progress.area) === COURSES[0] ? STAGE1_SCALE : RAID_SCALE(game.players.length) };
   const list = bd.pair || [{ key: bd.key, x: bd.x, z: bd.z }];
   return list.map((m, sub) => createBoss(game, m.key, m.x, m.z, idx, { ...o, sub }));

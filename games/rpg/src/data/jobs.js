@@ -618,7 +618,7 @@ export const JOBS = {
     // 通常攻撃が2発同時（1発は弱め）
     basic: { type: 'shot', cd: 0.4, speed: 26, mult: 0.55, color: 0xf48fb1, size: 0.24, range: 22, count: 2, spread: 0.1 },
     q: { id: 'twinshot', kind: 'shots', name: 'ふたり撃ち', desc: '左右から3発ずつ撃つ', cd: 5, count: 6, spread: 0.12, speed: 28, mult: 0.7, size: 0.24, range: 22, color: 0xf48fb1 },
-    e: { id: 'swap', kind: 'dash', name: '入れ替わり', desc: '片割れと入れ替わるように5m 跳ぶ（無敵）', cd: 6, mult: 1.0, dist: 5, time: 0.2, width: 1.2, color: 0x90caf9 },
+    e: { id: 'swap', kind: 'dash', swap: true, name: '入れ替わり', desc: '前に使った場所（ハート）へ斬り抜けて入れ替わる（無敵）。初回は5m の回避斬り。ボスが替わると最初から', cd: 6, mult: 1.0, dist: 5, time: 0.2, width: 1.2, color: 0x90caf9 },
     r: { id: 'twinstorm', kind: 'shots', name: 'ふたりの嵐', desc: '赤と青の弾を2発ずつ、らせんに絡ませて前方へ40発撃ち込む', count: 2, waves: 20, every: 0.05, orbit: { r: 0.45, w: 14 }, colors: [0xff1744, 0x2979ff], speed: 24, mult: 0.4, size: 0.24, range: 22, color: 0xff1744 },
     trait: '通常攻撃は2発同時（双子の片割れも撃つ）',
     breakMul: 1,
