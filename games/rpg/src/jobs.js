@@ -709,7 +709,7 @@ const GENERIC = {
       if (sk.id === 'wardburst') setTimeout(() => game.skillFx?.wardShatter?.(p, sk), windup * 1000); // 結界の衝撃：張ったバリアが砕ける
       else if (sk.id === 'bigbang') game.skillFx?.bigBang?.(p, sk);
       else if (sk.id === 'holysmite') setTimeout(() => game.skillFx?.smiteHit?.(p, sk), windup * 1000);
-      else game.skillFx?.spin(p.pos.x, p.pos.z, sk.radius, sk.color);
+      else if (!game.skillFx?.visTicks?.(p, sk, windup)) game.skillFx?.spin(p.pos.x, p.pos.z, sk.radius, sk.color);
     }
   },
   cone(game, p, d, local, sk) {
