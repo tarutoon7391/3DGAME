@@ -95,7 +95,7 @@ export const SKILL_VIS = {
   // ---- 双子 ----
   twinshot: { cast: [vm('kiblast', 0.4)] },
   swap: { cast: [['flash', { color: 0xf48fb1, size: 4 }], ['flash', { where: 'front', dist: 5, color: 0x90caf9, size: 4, at: 0.15 }]] },
-  twinstorm: { cast: [vm('kiblast', 0.5), ['flash', { where: 'front', dist: 1.5, color: 0xf48fb1, size: 5 }], ['flash', { where: 'front', dist: 1.5, color: 0x90caf9, size: 3.5, at: 0.05 }], shake(0.35)] },
+  twinstorm: { cast: [vm('kiblast', 1.1), ['flash', { where: 'front', dist: 1.5, color: 0xff1744, size: 5 }], ['flash', { where: 'front', dist: 1.5, color: 0x2979ff, size: 5, at: 0.05 }], ...[0.2, 0.4, 0.6, 0.8].map((t) => ['shake', { amt: 0.2, at: t }])] },
   // ---- マシンガンナー ----
   suppress: { cast: [['scatter', { glyph: '•', css: '#ffe082', self: true, n: 10 }]] },
   reloadroll: { cast: [['burst', { color: 0xbdbdbd, n: 16 }]] },
