@@ -1,7 +1,8 @@
 // HUD：HP・スタミナ・目標（左上 = shared の hud()）、
 // スキル欄・ミニマップ・ボス HP・調べるの案内・エリア名・暗転（自前 DOM）
 import { hud } from '/shared/ui.js';
-import { SKILLS, STAMINA } from '../data/player.js';
+import { STAMINA } from '../data/player.js';
+import { GAUGE } from '../data/jobs.js';
 import { nextSeal } from '../area.js';
 import { VIEW } from '../data/view.js';
 import { esc, angleDiff } from '../util.js';
@@ -19,8 +20,11 @@ export function createHudView(game) {
   const prompt = el('rpg-prompt', root);
   const banner = el('rpg-banner', root);
   const bossBar = el('rpg-boss', root);
-  bossBar.innerHTML = `<div class="rpg-boss-name"></div><div class="rpg-boss-track"><div class="rpg-boss-fill"></div></div>`;
+  bossBar.innerHTML = `<div class="rpg-boss-name"></div><div class="rpg-boss-track"><div class="rpg-boss-fill"></div></div><div class="rpg-brk" title="ブレイク"><div></div></div>`;
   const bossFill = bossBar.querySelector('.rpg-boss-fill');
+  const brkFill = bossBar.querySelector('.rpg-brk>div');
+  const party = el('rpg-party', root);
+  let lastParty = '';
   const bossName = bossBar.querySelector('.rpg-boss-name');
   const hint = el('rpg-hint', root);
   hint.textContent = 'クリックで視点操作（マウスでカメラ）';
@@ -79,28 +83,43 @@ export function createHudView(game) {
     return `結界 ${s.opened}/${s.total} 解除　次の結界の番人：あと ${s.left} 体`;
   }
 
+  /** 回復薬の欄（回復薬があるステージだけ出す） */
+  function potionSlot(me) {
+    if (!game.world?.def.potions) return '';
+    const n = game.state.progress.potions || 0;
+    const usable = n > 0 && me.hp < me.maxHp;
+    return `<div class="rpg-skill ${usable ? '' : 'off'}"><b>R</b><span>回復薬</span><small>残り ${n}</small></div>`;
+  }
+
   function drawHud() {
     const me = game.me();
     const tired = me.tired;
     const stColor = tired ? '#ff7043' : me.stamina < STAMINA.max * 0.3 ? '#ffca28' : '#ffee58';
     hud(`<div class="rpg-status">
-      <div><b class="rpg-lv">${esc(game.world?.def.name || '')}</b></div>
+      <div><b class="rpg-lv">${esc(game.world?.def.name || '')}</b><span class="rpg-area">${esc(me.job.name)}</span></div>
       <div class="rpg-row"><span>HP</span>${bar(me.hp, me.maxHp, me.hp / me.maxHp < 0.3 ? '#ff5252' : '#66bb6a')}<span>${Math.ceil(me.hp)}/${me.maxHp}</span></div>
       <div class="rpg-row"><span>ST</span>${bar(me.stamina, STAMINA.max, stColor, 180, tired ? 'tired' : '')}<span class="${tired ? 'rpg-tired' : ''}">${tired ? 'バテ！' : Math.floor(me.stamina)}</span></div>
       <div class="rpg-goal">◆ ${esc(goal())}</div>
     </div>`);
 
-    const sk = (id) => {
-      const s = SKILLS[id];
-      const cd = me.cd[id];
-      return `<div class="rpg-skill ${cd > 0 ? 'off' : ''}"><b>${s.label}</b><span>${s.name}</span><small>CD ${s.cd}秒</small>${cd > 0 ? `<i>${cd.toFixed(1)}</i>` : ''}</div>`;
-    };
-    const html = `${sk('spin')}${sk('wave')}
+    const J = me.job;
+    const cd = me.cd.q;
+    const full = me.gauge >= GAUGE.max;
+    const html = `<div class="rpg-skill ${cd > 0 ? 'off' : ''}"><b>Q</b><span>${esc(J.q.name)}</span><small>CD ${J.q.cd}秒</small>${cd > 0 ? `<i>${cd.toFixed(1)}</i>` : ''}</div>
+      <div class="rpg-skill ${full ? 'ready' : 'off'}"><b>E</b><span>${esc(J.e.name)}</span><small>${full ? '撃てる！' : `${Math.floor(me.gauge)}%`}</small><div class="rpg-gauge" style="width:${Math.min(100, me.gauge)}%"></div></div>
       <div class="rpg-skill ${me.dodgeCd > 0 || tired ? 'off' : ''}"><b>Space</b><span>回避</span><small>ST${STAMINA.dodgeCost}</small></div>
-      <div class="rpg-skill ${tired ? 'off' : ''} ${me.dashing ? 'on' : ''}"><b>Shift</b><span>ダッシュ</span><small>ST消費</small></div>`;
+      <div class="rpg-skill ${tired ? 'off' : ''} ${me.dashing ? 'on' : ''}"><b>Shift</b><span>ダッシュ</span><small>ST消費</small></div>${potionSlot(me)}`;
     if (html !== lastSkills) {
       lastSkills = html;
       skills.innerHTML = html;
+    }
+    // 協力プレイの仲間（自分以外）
+    const others = game.players.filter((p) => p !== me);
+    const ph = others.map((p) => `<div><b style="color:${p.job.color}">${esc(p.name || '仲間')}</b> ${esc(p.job.name)}
+      ${p.downed ? '<span class="down">ダウン！ そばに立って蘇生</span>' : bar(p.hp, p.maxHp, p.hp / p.maxHp < 0.3 ? '#ff5252' : '#66bb6a', 150)}</div>`).join('');
+    if (ph !== lastParty) {
+      lastParty = ph;
+      party.innerHTML = ph;
     }
   }
 
@@ -232,7 +251,9 @@ export function createHudView(game) {
       if (showBoss) {
         if (bossName.textContent !== bs.name) bossName.textContent = bs.name;
         bossFill.style.width = `${(bs.hp / bs.maxHp) * 100}%`;
+        brkFill.style.width = `${bs.state === 'stun' ? 100 : Math.min(100, (bs.brk / bs.brkMax) * 100)}%`;
         bossBar.classList.toggle('raged', bs.raged);
+        bossBar.classList.toggle('stun', bs.state === 'stun');
       }
       hint.style.display = game.input.mouse.locked ? 'none' : 'block';
       // 被弾の縁・方向マーカー・足元の予兆の警告
@@ -250,11 +271,13 @@ export function createHudView(game) {
         banner.style.opacity = String(Math.min(1, bannerT));
       }
     },
-    setPrompt(text) {
-      if (text === lastPrompt) return;
-      lastPrompt = text;
+    /** 画面下の案内。key を渡すとキーの札を付ける（看板は F、蘇生中などは null） */
+    setPrompt(text, key = 'F') {
+      const k = text + (key || '');
+      if (k === lastPrompt) return;
+      lastPrompt = k;
       prompt.style.display = text ? 'block' : 'none';
-      prompt.innerHTML = text ? `<b>F</b> ${esc(text)}` : '';
+      prompt.innerHTML = text ? `${key ? `<b>${esc(key)}</b> ` : ''}${esc(text)}` : '';
     },
     banner(text) {
       banner.textContent = text;

@@ -94,28 +94,59 @@ export function animateWalk(m, phase, amount, withRightArm = true) {
 }
 
 // ---------------- 主人公 ----------------
-/** look: { swordColor, swordLen, armorColor }（装備は固定） */
+/**
+ * look: { swordColor, swordLen, armorColor, cape, weapon: sword|mace|staff|bow|dagger|lute, hat, mask, bigShield }
+ * 職業（data/jobs.js）ごとに色と武器が変わる。swordMat・armorMat は個体ごと（dispose はしない：プレイヤーは数人だけ）
+ */
 export function makeHero(look) {
   const swordMat = new THREE.MeshStandardMaterial({ color: look.swordColor, metalness: 0.5, roughness: 0.35, flatShading: true, emissive: 0x000000 });
   const armorMat = new THREE.MeshStandardMaterial({ color: look.armorColor, roughness: 0.7, flatShading: true, emissive: 0x000000 });
   const h = humanoid({ clothMat: armorMat, pants: 0x3e2f23 });
   const hair = mat(0x5a3a1a);
+  const cape = look.cape ?? 0xb71c1c;
+  const weapon = look.weapon || 'sword';
   part(box(0.56, 0.16, 0.56), hair, 0, 2.13, -0.02, h.root);
   part(box(0.56, 0.32, 0.12), hair, 0, 1.96, -0.24, h.root);
-  part(box(0.5, 0.06, 0.3), mat(0xb71c1c), 0, 2.02, 0.05, h.root); // はちまき
+  if (look.hat) {
+    // とんがり帽子（魔法使い・僧侶など）
+    part(box(0.7, 0.06, 0.7), mat(look.hat), 0, 2.2, 0, h.root);
+    part(cone(0.3, 0.6, 6), mat(look.hat), 0, 2.52, 0, h.root);
+  } else {
+    part(box(0.5, 0.06, 0.3), mat(cape), 0, 2.02, 0.05, h.root); // はちまき
+  }
+  if (look.mask) part(box(0.52, 0.18, 0.06), mat(0x212121), 0, 1.78, 0.25, h.root); // 忍者の覆面
   // マント
-  part(box(0.66, 0.9, 0.06), mat(0xb71c1c), 0, 1.1, -0.26, h.root);
-  // 剣（右腕の延長方向に伸びる）
+  part(box(0.66, 0.9, 0.06), mat(cape), 0, 1.1, -0.26, h.root);
+  // 武器（右腕の延長方向に伸びる）
   const sword = new THREE.Group();
   sword.position.set(0, -0.72, 0);
   h.armR.add(sword);
-  part(box(0.1, 0.22, 0.1), mat(0x4e342e), 0, -0.04, 0, sword);
-  part(box(0.36, 0.06, 0.12), mat(0x8d6e63), 0, -0.16, 0, sword);
-  const blade = part(box(0.08, 1, 0.18), swordMat, 0, -0.7, 0, sword);
-  blade.scale.y = look.swordLen;
-  blade.position.y = -0.2 - 0.5 * look.swordLen;
-  // 盾
-  part(box(0.08, 0.55, 0.46), armorMat, -0.14, -0.42, 0.05, h.armL);
+  let blade;
+  if (weapon === 'staff') {
+    blade = part(box(0.07, 1.6, 0.07), mat(0x6d4c41), 0, -0.5, 0, sword);
+    part(sphere(0.16, 8, 6), swordMat, 0, -1.3, 0, sword);
+    swordMat.emissive.setHex(0x000000);
+  } else if (weapon === 'bow') {
+    blade = part(box(0.06, 1.3, 0.06), swordMat, 0, -0.2, 0.12, sword);
+    part(box(0.02, 1.2, 0.02), mat(0xeeeeee), 0, -0.2, 0.0, sword);
+  } else if (weapon === 'lute') {
+    blade = part(box(0.08, 0.6, 0.08), mat(0x6d4c41), 0, -0.3, 0, sword);
+    part(box(0.36, 0.42, 0.14), swordMat, 0, -0.75, 0, sword);
+  } else if (weapon === 'mace') {
+    part(box(0.1, 0.22, 0.1), mat(0x4e342e), 0, -0.04, 0, sword);
+    blade = part(box(0.1, 0.8, 0.1), mat(0x546e7a), 0, -0.5, 0, sword);
+    part(box(0.3, 0.3, 0.3), swordMat, 0, -0.95, 0, sword);
+  } else {
+    // 剣・短刀
+    part(box(0.1, 0.22, 0.1), mat(0x4e342e), 0, -0.04, 0, sword);
+    part(box(0.36, 0.06, 0.12), mat(0x8d6e63), 0, -0.16, 0, sword);
+    blade = part(box(0.08, 1, 0.18), swordMat, 0, -0.7, 0, sword);
+    blade.scale.y = look.swordLen;
+    blade.position.y = -0.2 - 0.5 * look.swordLen;
+  }
+  // 盾（重騎士は大盾。飛び道具の職業は持たない）
+  if (look.bigShield) part(box(0.1, 1.0, 0.7), armorMat, -0.16, -0.5, 0.05, h.armL);
+  else if (weapon === 'sword' || weapon === 'mace') part(box(0.08, 0.55, 0.46), armorMat, -0.14, -0.42, 0.05, h.armL);
   h.armR.rotation.x = -0.9;
   return { ...h, sword, blade, swordMat, armorMat };
 }

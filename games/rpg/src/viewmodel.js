@@ -1,7 +1,7 @@
 // 一人称のビューモデル（画面右下の腕と剣）。カメラの子として置き、
 // 最後に描く（深度を消してから描く）ので、壁に近づいても欠けたりめり込んだりしない
 import * as THREE from 'three';
-import { PLAYER, SKILLS } from './data/player.js';
+import { PLAYER } from './data/player.js';
 import { VIEW } from './data/view.js';
 
 const ORDER = 10000; // 透明物よりも後に描く
@@ -94,8 +94,9 @@ export function createViewModel(renderer, camera) {
 
       // 行動ごとの振り
       const a = p.action;
-      if (a === 'attack') {
-        const c = PLAYER.combo[p.combo];
+      const combo = p.job?.basic.combo;
+      if (a === 'attack' && combo) {
+        const c = combo[p.combo] || combo[0];
         const k = Math.min(1, p.actT / (c.hit * 1.8)); // 当たりの少し後まで振り切る
         const e = 1 - (1 - k) * (1 - k);
         if (p.waveT > 0) {
@@ -104,22 +105,33 @@ export function createViewModel(renderer, camera) {
           z -= Math.sin(w * Math.PI) * 0.15;
           rx = 0.5 - w * 1.4;
           bladeMat.emissive.setHex(0x2a6f8f);
-        } else if (p.combo === 2) {
+        } else if (p.combo === combo.length - 1) {
           // 3段目：振りかぶって真上から振り下ろし
           rx = 0.7 - e * 1.6;
           x -= 0.1 * e;
         } else {
           // 1・2段目：剣先を前へ向けて横に薙ぐ（1段目は右→左、2段目は左→右）
-          const dir = p.combo === 0 ? 1 : -1;
+          const dir = p.combo % 2 === 0 ? 1 : -1;
           ry = -dir * (0.6 - e * 1.4);
           rx = -1.05;
           rz = dir * 0.5;
           y += 0.24;
           x -= 0.16;
         }
+      } else if (a === 'shoot' || a === 'cast' || (a !== 'attack' && p.waveT > 0)) {
+        // 飛び道具・詠唱：武器を前へ突き出す
+        const w = a === 'cast' ? Math.min(1, p.actT / (p.actDur || 0.4)) : 1 - Math.max(0, p.waveT) / 0.25;
+        z -= Math.sin(Math.min(1, w) * Math.PI) * 0.12;
+        rx = a === 'cast' ? 0.6 - w * 0.4 : -0.3;
+        bladeMat.emissive.setHex(0x2a3f6f);
+      } else if (a === 'dash') {
+        // 瞬影斬：低く構えて突き抜ける
+        rx = -1.2;
+        y -= 0.08;
+        spinVis = 1;
       } else if (a === 'spin') {
         // 回転斬り：画面を大きく横切って薙ぐ（カメラ自体は回さない）
-        const k = Math.min(1, p.actT / SKILLS.spin.dur);
+        const k = Math.min(1, p.actT / (p.actDur || 0.5));
         ry = -1.0 + k * 3.0;
         rx = -1.1;
         rz = 0.6;
@@ -133,10 +145,15 @@ export function createViewModel(renderer, camera) {
         x += 0.06 * k;
         rz -= 0.5 * k;
       }
-      if (p.waveT <= 0) bladeMat.emissive.setHex(spinVis > 0 ? 0x1f4f6f : 0x000000);
+      if (p.waveT <= 0 && a !== 'cast') bladeMat.emissive.setHex(spinVis > 0 ? 0x1f4f6f : 0x000000);
       spinVis = Math.max(0, spinVis - dt * 4);
       root.position.set(x, y, z);
       pivot.rotation.set(rx, ry, rz, 'YXZ');
+    },
+    /** 職業の色に塗り替える */
+    setLook(lk) {
+      armorMat.color.setHex(lk.armorColor);
+      bladeMat.color.setHex(lk.swordColor);
     },
     dispose() {
       camera.remove(root);

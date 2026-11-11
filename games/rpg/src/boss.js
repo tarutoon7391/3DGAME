@@ -1,16 +1,22 @@
 // ボス（data/enemies.js の BOSSES の1体）。パターンを重みで選び、予兆 → 実行 → 休み を繰り返す
 // 弾幕は「エミッター」（一定間隔で弾を出す小さなタイマー）で時間差に撃つ。HP が rage.at を切ると怒り
+// ブレイク：主に近接で溜まるブレイク値が上限に達すると、数秒 気絶して被ダメージ 1.5倍
+// 協力プレイ：ホストだけが本物を動かす。参加者のブラウザでは puppet（届いた状態を描くだけ）になる
+import * as THREE from 'three';
 import { BOSSES } from './data/enemies.js';
 import { makeBossModel } from './models.js';
 import { angleDiff, lerpAngle, yawTo, rand } from './util.js';
-import { hurtPlayer, nearestPlayer } from './combat.js';
+import { hurtPlayer, bossTarget } from './combat.js';
 import { HIT } from './data/player.js';
+
+const BREAK = { ratio: 0.22, stun: 4, dmgMul: 1.5 }; // ブレイク値の上限＝最大HP×ratio、気絶秒数、気絶中の被ダメ倍率
 
 /**
  * @param key BOSSES のキー
  * @param idx エリア内で何番目のボスか（中ボス→ボスの順）
+ * @param o { puppet: 参加者側の見た目だけ, scale: 人数による HP 倍率 }
  */
-export function createBoss(game, key, x, z, idx = 0) {
+export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1 } = {}) {
   const C = BOSSES[key];
   const m = makeBossModel(C.color, C.look);
   m.group.position.set(x, 0, z);
@@ -19,17 +25,25 @@ export function createBoss(game, key, x, z, idx = 0) {
   const P = C.patterns;
   const R = C.rage || null;
   const shotHit = C.shotHit ?? HIT.boss;
+  const meleeHit = C.meleeHit ?? HIT.boss;
+  const maxHp = Math.round(C.hp * scale);
+
+  // 広がる衝撃波の輪の見た目
+  const novaGeo = new THREE.RingGeometry(0.94, 1, 48).rotateX(-Math.PI / 2);
+  const novaMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide });
 
   const b = {
-    key, idx,
+    key, idx, puppet,
     name: C.name,
     model: m,
     pos: m.group.position,
     radius: C.radius,
     defense: C.def,
     hpY: C.hpY,
-    hp: C.hp,
-    maxHp: C.hp,
+    hp: maxHp,
+    maxHp,
+    brk: 0, // ブレイク値
+    brkMax: Math.round(maxHp * BREAK.ratio),
     alive: true,
     active: false, // 戦闘開始まで false（攻撃も当たらない）
     raged: false,
@@ -43,16 +57,24 @@ export function createBoss(game, key, x, z, idx = 0) {
     flash: 0,
     summonT: 0,
     lastPattern: '',
-    queued: null, // 追撃（after）
+    queued: null, // 追撃（after / then）
     emitters: [], // { delay, every, n, i, fn }
-    zones: [], // 隕石 { x, z, r, t, tele, burst, color }
-    takeHit(g, dmg) {
-      if (b.state === 'rage') dmg = 0; // 怒りの咆哮中は無敵
-      b.hp = Math.max(0, b.hp - dmg);
-      b.flash = 0.1;
-      if (b.hp <= 0 && b.alive) die();
-      else if (R && !b.raged && b.hp <= C.hp * R.at) enrage();
+    zones: [], // 時間差で落ちる円（隕石・噴火） { x, z, r, t, tele, burst, color }
+    novas: [], // 広がる輪 { r, max, speed, width, hit:Set, mesh, x, z }
+    taunt: null, // 挑発 { id, t }
+    net: null, // puppet：届いた状態
+    takeHit(g, dmg, dx, dz, knock, o = {}) {
+      if (puppet) {
+        // 参加者：ホストへ送る。見た目だけ先に反映
+        b.flash = 0.1;
+        game.raid?.sendDamage('boss', 0, dmg, o.brk || 0);
+        return;
+      }
+      // ホスト：ブレイク・怒りの演出も参加者に見せる
+      if (game.withMirror) game.withMirror(() => applyDamage(dmg, o.brk || 0));
+      else applyDamage(dmg, o.brk || 0);
     },
+    applyDamage, // ホスト：参加者から届いたダメージ
     /** 戦闘開始（ボス部屋に入った） */
     wake() {
       if (b.active) return;
@@ -62,11 +84,36 @@ export function createBoss(game, key, x, z, idx = 0) {
       game.sound.se('roar');
       game.fx.shake(0.8);
     },
-    update,
+    update: puppet ? updatePuppet : update,
+    /** 参加者：ホストからの状態 */
+    applyNet(s) {
+      b.net = s;
+      b.hp = s.hp;
+      b.maxHp = s.maxHp;
+      b.brk = s.brk;
+      b.brkMax = s.brkMax;
+      b.raged = s.raged;
+      b.active = s.active;
+      if (b.alive && !s.alive) b.state = 'dead';
+      b.alive = s.alive;
+      if (s.state !== b.state && b.state !== 'dead') {
+        b.state = s.state;
+        b.t = 0;
+      }
+      b.pattern = s.pattern;
+    },
+    /** 参加者：衝撃波の輪だけは見た目と「自分に当たったか」をこちらでも動かす */
+    playNova(d) {
+      spawnNova(d.x, d.z, d.max, d.speed, d.width, d.color);
+    },
     dispose() {
       cancelAll();
+      for (const n of b.novas) game.scene.remove(n.mesh);
+      b.novas.length = 0;
       game.scene.remove(m.group);
       m.bodyMat.dispose();
+      novaMat.dispose();
+      novaGeo.dispose();
     },
   };
 
@@ -80,6 +127,20 @@ export function createBoss(game, key, x, z, idx = 0) {
   };
   const kindOf = (name) => P[name].kind || name;
 
+  function applyDamage(dmg, brk) {
+    if (!b.alive) return;
+    if (b.state === 'rage') dmg = 0; // 怒りの咆哮中は無敵
+    if (b.state === 'stun') dmg = Math.round(dmg * BREAK.dmgMul);
+    b.hp = Math.max(0, b.hp - dmg);
+    b.flash = 0.1;
+    if (b.state !== 'stun' && b.active && b.state !== 'rage' && b.state !== 'intro') {
+      b.brk += brk;
+      if (b.brk >= b.brkMax) breakDown();
+    }
+    if (b.hp <= 0) die();
+    else if (R && !b.raged && b.hp <= maxHp * R.at && b.state !== 'stun') enrage();
+  }
+
   function cancelAll() {
     if (b.tele) b.tele.end();
     b.tele = null;
@@ -89,12 +150,23 @@ export function createBoss(game, key, x, z, idx = 0) {
     b.emitters.length = 0;
     for (const zn of b.zones) zn.tele.end();
     b.zones.length = 0;
+    b.pos.y = 0;
+  }
+
+  function breakDown() {
+    cancelAll();
+    b.brk = 0;
+    b.state = 'stun';
+    b.t = 0;
+    game.sound.se('slam');
+    game.fx.shake(0.8);
+    game.fx.burst(b.pos.x, C.hpY * 0.8, b.pos.z, 0xffee58, 50, { speed: 6, up: 5, life: 0.9 });
+    game.toast(`ブレイク！ ${C.name}が気絶した！ 今がチャンス（被ダメージ ${BREAK.dmgMul}倍）`, 2600);
   }
 
   function enrage() {
     b.raged = true;
     cancelAll();
-    b.pos.y = 0;
     b.state = 'rage';
     b.t = 0;
     b.summonT = 3;
@@ -108,7 +180,6 @@ export function createBoss(game, key, x, z, idx = 0) {
     b.state = 'dead';
     b.t = 0;
     cancelAll();
-    b.pos.y = 0;
     game.sound.se('roar');
     game.fx.shake(1.2);
   }
@@ -127,10 +198,26 @@ export function createBoss(game, key, x, z, idx = 0) {
       return Object.keys(table)[0];
     };
     let name = pick();
-    if (name === b.lastPattern && Math.random() < 0.6) name = pick();
+    if (name === b.lastPattern && Math.random() < 0.7) name = pick();
     b.lastPattern = name;
     return name;
   }
+
+  /** test(x,z,r) が真のプレイヤー（と召喚物）に攻撃を当てる */
+  function hitAll(test, frac, fx, fz) {
+    for (const pl of game.players) if (pl.alive && test(pl.pos.x, pl.pos.z, pl.radius, pl)) hurtPlayer(game, pl, frac, fx, fz);
+    game.allies?.hitBy(test, frac);
+  }
+  const inCircle = (cx, cz, r) => (x, z, pr) => (x - cx) ** 2 + (z - cz) ** 2 < (r + pr) ** 2;
+  const inRect = (ox, oz, yaw, len, w) => (x, z, pr) => {
+    const s = Math.sin(yaw);
+    const c = Math.cos(yaw);
+    const dx = x - ox;
+    const dz = z - oz;
+    const along = dx * s + dz * c;
+    const side = dx * c - dz * s;
+    return along > -pr && along < len + pr && Math.abs(side) < w / 2 + pr;
+  };
 
   function shot(x, z, yaw, speed, color) {
     game.projectiles.enemyShot(x, z, yaw, speed, shotHit, color);
@@ -146,6 +233,37 @@ export function createBoss(game, key, x, z, idx = 0) {
 
   function emit(delay, every, n, fn) {
     b.emitters.push({ delay, every, n, i: 0, fn });
+  }
+
+  function spawnNova(x, z, max, speed, width, color) {
+    const mesh = new THREE.Mesh(novaGeo, novaMat);
+    novaMat.color.setHex(color ?? 0xffffff);
+    mesh.position.set(x, 0.15, z);
+    mesh.scale.setScalar(0.5);
+    game.scene.add(mesh);
+    b.novas.push({ x, z, r: 0.5, max, speed, width, hit: new Set(), mesh });
+  }
+
+  function updateNovas(dt) {
+    for (let i = b.novas.length - 1; i >= 0; i--) {
+      const n = b.novas[i];
+      n.r += n.speed * dt;
+      n.mesh.scale.set(n.r, 1 + n.width * 3, n.r);
+      // 当たり判定は自分のブラウザのプレイヤーだけ（弾と同じ）。輪の幅のところにいたら当たる。回避の無敵でくぐれる
+      for (const pl of game.players) {
+        if (!pl.alive || pl.remote || n.hit.has(pl)) continue;
+        const d = Math.hypot(pl.pos.x - n.x, pl.pos.z - n.z);
+        if (Math.abs(d - n.r) < n.width + pl.radius) {
+          n.hit.add(pl);
+          hurtPlayer(game, pl, meleeHit, n.x, n.z);
+        }
+      }
+      if (!puppet) game.allies?.hitBy((x, z) => Math.abs(Math.hypot(x - n.x, z - n.z) - n.r) < n.width + 0.6, meleeHit);
+      if (n.r >= n.max) {
+        game.scene.remove(n.mesh);
+        b.novas.splice(i, 1);
+      }
+    }
   }
 
   function startPattern(name, tgt) {
@@ -172,23 +290,71 @@ export function createBoss(game, key, x, z, idx = 0) {
       case 'charge':
         b.tele = game.fx.telegraph('rect', { x: b.pos.x, z: b.pos.z, len: p.speed * p.time, width: p.width, angle: b.yaw, dur });
         break;
+      case 'beam': {
+        // 光線：dirs 本を放射状に。aim なら1本目はプレイヤーへ
+        const base = p.aim ? b.yaw : rand(0, Math.PI);
+        b.beamAngles = Array.from({ length: p.dirs }, (_, i) => base + (i / p.dirs) * Math.PI * 2);
+        b.beamTeles = b.beamAngles.map((a) => game.fx.telegraph('rect', { x: b.pos.x, z: b.pos.z, len: p.len, width: p.width, angle: a, dur }));
+        break;
+      }
+      case 'erupt': {
+        // 地割れ：ボスからプレイヤーの方へ、手前から順に噴き上がる
+        const n = Math.round(rv(p, 'count', 6));
+        for (let i = 0; i < n; i++) {
+          const d = 3 + i * p.spacing;
+          const zx = b.pos.x + Math.sin(b.yaw) * d;
+          const zz = b.pos.z + Math.cos(b.yaw) * d;
+          if (game.world.blocked(zx, zz)) break;
+          const life = dur + i * p.gap;
+          b.zones.push({ x: zx, z: zz, r: p.radius, t: life, burst: 0, color: p.color, tele: game.fx.telegraph('circle', { x: zx, z: zz, r: p.radius, dur: life }) });
+        }
+        break;
+      }
+      case 'teleport': {
+        // 標的の背後（向いている方の反対側）に予兆を出し、そこへ瞬間移動する
+        const back = (tgt.yaw ?? 0) + Math.PI;
+        let tx = tgt.pos.x + Math.sin(back) * p.dist;
+        let tz = tgt.pos.z + Math.cos(back) * p.dist;
+        if (game.world.blocked(tx, tz)) {
+          tx = tgt.pos.x - Math.sin(back) * p.dist;
+          tz = tgt.pos.z - Math.cos(back) * p.dist;
+        }
+        b.warp = { x: tx, z: tz };
+        b.tele = game.fx.telegraph('circle', { x: tx, z: tz, r: b.radius + 0.6, dur });
+        game.fx.burst(b.pos.x, 2, b.pos.z, C.color, 30, { speed: 5, up: 3, life: 0.6 });
+        break;
+      }
       case 'rain': {
         const n = Math.round(rv(p, 'count', 6));
         for (let i = 0; i < n; i++) {
           // 1つは必ず足元に、残りはまわりにばらまく
           const a = rand(0, Math.PI * 2);
-          const r = i === 0 ? 0 : rand(2, p.spreadR);
+          const r = i === 0 ? 0 : rand(2.5, p.spreadR);
           const zx = tgt.pos.x + Math.sin(a) * r;
           const zz = tgt.pos.z + Math.cos(a) * r;
-          const life = dur + p.delay + i * 0.08;
+          const life = dur + p.delay + i * 0.1;
           b.zones.push({ x: zx, z: zz, r: p.radius, t: life, burst: p.burst, color: p.color, tele: game.fx.telegraph('circle', { x: zx, z: zz, r: p.radius, dur: life }) });
         }
         break;
       }
-      default: // ring / spiral：自分の周り
-        b.tele = game.fx.telegraph('circle', { x: b.pos.x, z: b.pos.z, r: 3, dur });
+      default: // ring / spiral / nova：自分の周り
+        b.tele = game.fx.telegraph('circle', { x: b.pos.x, z: b.pos.z, r: kindOf(name) === 'nova' ? b.radius + 1.5 : 3, dur });
         break;
     }
+  }
+
+  function beamStrike(angles, p) {
+    for (const a of angles) {
+      hitAll(inRect(b.pos.x, b.pos.z, a, p.len, p.width), meleeHit, b.pos.x, b.pos.z);
+      for (let d = 2; d < p.len; d += 1.6) {
+        const x = b.pos.x + Math.sin(a) * d;
+        const z = b.pos.z + Math.cos(a) * d;
+        if (game.world.blocked(x, z, true)) break;
+        game.fx.burst(x, 1.2, z, p.color, 2, { speed: 1.5, up: 1.5, life: 0.35, size: 0.22, grav: 0 });
+      }
+    }
+    game.fx.shake(0.5);
+    game.sound.se('wave');
   }
 
   /** 予備動作が終わった瞬間に攻撃する */
@@ -197,16 +363,16 @@ export function createBoss(game, key, x, z, idx = 0) {
     const p = P[name];
     switch (kindOf(name)) {
       case 'sweep':
-        for (const pl of game.players) {
-          const d = Math.hypot(pl.pos.x - b.pos.x, pl.pos.z - b.pos.z);
-          const ang = Math.abs(angleDiff(b.yaw, yawTo(b.pos.x, b.pos.z, pl.pos.x, pl.pos.z)));
-          if (d < p.range + 0.5 + pl.radius && (ang < p.arc / 2 || d < b.radius + 0.5)) hurtPlayer(game, pl, HIT.boss, b.pos.x, b.pos.z);
-        }
+        hitAll((x, z, pr) => {
+          const d = Math.hypot(x - b.pos.x, z - b.pos.z);
+          const ang = Math.abs(angleDiff(b.yaw, yawTo(b.pos.x, b.pos.z, x, z)));
+          return d < p.range + 0.5 + pr && (ang < p.arc / 2 || d < b.radius + 0.5);
+        }, meleeHit, b.pos.x, b.pos.z);
         game.fx.shake(0.4);
         game.sound.se('swing');
         for (let i = -3; i <= 3; i++) {
           const a = b.yaw + (i / 3) * (p.arc / 2);
-          game.fx.burst(b.pos.x + Math.sin(a) * p.range * 0.8, 0.6, b.pos.z + Math.cos(a) * p.range * 0.8, 0xffcc80, 3, { speed: 3, life: 0.4 });
+          game.fx.burst(b.pos.x + Math.sin(a) * p.range * 0.8, 0.6, b.pos.z + Math.cos(a) * p.range * 0.8, p.color ?? 0xffcc80, 3, { speed: 3, life: 0.4 });
         }
         break;
       case 'ring': {
@@ -221,7 +387,7 @@ export function createBoss(game, key, x, z, idx = 0) {
       case 'fan': {
         const n = Math.round(p.count * cm());
         emit(0, p.interval, p.volleys, (i) => {
-          const t = nearestPlayer(game, b.pos.x, b.pos.z);
+          const t = bossTarget(game, b);
           if (t) b.yaw = yawTo(b.pos.x, b.pos.z, t.pos.x, t.pos.z);
           const shift = p.alternate && i % 2 ? p.spread / 2 : 0;
           for (let k = 0; k < n; k++) {
@@ -250,20 +416,61 @@ export function createBoss(game, key, x, z, idx = 0) {
         });
         break;
       }
+      case 'beam': {
+        b.beamTeles?.forEach((t) => t.end());
+        b.beamTeles = null;
+        beamStrike(b.beamAngles, p);
+        if (rv(p, 'twice', false)) {
+          // 2回目：間をずらした向きに、短い予兆のあと
+          const second = b.beamAngles.map((a) => a + Math.PI / p.dirs);
+          let teles = null;
+          emit(0.05, p.gap, 2, (i) => {
+            if (i === 0) teles = second.map((a) => game.fx.telegraph('rect', { x: b.pos.x, z: b.pos.z, len: p.len, width: p.width, angle: a, dur: p.gap }));
+            else {
+              teles?.forEach((t) => t.end());
+              beamStrike(second, p);
+            }
+          });
+        }
+        break;
+      }
+      case 'nova': {
+        const waves = rv(p, 'waves', 1);
+        emit(0, p.gap ?? 0.5, waves, () => {
+          spawnNova(b.pos.x, b.pos.z, p.max, p.speed, p.width, p.color);
+          game.raid?.bossFx('nova', { x: b.pos.x, z: b.pos.z, max: p.max, speed: p.speed, width: p.width, color: p.color });
+          game.sound.se('slam');
+          game.fx.shake(0.3);
+        });
+        break;
+      }
+      case 'teleport':
+        b.pos.x = b.warp.x;
+        b.pos.z = b.warp.z;
+        game.fx.burst(b.pos.x, 2, b.pos.z, C.color, 40, { speed: 6, up: 4, life: 0.7 });
+        game.sound.se('gate');
+        {
+          const t = bossTarget(game, b);
+          if (t) b.yaw = yawTo(b.pos.x, b.pos.z, t.pos.x, t.pos.z);
+        }
+        if (p.then && P[p.then]) b.queued = p.then;
+        b.state = 'rest';
+        b.t = 0;
+        return;
       case 'charge':
         b.dash = { t: 0, trail: 0, hit: new Set() };
         b.state = 'charge';
         b.t = 0;
         game.sound.se('swing');
         return;
-      default: // rain は予兆の時点で配置済み
+      default: // rain・erupt は予兆の時点で配置済み
         break;
     }
     b.state = 'act';
     b.t = 0;
   }
 
-  /** 弾幕のタイマーと隕石を進める */
+  /** 弾幕のタイマーと、時間差で落ちる円を進める */
   function updateEmitters(dt) {
     for (let i = b.emitters.length - 1; i >= 0; i--) {
       const e = b.emitters[i];
@@ -281,13 +488,11 @@ export function createBoss(game, key, x, z, idx = 0) {
       if (zn.t > 0) continue;
       zn.tele.end();
       b.zones.splice(i, 1);
-      for (const pl of game.players) {
-        if (Math.hypot(pl.pos.x - zn.x, pl.pos.z - zn.z) < zn.r + pl.radius) hurtPlayer(game, pl, HIT.boss, zn.x, zn.z);
-      }
-      game.fx.burst(zn.x, 0.4, zn.z, zn.color, 18, { speed: 6, up: 6, life: 0.6, size: 0.22 });
+      hitAll(inCircle(zn.x, zn.z, zn.r), meleeHit, zn.x, zn.z);
+      game.fx.burst(zn.x, 0.4, zn.z, zn.color, zn.burst ? 18 : 26, { speed: 6, up: zn.burst ? 6 : 10, life: 0.6, size: 0.22 });
       game.sound.se('slam');
       // 着弾点からまわりに弾を散らす
-      const n = Math.round(zn.burst * cm());
+      const n = Math.round((zn.burst || 0) * cm());
       const off = rand(0, 1);
       for (let k = 0; k < n; k++) shot(zn.x, zn.z, off + (k / n) * Math.PI * 2, 6, zn.color);
     }
@@ -296,9 +501,16 @@ export function createBoss(game, key, x, z, idx = 0) {
   function update(dt) {
     b.t += dt;
     b.flash = Math.max(0, b.flash - dt);
-    const tgt = nearestPlayer(game, b.pos.x, b.pos.z);
+    if (b.taunt) {
+      b.taunt.t -= dt;
+      if (b.taunt.t <= 0) b.taunt = null;
+    }
+    const tgt = bossTarget(game, b);
     let walking = false;
     if (b.alive) updateEmitters(dt);
+    updateNovas(dt);
+    // ブレイク値は殴られていないと少しずつ減る
+    if (b.state !== 'stun') b.brk = Math.max(0, b.brk - b.brkMax * 0.03 * dt);
 
     switch (b.state) {
       case 'sleep':
@@ -310,6 +522,11 @@ export function createBoss(game, key, x, z, idx = 0) {
         m.armR.rotation.set(-2.6, 0, -0.4);
         if (Math.random() < 0.4) game.fx.burst(b.pos.x, 3, b.pos.z, b.raged ? 0xff1744 : 0xffab40, 2, { speed: 5, up: 3, life: 0.6 });
         if (b.t > 1.6) { b.state = 'rest'; b.t = 0.6; }
+        break;
+      case 'stun':
+        poseStun();
+        if (Math.random() < 0.3) game.fx.burst(b.pos.x + rand(-1, 1), C.hpY * 0.9, b.pos.z + rand(-1, 1), 0xffee58, 1, { speed: 1, up: 1, life: 0.5, grav: 0 });
+        if (b.t > BREAK.stun) { b.state = 'rest'; b.t = 0; m.root.position.y = 0; m.root.rotation.x = 0; }
         break;
       case 'rest':
       case 'move':
@@ -330,7 +547,7 @@ export function createBoss(game, key, x, z, idx = 0) {
             walking = true;
           }
           if (b.queued) {
-            // 追撃（近接のあとの弾幕など）はすぐ出す
+            // 追撃（連続攻撃・瞬間移動のあと）はすぐ出す
             const q = b.queued;
             b.queued = null;
             startPattern(q, tgt);
@@ -367,13 +584,7 @@ export function createBoss(game, key, x, z, idx = 0) {
             b.yaw = lerpAngle(b.yaw, yawTo(b.pos.x, b.pos.z, tgt.pos.x, tgt.pos.z), Math.min(1, dt * 3));
             b.tele?.follow(b.pos.x, b.pos.z, b.yaw);
           }
-          if (kind === 'charge') {
-            m.root.rotation.x = 0.35;
-            m.armR.rotation.set(-1.4, 0, 0);
-          } else {
-            m.armR.rotation.set(-Math.PI / 2, 1.5, 0);
-            m.root.rotation.y = 0.5;
-          }
+          poseWindup(kind);
           if (b.t >= dur) {
             b.tele?.end();
             b.tele = null;
@@ -396,21 +607,28 @@ export function createBoss(game, key, x, z, idx = 0) {
               b.pos.y = 0;
               b.tele?.end();
               b.tele = null;
-              for (const pl of game.players) {
-                if (Math.hypot(pl.pos.x - b.pos.x, pl.pos.z - b.pos.z) < p.radius + pl.radius) hurtPlayer(game, pl, HIT.boss, b.pos.x, b.pos.z);
-              }
+              hitAll(inCircle(b.pos.x, b.pos.z, p.radius), meleeHit, b.pos.x, b.pos.z);
               game.fx.shake(1);
               game.sound.se('slam');
               game.fx.burst(b.pos.x, 0.3, b.pos.z, 0xa1887f, 40, { speed: 10, up: 5, life: 0.8, size: 0.25 });
               // 着地で弾の輪（怒り中は rageRing をそのまま使う）
               const n = b.raged && p.rageRing !== undefined ? p.rageRing : Math.round((p.ring || 0) * cm());
-              if (n > 0) ring(b.pos.x, b.pos.z, n, rand(0, 1), 9, p.color);
+              if (n > 0) ring(b.pos.x, b.pos.z, n, rand(0, 1), 8, p.color);
               b.state = 'act';
               b.t = 0;
             }
           }
+        } else if (kind === 'teleport') {
+          // 体を縮めて消える
+          m.group.scale.setScalar(Math.max(0.05, 1 - b.t / dur));
+          if (b.t >= dur) {
+            b.tele?.end();
+            b.tele = null;
+            m.group.scale.setScalar(1);
+            execute();
+          }
         } else {
-          // ring / spiral / rain：両手を掲げてためる
+          // ring / spiral / rain / beam / erupt / nova：両手を掲げてためる
           m.armL.rotation.set(-2.8, 0, 0.3);
           m.armR.rotation.set(-2.8, 0, -0.3);
           if (b.t >= dur) {
@@ -430,16 +648,17 @@ export function createBoss(game, key, x, z, idx = 0) {
         const sz = Math.cos(b.yaw);
         b.pos.x += sx * p.speed * dt;
         b.pos.z += sz * p.speed * dt;
-        for (const pl of game.players) {
-          if (dsh.hit.has(pl)) continue;
-          if (Math.hypot(pl.pos.x - b.pos.x, pl.pos.z - b.pos.z) < b.radius + pl.radius + 0.3) {
-            if (hurtPlayer(game, pl, HIT.boss, b.pos.x - sx, b.pos.z - sz)) dsh.hit.add(pl);
-          }
-        }
+        hitAll((x, z, pr, who) => {
+          if (dsh.hit.has(who) || Math.hypot(x - b.pos.x, z - b.pos.z) >= b.radius + pr + 0.3) return false;
+          dsh.hit.add(who); // 突進1回につき1人1回まで
+          return true;
+        }, meleeHit, b.pos.x - sx, b.pos.z - sz);
         // 通った跡から左右に弾を撃つ
-        while (dsh.trail >= p.trailEvery) {
-          dsh.trail -= p.trailEvery;
-          for (const s of [-1, 1]) shot(b.pos.x, b.pos.z, b.yaw + (s * Math.PI) / 2, p.trailSpeed, p.color);
+        if (p.trailEvery) {
+          while (dsh.trail >= p.trailEvery) {
+            dsh.trail -= p.trailEvery;
+            for (const s of [-1, 1]) shot(b.pos.x, b.pos.z, b.yaw + (s * Math.PI) / 2, p.trailSpeed, p.color);
+          }
         }
         if (Math.random() < 0.6) game.fx.burst(b.pos.x, 0.5, b.pos.z, p.color, 2, { speed: 2, up: 2, life: 0.4 });
         // 壁にぶつかったら止まる
@@ -462,7 +681,7 @@ export function createBoss(game, key, x, z, idx = 0) {
         m.armR.rotation.set(-0.5, -0.8, 0);
         m.root.rotation.y = -0.3;
         // 弾幕を撃ち終わるまでその場で踏ん張る
-        if (b.t > 0.6 && b.emitters.length === 0) {
+        if (b.t > (P[b.pattern]?.recover ?? 0.6) && b.emitters.length === 0) {
           b.state = 'rest';
           b.t = 0;
           const after = P[b.pattern]?.after;
@@ -470,9 +689,7 @@ export function createBoss(game, key, x, z, idx = 0) {
         }
         break;
       case 'dead':
-        m.root.rotation.x = Math.min(1.5, b.t * 1.2);
-        m.group.position.y = -Math.max(0, b.t - 1.2) * 0.8;
-        if (Math.random() < 0.5) game.fx.burst(b.pos.x + rand(-2, 2), rand(1, 4), b.pos.z + rand(-2, 2), 0xff6e40, 3, { speed: 3, up: 4, life: 0.7 });
+        poseDead();
         if (b.t > 2.4 && !b.reported) {
           b.reported = true;
           game.onBossDown(b);
@@ -484,20 +701,106 @@ export function createBoss(game, key, x, z, idx = 0) {
 
     if (b.state !== 'dead' && b.pos.y === 0) game.world.collide(b.pos, b.radius);
     m.group.rotation.y = b.yaw;
-    // 歩き・待機の姿勢
-    if (b.state === 'rest' || b.state === 'move') {
-      const ph = b.t * 6;
-      const s = walking ? Math.sin(ph) * 0.5 : 0;
-      m.legL.rotation.x = s;
-      m.legR.rotation.x = -s;
-      m.armL.rotation.set(-s * 0.6, 0, 0);
-      m.armR.rotation.set(-0.4 + s * 0.4, 0, 0);
-      m.root.rotation.set(0, 0, 0);
-      m.root.position.y = 0;
-    }
-    const glow = b.state === 'windup' || b.state === 'charge' ? 0.5 + 0.5 * Math.sin(b.t * 25) : b.raged ? 0.25 : 0;
-    m.bodyMat.emissive.setRGB(b.flash > 0 ? 1 : glow, b.flash > 0 ? 1 : 0, b.flash > 0 ? 1 : 0);
+    if (b.state === 'rest' || b.state === 'move') poseWalk(walking);
+    drawGlow();
   }
+
+  // ---------------- 参加者側（見た目だけ） ----------------
+  function updatePuppet(dt) {
+    b.t += dt;
+    b.flash = Math.max(0, b.flash - dt);
+    updateNovas(dt);
+    const n = b.net;
+    if (n) {
+      const k = Math.min(1, dt * 10);
+      const dx = n.x - b.pos.x;
+      const dz = n.z - b.pos.z;
+      if (dx * dx + dz * dz > 64) {
+        b.pos.x = n.x;
+        b.pos.z = n.z;
+      } else {
+        b.pos.x += dx * k;
+        b.pos.z += dz * k;
+      }
+      b.pos.y += (n.y - b.pos.y) * k;
+      b.yaw = lerpAngle(b.yaw, n.yaw, k);
+    }
+    m.group.rotation.y = b.yaw;
+    const kind = b.pattern && P[b.pattern] ? kindOf(b.pattern) : '';
+    m.group.scale.setScalar(b.state === 'windup' && kind === 'teleport' ? Math.max(0.05, 1 - b.t / (P[b.pattern].windup * wm())) : 1);
+    switch (b.state) {
+      case 'sleep': m.root.rotation.x = 0.1; break;
+      case 'intro':
+      case 'rage':
+        m.armL.rotation.set(-2.6, 0, 0.4);
+        m.armR.rotation.set(-2.6, 0, -0.4);
+        break;
+      case 'stun': poseStun(); break;
+      case 'windup':
+        if (kind === 'sweep' || kind === 'fan' || kind === 'charge') poseWindup(kind);
+        else if (kind === 'slam') m.armR.rotation.set(-2.9, 0, 0);
+        else {
+          m.armL.rotation.set(-2.8, 0, 0.3);
+          m.armR.rotation.set(-2.8, 0, -0.3);
+        }
+        break;
+      case 'act':
+        m.root.rotation.x = 0;
+        m.armR.rotation.set(-0.5, -0.8, 0);
+        m.root.rotation.y = -0.3;
+        break;
+      case 'charge': m.root.rotation.x = 0.35; break;
+      case 'dead': poseDead(); break;
+      default: poseWalk(n ? Math.hypot(n.x - b.pos.x, n.z - b.pos.z) > 0.05 : false);
+    }
+    drawGlow();
+  }
+
+  // ---------------- 姿勢 ----------------
+  function poseWindup(kind) {
+    if (kind === 'charge') {
+      m.root.rotation.x = 0.35;
+      m.armR.rotation.set(-1.4, 0, 0);
+    } else {
+      m.armR.rotation.set(-Math.PI / 2, 1.5, 0);
+      m.root.rotation.y = 0.5;
+    }
+  }
+  function poseStun() {
+    m.root.rotation.x = 0.5;
+    m.root.position.y = -0.25;
+    m.armL.rotation.set(0.3, 0, 0.3);
+    m.armR.rotation.set(0.3, 0, -0.3);
+  }
+  function poseDead() {
+    m.root.rotation.x = Math.min(1.5, b.t * 1.2);
+    m.group.position.y = -Math.max(0, b.t - 1.2) * 0.8;
+    if (Math.random() < 0.5) game.fx.burst(b.pos.x + rand(-2, 2), rand(1, 4), b.pos.z + rand(-2, 2), 0xff6e40, 3, { speed: 3, up: 4, life: 0.7 });
+  }
+  function poseWalk(walking) {
+    const ph = b.t * 6;
+    const s = walking ? Math.sin(ph) * 0.5 : 0;
+    m.legL.rotation.x = s;
+    m.legR.rotation.x = -s;
+    m.armL.rotation.set(-s * 0.6, 0, 0);
+    m.armR.rotation.set(-0.4 + s * 0.4, 0, 0);
+    m.root.rotation.set(0, 0, 0);
+    m.root.position.y = 0;
+  }
+  function drawGlow() {
+    const glow = b.state === 'windup' || b.state === 'charge' ? 0.5 + 0.5 * Math.sin(b.t * 25) : b.raged ? 0.25 : 0;
+    const stun = b.state === 'stun' ? 0.35 + 0.25 * Math.sin(b.t * 10) : 0;
+    m.bodyMat.emissive.setRGB(b.flash > 0 ? 1 : Math.max(glow, stun), b.flash > 0 ? 1 : stun, b.flash > 0 ? 1 : 0);
+  }
+
+  /** ホスト：参加者へ送る状態 */
+  b.snapshot = () => ({
+    key: b.key, idx: b.idx, x: +b.pos.x.toFixed(2), z: +b.pos.z.toFixed(2), y: +b.pos.y.toFixed(2), yaw: +b.yaw.toFixed(3),
+    hp: Math.round(b.hp), maxHp: b.maxHp, brk: Math.round(b.brk), brkMax: b.brkMax,
+    state: b.state, pattern: b.pattern, raged: b.raged, active: b.active, alive: b.alive,
+  });
+  /** ホスト：挑発 */
+  b.setTaunt = (id, dur) => { b.taunt = { id, t: dur }; };
 
   return b;
 }

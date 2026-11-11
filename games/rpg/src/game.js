@@ -1,5 +1,6 @@
 // ゲーム全体：初期化・メインループ・タイトル／ポーズ／全滅／クリアの流れ
 // 状態の正本は game.state.progress（JSON 化可能）。入力は readIntent() でデータにしてから更新処理へ渡す
+// ステージ2 はレイド（1〜4人）：準備画面（ui/lobby.js）で職業を選び、ひとりで、またはルームで協力して挑む。通信は raid.js
 import { createApp } from '/shared/engine.js';
 import { createInput } from '/shared/input.js';
 import { createAudio } from '/shared/audio.js';
@@ -9,6 +10,7 @@ import { createState, newProgress, migrateProgress } from './state.js';
 import { createPlayer, emptyIntent } from './player.js';
 import { createEnemies } from './enemies.js';
 import { createProjectiles } from './projectiles.js';
+import { createAllies } from './allies.js';
 import { createEffects } from './effects.js';
 import { createSound } from './sound.js';
 import { createCameraRig } from './camera.js';
@@ -16,16 +18,21 @@ import { createViewModel } from './viewmodel.js';
 import { VIEW } from './data/view.js';
 import { createHudView } from './ui/hudview.js';
 import { createModalHost, createDialog } from './ui/dialog.js';
-import { createLights, loadArea, updateAreaLogic, checkSeals, bossDown } from './area.js';
+import { openLobby } from './ui/lobby.js';
+import { createLights, loadArea, updateAreaLogic, checkSeals, bossDown, makeBoss } from './area.js';
 import { AREAS, AREA_ORDER, COURSES, courseOf } from './data/areas.js';
-import { fmtTime } from './util.js';
+import { JOBS, REVIVE, DEFAULT_JOB } from './data/jobs.js';
+import { updateJobZones, inAegis } from './jobs.js';
+import { hurtPlayer } from './combat.js';
+import { createRaid } from './raid.js';
+import { fmtTime, clamp } from './util.js';
 
 const TITLE = '3DRPG 〜魔窟の主〜';
 const CONTROLS = [
   'WASD：移動　Shift：ダッシュ　マウス：視点（画面クリックで視点ロック／右ドラッグでも可）',
   'V：一人称／三人称の切り替え（はじめは一人称）',
-  '左クリック：攻撃（連打で3段コンボ）　Space：回避（無敵時間あり）',
-  'Q：回転斬り　E：衝撃波（クールダウンあり）　F：看板を調べる',
+  '左クリック：通常攻撃　Space：回避（無敵時間あり）　F：看板を調べる',
+  'Q：スキル（クールダウン）　E：必殺技（攻撃を当てて溜める。近接ほど早く溜まる）　R：回復薬（ステージ2）',
   'ダッシュと回避はスタミナを使う。0 になるとバテて、満タンに戻るまで使えない',
   'ホイール：カメラ距離（三人称）　Esc：ポーズ',
 ].join('\n');
@@ -39,8 +46,9 @@ export function createGame() {
   if (!saveData.records) saveData.records = { clears: 0, bestTime: 0 }; // ステージ1 の記録
   if (!saveData.records2) saveData.records2 = { clears: 0, bestTime: 0 }; // ステージ2 の記録
   saveData.progress = migrateProgress(saveData.progress); // 旧形式（レベル制）は到達エリアだけ引き継ぐ
-  // 設定（視点）は進行とは別に保存する（クリアしても消えない）
-  if (!saveData.settings || !['fps', 'tps'].includes(saveData.settings.view)) saveData.settings = { view: VIEW.defaultMode };
+  // 設定（視点・名前・職業）は進行とは別に保存する（クリアしても消えない）
+  if (!saveData.settings || !['fps', 'tps'].includes(saveData.settings.view)) saveData.settings = { ...(saveData.settings || {}), view: VIEW.defaultMode };
+  const saveSettings = () => store.save(saveData);
 
   const game = {
     scene, camera, renderer, input, audio,
@@ -48,11 +56,14 @@ export function createGame() {
     state: createState(newProgress()),
     world: null,
     players: [],
-    localIndex: 0, // 自分のプレイヤー番号（オンライン化で変わる）
+    localIndex: 0, // 自分のプレイヤー番号
     boss: null,
     playing: false,
-    down: null, // 全滅演出中 { t }
-    trans: null, // エリア遷移中 { t, phase, to, x, z, yaw }
+    down: null, // ひとりプレイの全滅演出中 { t }
+    trans: null, // エリア遷移中 { t, phase, to }
+    raid: null, // 協力プレイの通信（ひとりなら null）
+    isClient: false, // 協力プレイの参加者（ホストでない）なら true：ボス・雑魚は見た目だけ
+    mirroring: false, // ホストで演出を参加者へ送る記録中
     toast,
     me() { return game.players[game.localIndex]; },
   };
@@ -63,11 +74,13 @@ export function createGame() {
   game.lights = createLights(scene);
   game.enemies = createEnemies(game);
   game.projectiles = createProjectiles(game);
+  game.allies = createAllies(game);
   game.hudView = createHudView(game);
   game.modal = createModalHost(game);
   game.dialog = createDialog(game, game.modal);
   game.ui = { dialog: game.dialog };
-  game.players.push(createPlayer(game, 0));
+  game.inAegis = inAegis;
+  setPlayers([{ id: 'local', job: DEFAULT_JOB, name: saveData.settings.name || '' }], 'local');
 
   // 同じ文を短時間に何度も出さないトースト
   const toastTimes = new Map();
@@ -75,13 +88,23 @@ export function createGame() {
     const now = performance.now();
     if (now - (toastTimes.get(msg) || 0) < ms + 400) return;
     toastTimes.set(msg, now);
-    toast(msg, ms);
+    game.toast(msg, ms);
   };
   game.onEnemyKilled = () => checkSeals(game);
   game.onBossDown = (b) => bossDown(game, b);
   game.onPlayerHurt = (p, dirX, dirZ) => {
     if (p === game.me()) game.hudView.hurt(dirX, dirZ);
   };
+
+  // ---- プレイヤー（職業）を作り直す ----
+  function setPlayers(roster, myId) {
+    for (const p of game.players) scene.remove(p.model.group);
+    game.players = roster.map((r, i) => createPlayer(game, i, { job: r.job, remote: r.id !== myId, id: r.id, name: r.name }));
+    game.localIndex = Math.max(0, game.players.findIndex((p) => !p.remote));
+    const me = game.me();
+    game.vm.setLook(me.job.look);
+    game.setView?.(saveData.settings.view);
+  }
 
   // ---- 視点（一人称／三人称）。V で切り替え、選んだ方を保存 ----
   game.setView = (mode, announce = false) => {
@@ -98,15 +121,94 @@ export function createGame() {
   };
   game.setView(saveData.settings.view);
 
-  // ---- セーブ（到達したエリアと記録だけ。つづきからはそのエリアの入口から） ----
+  // ---- セーブ（到達したエリアと記録だけ。つづきからはそのエリアの入口から）。ルームでの協力プレイ中は保存しない ----
   game.autosave = () => {
-    if (!game.playing) return;
+    if (!game.playing || game.raid) return;
     saveData.progress = game.state.progress;
     store.save(saveData);
   };
   // ハブへ戻る・タブを閉じる・裏に回ったときもプレイ時間などを保存
   addEventListener('pagehide', () => game.autosave());
   document.addEventListener('visibilitychange', () => { if (document.hidden) game.autosave(); });
+
+  // ---- 味方への効果（回復・強化・蘇生）：全員に配り、各自が自分に当てはまるか見て適用 ----
+  game.teamEffect = (eff) => {
+    applyTeamEffect(eff);
+    game.raid?.sendTeam(eff);
+  };
+  function applyTeamEffect(eff) {
+    const me = game.me();
+    if (!me) return;
+    const near = eff.r ? Math.hypot(me.pos.x - eff.x, me.pos.z - eff.z) <= eff.r : true;
+    switch (eff.kind) {
+      case 'heal':
+        if (me.alive && near) {
+          me.hp = Math.min(me.maxHp, me.hp + me.maxHp * eff.amount);
+          game.fx.burst(me.pos.x, 1.5, me.pos.z, 0xfff59d, 16, { speed: 2, up: 4, life: 0.7 });
+          game.toastOnce('癒しの光で回復した！', 1200);
+        }
+        break;
+      case 'buff':
+        if (me.alive && near) {
+          me.buff(eff.name, eff.dur, eff.vals);
+          if (eff.msg) game.toastOnce(eff.msg, 1600);
+        }
+        break;
+      case 'prayer':
+        if (me.downed) me.revive(1);
+        me.hp = me.maxHp;
+        me.invuln = Math.max(me.invuln, eff.invuln);
+        game.toastOnce('女神の祈り：全回復＆無敵！', 1600);
+        break;
+      case 'revive':
+        if (eff.id === me.id && me.downed) {
+          me.revive();
+          game.toast('仲間に助け起こされた！', 1600);
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
+  // ---- ボスへの命令（挑発・召喚）：ホストが処理 ----
+  game.bossCommand = (cmd) => {
+    if (game.isClient) game.raid.sendCommand(cmd);
+    else game.withMirror ? game.withMirror(() => handleCommand(cmd)) : handleCommand(cmd);
+  };
+  function handleCommand(cmd) {
+    if (cmd.type === 'taunt') game.boss?.setTaunt(cmd.id, cmd.dur);
+    else if (cmd.type === 'summon') {
+      if (cmd.kind === 'spirit') {
+        // 上限を超えたら古い精霊から消える
+        const mine = game.allies.list.filter((a) => a.owner === cmd.owner && a.kind === 'spirit');
+        if (mine.length >= JOBS.summoner.q.max) mine[0].life = 0;
+      }
+      game.allies.spawn(cmd.kind, cmd.x, cmd.z, cmd.owner);
+    }
+  }
+
+  /** 吟遊詩人の近くでは Q のクールダウンが速く戻る */
+  game.bardAura = (p) => {
+    const J = JOBS.bard;
+    return game.players.some((o) => o.alive && o.jobId === 'bard' && Math.hypot(o.pos.x - p.pos.x, o.pos.z - p.pos.z) <= J.auraRadius) ? J.auraCd : 1;
+  };
+
+  /** 中ボスを倒して次の部屋へ：自分を全回復（倒れていたら蘇生） */
+  game.onBossStep = (stepN) => {
+    const me = game.me();
+    if (me.downed) me.revive(1);
+    me.hp = me.maxHp;
+    game.state.progress.bossStep = stepN;
+  };
+  /** 扉の外に残っている自分を部屋の中へ */
+  game.gatherLocal = (toZ, doorZ) => {
+    const me = game.me();
+    if (me.pos.z > doorZ - 0.6) {
+      me.pos.set(clamp(me.pos.x, -3, 3), 0, toZ);
+      game.toastOnce('ボス部屋へ呼び寄せられた！', 1400);
+    }
+  };
 
   // ---- ポインタロックとモーダル ----
   let expectUnlock = false;
@@ -146,7 +248,7 @@ export function createGame() {
     }
     showPause({
       onResume: () => input.lockPointer(),
-      extra: `${game.world?.def.name || ''}　プレイ時間 ${fmtTime(game.state.progress.stats.time)}`,
+      extra: `${game.world?.def.name || ''}　プレイ時間 ${fmtTime(game.state.progress.stats.time)}${game.raid ? '　（協力プレイ中はポーズしても時間は止まりません）' : ''}`,
     });
   }
 
@@ -157,8 +259,15 @@ export function createGame() {
     game.sound.se('gate');
   };
 
-  // ---- 全滅・クリア ----
+  // ---- やられた・全滅・クリア ----
   game.onPlayerDown = (pl) => {
+    if (game.raid) {
+      // 協力プレイ：その場で倒れて、仲間の蘇生を待つ（全員倒れたら全滅）
+      pl.knockDown();
+      game.sound.se('fall');
+      game.toast('倒れた！ 仲間がそばに立つと蘇生できる', 2600);
+      return;
+    }
     if (game.down) return;
     pl.alive = false;
     game.down = { t: 0 };
@@ -183,10 +292,40 @@ export function createGame() {
         game.hudView.show(true);
         input.lockPointer();
       },
+      extraButtons: [{ label: 'タイトルへ', onClick: () => title() }],
     });
   }
 
+  /** 協力プレイ：全員倒れたら（ホストが判定）3秒後に部屋の前からやり直し */
+  let wipeT = 0;
+  function checkWipe(dt) {
+    if (!game.raid || game.isClient) return;
+    if (game.players.every((p) => !p.alive)) {
+      if (wipeT === 0) game.withMirror(() => game.toast('全滅…… 3秒後に部屋の前からやり直し', 2800));
+      wipeT += dt;
+      if (wipeT > 3) {
+        wipeT = 0;
+        const d = { step: game.state.progress.bossStep || 0 };
+        game.raid.broadcast('restart', d);
+        onRestart(d);
+      }
+    } else wipeT = 0;
+  }
+  function onRestart(d) {
+    closeAll();
+    const pr = game.state.progress;
+    pr.bossStep = d.step;
+    pr.stats.deaths++;
+    game.playing = true;
+    loadArea(game, pr.area);
+    game.hudView.show(true);
+  }
+
   game.onBossDefeated = () => {
+    if (game.raid && !game.isClient) game.raid.broadcast('clear', { time: game.state.progress.stats.time });
+    showClear();
+  };
+  function showClear() {
     const pr = game.state.progress;
     const course = courseOf(pr.area);
     game.playing = false;
@@ -198,21 +337,33 @@ export function createGame() {
     rec.clears++;
     const best = !rec.bestTime || time < rec.bestTime;
     if (best) rec.bestTime = time;
-    saveData.progress = null; // クリアしたら「つづきから」は消える
+    if (!game.raid) saveData.progress = null; // クリアしたら「つづきから」は消える
     store.save(saveData);
     game.hudView.show(false);
+    const party = game.players.length > 1 ? `仲間：${game.players.filter((p) => p !== game.me()).map((p) => `${p.name}（${p.job.name}）`).join('、')}` : '';
+    const lines = [
+      `プレイ時間 ${fmtTime(time)}${best ? '（ベスト更新！）' : `（ベスト ${fmtTime(rec.bestTime)}）`}`,
+      `撃破数 ${pr.stats.kills}　やられた回数 ${pr.stats.deaths}`,
+      `クリア回数 ${rec.clears}`,
+    ];
+    if (party) lines.push(party);
+    const raidHost = game.raid && !game.isClient;
     showResult({
       title: `${course.label} クリア！ ${course.clearMsg}`,
-      lines: [
-        `プレイ時間 ${fmtTime(time)}${best ? '（ベスト更新！）' : `（ベスト ${fmtTime(rec.bestTime)}）`}`,
-        `撃破数 ${pr.stats.kills}　やられた回数 ${pr.stats.deaths}`,
-        `クリア回数 ${rec.clears}`,
-      ],
-      retryLabel: `${course.label}をもう一度`,
-      onRetry: () => begin(newProgress(course.start)),
+      lines,
+      retryLabel: game.raid ? (raidHost ? '同じメンバーでもう一度' : undefined) : `${course.label}をもう一度`,
+      onRetry: game.raid
+        ? (raidHost ? () => { const d = { step: 0, again: true }; game.raid.broadcast('restart', d); againRaid(d); } : undefined)
+        : () => startCourse(course),
       extraButtons: [{ label: 'タイトルへ', onClick: () => title() }],
     });
-  };
+  }
+  /** 同じメンバーでもう一度（記録はリセット） */
+  function againRaid(d) {
+    game.state = createState(newProgress('castle'));
+    onRestart(d);
+    game.state.progress.stats.deaths = 0;
+  }
 
   // ---- 開始 ----
   function begin(progress) {
@@ -220,17 +371,120 @@ export function createGame() {
     game.down = null;
     game.trans = null;
     game.playing = true;
+    wipeT = 0;
     const pr = game.state.progress;
     loadArea(game, pr.area);
     game.hudView.show(true);
     game.autosave();
     input.lockPointer();
     if (pr.area === AREA_ORDER[0]) setTimeout(() => toast('迷路を抜けて北の出口へ。赤い結界は番人を全部倒すと消える', 4000), 800);
-    if (pr.area === COURSES[1].start && !pr.bossStep) setTimeout(() => toast('中ボス2体を倒して、最奥の冥王を討て。弾幕は横に走るか回避の無敵でくぐれ', 4000), 800);
+    if (pr.area === COURSES[1].start && !pr.bossStep) setTimeout(() => toast('中ボス2体を倒して、最奥の冥王を討て。近接で殴るとボスがブレイク（気絶）する', 4000), 800);
   }
+
+  /** ひとりで遊ぶ（ステージ1 は剣士固定、ステージ2 は選んだ職業） */
+  function startSolo(progress, job = DEFAULT_JOB) {
+    leaveRaid();
+    closeAll();
+    setPlayers([{ id: 'local', job, name: saveData.settings.name || '' }], 'local');
+    begin(progress);
+  }
+  function startCourse(course) {
+    if (course === COURSES[1]) startSolo(newProgress(course.start), saveData.settings.job || DEFAULT_JOB);
+    else startSolo(newProgress(course.start));
+  }
+
+  /** ステージ2 の準備画面 */
+  function lobby() {
+    leaveRaid();
+    openLobby({
+      settings: saveData.settings,
+      save: saveSettings,
+      onSolo: ({ job }) => startSolo(newProgress('castle'), job),
+      onBack: () => title(),
+      onStart: ({ net, roster, step }) => startRaid(net, roster, step),
+    });
+  }
+
+  /** ルームで協力プレイを始める */
+  function startRaid(net, roster, stepN) {
+    leaveRaid();
+    if (!roster.some((r) => r.id === net.myId)) {
+      // 途中参加：自分を足す
+      roster = [...roster, { id: net.myId, name: saveData.settings.name || '', job: saveData.settings.job || DEFAULT_JOB }];
+    }
+    setPlayers(roster, net.myId);
+    game.isClient = !net.isHost;
+    game.raid = createRaid(game, net, raidHandlers);
+    const pr = newProgress('castle');
+    pr.bossStep = stepN || 0;
+    begin(pr);
+    game.toast(game.isClient ? '協力プレイ開始！（ボスはホストの画面と同期）' : '協力プレイ開始！ あなたがホスト', 2600);
+  }
+
+  function leaveRaid() {
+    if (!game.raid) return;
+    const r = game.raid;
+    game.raid = null;
+    game.isClient = false;
+    r.dispose();
+    r.net.leaveRoom();
+  }
+
+  const raidHandlers = {
+    hurtLocal: (me, frac, fx, fz) => hurtPlayer(game, me, frac, fx, fz),
+    applyTeamEffect,
+    handleCommand,
+    applyWorld(ws) {
+      const pr = game.state.progress;
+      const def = game.world?.def;
+      if (!def?.bosses) return;
+      if (ws.step !== (pr.bossStep || 0)) game.onBossStep(ws.step);
+      const bs = ws.boss;
+      if (bs && (!game.boss || game.boss.key !== bs.key || game.boss.idx !== bs.idx)) {
+        game.boss?.dispose();
+        game.boss = makeBoss(game, def.bosses[bs.idx], bs.idx);
+      }
+      if (bs) game.boss.applyNet(bs);
+      game.enemies.applyNet(ws.enemies);
+      game.allies.applyNet(ws.allies);
+      pr.stats.kills = ws.kills;
+    },
+    onEvent(type, a) {
+      if (type === 'door') game.world.extra.doors?.[a[0]]?.(a[1]);
+      else if (type === 'gather') game.gatherLocal(a[0], a[1]);
+      else if (type === 'step') {
+        game.onBossStep(a[0]);
+        game.projectiles.clearEnemyShots();
+      }
+    },
+    onRestart: (d) => (d.again ? againRaid(d) : onRestart(d)),
+    onClear: () => showClear(),
+    onBecomeHost() {
+      game.isClient = false;
+      // ボスを本物として作り直し、全員で部屋の前からやり直す
+      const d = { step: game.state.progress.bossStep || 0 };
+      game.raid.broadcast('restart', d);
+      onRestart(d);
+    },
+    onLateJoin(id) {
+      const roster = game.players.map((p) => ({ id: p.id, name: p.name, job: p.jobId }));
+      game.raid.net.send('start', { roster, step: game.state.progress.bossStep || 0 }, { to: id });
+      game.withMirror(() => game.toast('仲間が参加した！', 2000));
+    },
+    onDisconnect() {
+      if (!game.raid) return;
+      game.raid.dispose();
+      game.raid = null;
+      game.isClient = false;
+      game.toast('接続が切れました。タイトルに戻ります', 3000);
+      title();
+    },
+  };
 
   /** タイトル：ステージ1／ステージ2 を選ぶ（shared の showTitle はボタン1つなので、2つ目はここで足す） */
   function title() {
+    leaveRaid();
+    closeAll();
     game.playing = false;
     game.hudView.show(false);
     const has = !!saveData.progress;
@@ -247,9 +501,9 @@ export function createGame() {
       title: TITLE,
       desc,
       controls: CONTROLS,
-      onStart: () => begin(newProgress(COURSES[0].start)),
+      onStart: () => startCourse(COURSES[0]),
       startLabel: `${COURSES[0].label}　${COURSES[0].name}`,
-      onContinue: has ? () => begin(saveData.progress) : undefined,
+      onContinue: has ? () => startSolo(saveData.progress, cont === COURSES[1] ? saveData.settings.job || DEFAULT_JOB : DEFAULT_JOB) : undefined,
       continueLabel: has ? `つづきから（${cont.label}：${AREAS[saveData.progress.area].name.replace(/^\S+\s+/, '')}）` : undefined,
     });
     // 説明文はステージごとに改行して見せる
@@ -262,11 +516,11 @@ export function createGame() {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'g3-btn' + (has ? ' sub' : '');
-      b.textContent = `${c.label}　${c.name}`;
+      b.textContent = `${c.label}　${c.name}（1〜4人・職業を選ぶ）`;
       b.addEventListener('click', (e) => {
         e.stopPropagation();
         closeAll();
-        begin(newProgress(c.start));
+        lobby();
       });
       row.appendChild(b);
     }
@@ -274,7 +528,7 @@ export function createGame() {
 
   // ---- 入力 → intent（データ） ----
   const myIntent = emptyIntent();
-  const idleIntent = emptyIntent(); // 操作していないプレイヤー用（毎フレーム作らない）
+  const idleIntent = emptyIntent(); // 操作していないとき（ポーズ中の協力プレイなど）
   function readIntent() {
     const k = (c) => input.isDown(c);
     const right = (k('KeyD') || k('ArrowRight') ? 1 : 0) - (k('KeyA') || k('ArrowLeft') ? 1 : 0);
@@ -288,26 +542,102 @@ export function createGame() {
     it.attack = input.wasPressed('Mouse0');
     it.dodge = input.wasPressed('Space');
     it.dash = k('ShiftLeft') || k('ShiftRight');
-    it.spin = input.wasPressed('KeyQ');
-    it.wave = input.wasPressed('KeyE');
+    it.skillQ = input.wasPressed('KeyQ');
+    it.skillE = input.wasPressed('KeyE');
+    it.potion = input.wasPressed('KeyR');
     it.interact = input.wasPressed('KeyF');
     return it;
   }
 
+  /** 回復薬（R）：1つで全回復 */
+  function usePotion(me) {
+    const pr = game.state.progress;
+    if (!game.world.def.potions) return;
+    if (!me.alive) return;
+    if (!pr.potions) {
+      game.toastOnce('回復薬はもうない', 1200);
+      return;
+    }
+    if (me.hp >= me.maxHp) {
+      game.toastOnce('HP は満タン', 1000);
+      return;
+    }
+    pr.potions--;
+    me.hp = me.maxHp;
+    game.sound.se('seal');
+    game.fx.burst(me.pos.x, 1.2, me.pos.z, 0x69f0ae, 24, { speed: 3, up: 5, life: 0.7 });
+    game.toast(`回復薬で全回復！（残り ${pr.potions}）`, 1500);
+  }
+
+  /** 倒れた仲間のそばに立つと蘇生（僧侶は2倍速） */
+  const reviving = new Map();
+  function updateRevive(dt, me) {
+    if (!me.alive) return;
+    for (const p of game.players) {
+      if (p === me || !p.downed) {
+        reviving.delete(p.id);
+        continue;
+      }
+      if (Math.hypot(p.pos.x - me.pos.x, p.pos.z - me.pos.z) > REVIVE.radius) {
+        reviving.delete(p.id);
+        continue;
+      }
+      const t = (reviving.get(p.id) || 0) + dt * (me.job.reviveMul || 1);
+      reviving.set(p.id, t);
+      game.hudView.setPrompt(`${p.name || '仲間'}を蘇生中… ${Math.min(100, Math.floor((t / REVIVE.time) * 100))}%`, null);
+      if (t >= REVIVE.time) {
+        reviving.delete(p.id);
+        game.teamEffect({ kind: 'revive', id: p.id });
+        game.toast(`${p.name || '仲間'}を助け起こした！`, 1600);
+      }
+    }
+  }
+
+  /** 僧侶の近くにいると少しずつ回復 */
+  function priestAura(dt, me) {
+    if (!me.alive || me.hp >= me.maxHp) return;
+    const J = JOBS.priest;
+    if (game.players.some((o) => o.alive && o.jobId === 'priest' && Math.hypot(o.pos.x - me.pos.x, o.pos.z - me.pos.z) <= J.auraRadius)) {
+      me.hp = Math.min(me.maxHp, me.hp + me.maxHp * J.auraRegen * dt);
+    }
+  }
+
   // ---- 1フレームのゲーム更新 ----
   let saveTimer = 0;
-  function step(dt, time) {
-    const intent = readIntent();
+  function step(dt, time, controlling, forced = null) {
+    const intent = forced || (controlling ? readIntent() : idleIntent);
     const pr = game.state.progress;
+    const me = game.me();
 
-    if (game.fx.consumeStop(dt)) return; // ヒットストップ
+    if (!game.raid && game.fx.consumeStop(dt)) return; // ヒットストップ（協力プレイでは止めない）
     pr.stats.time += dt;
-    game.players.forEach((p, i) => p.update(dt, i === game.localIndex ? intent : idleIntent));
+    if (intent.potion) usePotion(me);
+    game.players.forEach((p) => p.update(dt, p === me ? intent : idleIntent));
     game.world.update(dt, time);
-    game.enemies.update(dt, time);
-    if (game.boss) game.boss.update(dt, time);
+    if (game.isClient) {
+      // 参加者：ボス・雑魚・召喚物は見た目だけ
+      game.enemies.update(dt, time);
+      game.boss?.update(dt, time);
+      game.allies.update(dt, time);
+    } else {
+      const sim = () => {
+        game.enemies.update(dt, time);
+        game.boss?.update(dt, time);
+        game.allies.update(dt, time);
+        if (!game.down) updateAreaLogic(game, intent);
+      };
+      if (game.withMirror && game.raid) game.withMirror(sim);
+      else sim();
+    }
+    if (game.isClient && !game.down) updateAreaLogic(game, intent); // 看板だけ
     game.projectiles.update(dt);
-    if (!game.down) updateAreaLogic(game, intent);
+    updateJobZones(game, dt);
+    if (game.raid) {
+      updateRevive(dt, me);
+      checkWipe(dt);
+      game.raid.update(dt);
+    }
+    priestAura(dt, me);
     saveTimer += dt;
     if (saveTimer > 45 && !game.boss?.active) {
       saveTimer = 0;
@@ -359,11 +689,14 @@ export function createGame() {
         finishDown();
       }
     } else if (active) {
-      step(dt, time);
+      step(dt, time, true);
+    } else if (game.playing && game.raid && !game.modal.open) {
+      // 協力プレイはポーズ中も世界が進む（操作だけ止める）
+      step(dt, time, false);
     }
 
     if (game.playing) {
-      if (active) game.fx.update(dt);
+      if (active || game.raid) game.fx.update(dt);
       const me = game.me();
       game.lights.follow(me.pos);
       game.cam.update(dt, me, game.world, game.fx.shakeOffset);
@@ -383,6 +716,16 @@ export function createGame() {
   if (new URLSearchParams(location.search).has('debug')) {
     window.rpg = game;
     game.noAutoPause = true;
+    // stepWith：入力を指定して1フレーム進める（自動テスト用）
+    let dbgT = 0;
+    game.debug = {
+      startRaid, startSolo, lobby, title, newProgress, applyTeamEffect,
+      stepWith(it, dt = 1 / 60) {
+        dbgT += dt;
+        step(dt, dbgT, false, Object.assign(emptyIntent({}), it));
+        game.fx.update(dt);
+      },
+    };
   }
   return game;
 }

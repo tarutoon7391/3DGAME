@@ -9,15 +9,16 @@ import { createBars } from './ui/bars.js';
 export function createEnemies(game) {
   const list = [];
   const bars = createBars(game.scene);
+  let nextId = 1;
 
   /** 雑魚を出す。sealId を付けると、その結界の番人になる */
-  function spawn(type, x, z, sealId = -1) {
+  function spawn(type, x, z, sealId = -1, id = nextId++) {
     const def = ENEMIES[type];
     const m = makeEnemyModel(def.model, def.color);
     m.group.position.set(x, 0, z);
     game.scene.add(m.group);
     const e = {
-      type, def, model: m, pos: m.group.position,
+      id, type, def, model: m, pos: m.group.position, net: null,
       yaw: rand(0, Math.PI * 2), hp: def.hp, maxHp: def.hp, defense: def.def,
       radius: def.radius, hpY: def.hpY, alive: true, removed: false,
       state: 'idle', t: rand(0, 2), home: { x, z }, target: null,
@@ -25,6 +26,12 @@ export function createEnemies(game) {
       wander: { x, z }, phase: rand(0, 6), deadT: 0, baseScale: m.group.scale.x,
       bar: bars.add(def.hpY),
       takeHit(g, dmg, dx, dz, knock) {
+        if (game.isClient) {
+          // 参加者：ホストへ送る（倒れたかどうかはホストの状態で決まる）
+          e.flash = 0.12;
+          game.raid?.sendDamage('enemy', e.id, dmg, 0);
+          return;
+        }
         e.hp -= dmg;
         e.flash = 0.12;
         const heavy = def.heavy ? AI.heavyKnock : 1;
@@ -283,9 +290,35 @@ export function createEnemies(game) {
     }
   }
 
+  /** 参加者：届いた位置へ寄せて描くだけ（AI は動かさない） */
+  function updatePuppet(e, dt, time) {
+    const n = e.net;
+    let walking = false;
+    if (n) {
+      const k = Math.min(1, dt * 10);
+      const dx = n.x - e.pos.x;
+      const dz = n.z - e.pos.z;
+      walking = Math.hypot(dx, dz) > 0.03;
+      e.pos.x += dx * k;
+      e.pos.z += dz * k;
+      e.yaw = lerpAngle(e.yaw, n.yaw, k);
+      if (n.state !== e.state) { e.state = n.state; e.t = 0; } else e.t += dt;
+      e.hp = n.hp;
+    }
+    const m = e.model;
+    m.group.rotation.y = e.yaw;
+    e.flash = Math.max(0, e.flash - dt);
+    const glow = e.state === 'windup' ? 0.5 + 0.5 * Math.sin(e.t * 30) : 0;
+    m.bodyMat.emissive.setRGB(e.flash > 0 ? 1 : glow * 0.9, e.flash > 0 ? 1 : 0, e.flash > 0 ? 1 : 0);
+    animateEnemy(e, walking, time);
+    bars.set(e.bar, e.pos, e.hp / e.maxHp, e.hp < e.maxHp);
+  }
+
   function update(dt, time) {
     for (const e of list) {
-      if (e.alive) {
+      if (e.alive && game.isClient) {
+        updatePuppet(e, dt, time);
+      } else if (e.alive) {
         updateOne(e, dt, time);
       } else if (!e.removed) {
         e.deadT += dt;
@@ -298,5 +331,37 @@ export function createEnemies(game) {
     bars.update(game.camera);
   }
 
-  return { list, spawn, update, clear, aliveCount: () => list.filter((e) => e.alive).length };
+  /** ホスト → 参加者 */
+  function snapshot() {
+    return list.filter((e) => e.alive).map((e) => [e.id, e.type, +e.pos.x.toFixed(2), +e.pos.z.toFixed(2), +e.yaw.toFixed(2), Math.round(e.hp), e.state]);
+  }
+  /** 参加者：届いた一覧に合わせる（一覧から消えたら倒れた） */
+  function applyNet(arr) {
+    const seen = new Set();
+    for (const [id, type, x, z, yaw, hp, state] of arr) {
+      seen.add(id);
+      let e = list.find((o) => o.id === id);
+      if (!e) {
+        e = spawn(type, x, z, -1, id);
+        e.yaw = yaw;
+      }
+      e.net = { x, z, yaw, hp, state };
+    }
+    for (const e of list) {
+      if (e.alive && !seen.has(e.id)) {
+        e.alive = false;
+        e.hp = 0;
+        e.deadT = 0;
+        game.fx.burst(e.pos.x, 0.8, e.pos.z, e.def.color, 22, { speed: 6, up: 5, life: 0.7, size: 0.2 });
+        game.sound.se('die');
+      }
+    }
+  }
+  /** ホスト：参加者が当てたダメージ */
+  function applyDamage(id, dmg) {
+    const e = list.find((o) => o.id === id && o.alive);
+    if (e) e.takeHit(game, dmg, 0, 0, 0.5);
+  }
+
+  return { list, spawn, update, clear, snapshot, applyNet, applyDamage, aliveCount: () => list.filter((e) => e.alive).length };
 }

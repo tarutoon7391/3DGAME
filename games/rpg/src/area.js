@@ -3,6 +3,13 @@ import * as THREE from 'three';
 import { AREAS } from './data/areas.js';
 import { createWorld } from './world/build.js';
 import { createBoss } from './boss.js';
+import { RAID_SCALE } from './data/jobs.js';
+import { clearJobZones } from './jobs.js';
+
+/** ボスを作る（参加者のブラウザでは見た目だけの puppet。人数で HP を増やす） */
+export function makeBoss(game, bd, idx) {
+  return createBoss(game, bd.key, bd.x, bd.z, idx, { puppet: !!game.isClient, scale: RAID_SCALE(game.players.length) });
+}
 
 /** シーン共通のライト（エリアごとに色・強さを変える） */
 export function createLights(scene) {
@@ -48,6 +55,8 @@ export function loadArea(game, id) {
   const step = pr.bossStep || 0;
   game.enemies.clear();
   game.projectiles.clear();
+  game.allies?.clear();
+  clearJobZones();
   game.fx.clear();
   if (game.boss) {
     game.boss.dispose();
@@ -58,7 +67,7 @@ export function loadArea(game, id) {
   const def = AREAS[id];
   game.world = createWorld(id, game);
   game.lights.apply(def);
-  if (step === 0) for (const [type, ex, ez] of def.enemies || []) game.enemies.spawn(type, ex, ez);
+  if (step === 0 && !game.isClient) for (const [type, ex, ez] of def.enemies || []) game.enemies.spawn(type, ex, ez);
   // 迷路：番人と雑魚
   const seals = game.world.extra.seals || [];
   for (const [type, ex, ez, sealId] of game.world.extra.spawns || []) {
@@ -67,14 +76,16 @@ export function loadArea(game, id) {
   }
   const bd = def.bosses?.[step];
   if (bd) {
-    game.boss = createBoss(game, bd.key, bd.x, bd.z, step);
+    game.boss = makeBoss(game, bd, step);
     // 途中から：その部屋の扉だけ開けておく
     if (step > 0) game.world.extra.doors?.forEach((set, i) => set(i === bd.door, true));
   }
   // 自分以外のプレイヤーも入口（再開地点）の近くへ
   const sp = (step > 0 && bd?.respawn) || def.spawn;
-  game.players.forEach((p, i) => p.reset(sp.x + i * 1.2, sp.z, Math.PI));
+  game.players.forEach((p, i) => p.reset(sp.x + (i - (game.players.length - 1) / 2) * 1.4, sp.z, Math.PI));
   game.state.progress.area = id;
+  // 回復薬（ステージ2）：入るたび・やり直すたびに持たされる
+  pr.potions = def.potions || 0;
   game.cam.snapBehind(Math.PI);
   if (def.camPitch) game.cam.setTpsPitch(def.camPitch);
   game.sound.bgm(def.bgm);
@@ -128,12 +139,16 @@ export function updateAreaLogic(game, intent) {
   game.hudView.setPrompt(best ? best.label : '');
   if (best && intent.interact) best.action(game);
 
-  // ボス部屋に入ったら戦闘開始（後ろの扉を閉じる）
+  // ボス部屋に誰かが入ったら戦闘開始（後ろの扉を閉じる）。参加者はホストの合図を待つ
+  if (game.isClient) return;
   const b = game.boss;
   const room = b && w.def.bosses?.[b.idx];
-  if (room && b.alive && !b.active && me.pos.z < room.triggerZ) {
+  if (room && b.alive && !b.active && game.players.some((p) => p.alive && p.pos.z < room.triggerZ)) {
     b.wake();
-    w.extra.doors?.[room.door]?.(false);
+    setDoor(game, room.door, false);
+    // 扉の外に残っている人は部屋の中へ呼び寄せる
+    const dz = w.def.doors?.[room.door]?.z;
+    if (dz !== undefined) gather(game, room.triggerZ - 1, dz);
     const last = b.idx === w.def.bosses.length - 1;
     game.sound.bgm(last && w.def.castle ? 'lastboss' : 'boss');
     game.hudView.banner(last ? b.name : `中ボス　${b.name}`);
@@ -145,24 +160,27 @@ export function updateAreaLogic(game, intent) {
  * 最後のボスなら次のステージへ（なければクリア）
  */
 export function bossDown(game, b) {
+  game.withMirror ? game.withMirror(() => bossDownInner(game, b)) : bossDownInner(game, b);
+}
+function bossDownInner(game, b) {
   const w = game.world;
   const def = w.def;
   const list = def.bosses || [];
   const pr = game.state.progress;
   const next = list[b.idx + 1];
-  game.projectiles.clear(); // 残った弾は消す
+  game.projectiles.clearEnemyShots(); // 残った弾は消す
   if (next) {
     pr.bossStep = b.idx + 1;
     for (const e of game.enemies.list) if (e.alive) e.takeHit(game, 9999, 0, 0, 0); // 手下も消える
-    w.extra.doors?.[next.door]?.(true);
-    const heal = def.midHeal || 0;
-    for (const p of game.players) if (p.alive) p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * heal));
+    setDoor(game, next.door, true);
+    game.raid?.event('step', pr.bossStep);
+    game.onBossStep(pr.bossStep); // 全回復・蘇生（自分）
     game.boss.dispose();
-    game.boss = createBoss(game, next.key, next.x, next.z, b.idx + 1);
+    game.boss = makeBoss(game, next, b.idx + 1);
     game.sound.bgm(def.bgm);
     game.sound.se('seal');
     const left = list.length - (b.idx + 1);
-    game.toast(`${b.name}を倒した！${heal ? ' HP が少し回復した。' : ''}奥の扉が開いた（残り ${left} 体）`, 3200);
+    game.toast(`${b.name}を倒した！ HP が全回復した。奥の扉が開いた（残り ${left} 体）`, 3200);
     game.autosave();
     return;
   }
@@ -172,4 +190,16 @@ export function bossDown(game, b) {
     return;
   }
   game.onBossDefeated();
+}
+
+/** 扉の開け閉め（ホスト。参加者にも伝える） */
+export function setDoor(game, i, open) {
+  game.world.extra.doors?.[i]?.(open);
+  game.raid?.event('door', i, open);
+}
+
+/** z が doorZ より手前（入口側）にいる人を (0, toZ) へ呼び寄せる（ホスト。参加者にも伝える） */
+export function gather(game, toZ, doorZ) {
+  game.raid?.event('gather', toZ, doorZ);
+  game.gatherLocal(toZ, doorZ);
 }
