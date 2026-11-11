@@ -24,12 +24,12 @@ export function createVisKit({ game, add, mesh, where, nearestBoss }) {
   function orbit(follow, o) {
     const n = o.n ?? 8;
     const dur = o.dur ?? 3;
-    const tex = o.glyph ? glyphTexture(o.glyph) : o.tex === 'smoke' ? smokeTexture() : o.tex === 'petal' ? petalTexture() : starTexture();
+    const tex = o.glyph && !Array.isArray(o.glyph) ? glyphTexture(o.glyph) : o.glyph ? null : o.tex === 'smoke' ? smokeTexture() : o.tex === 'petal' ? petalTexture() : starTexture();
     const g = new THREE.Group();
     const parts = [];
     const mats = [];
     for (let i = 0; i < n; i++) {
-      const m = sprite(tex, i % 3 ? o.color : hotOf(o.color, 0.35), 1, o.normal ? false : true);
+      const m = sprite(Array.isArray(o.glyph) ? glyphTexture(o.glyph[i % o.glyph.length]) : tex, i % 3 ? o.color : hotOf(o.color, 0.35), 1, o.normal ? false : true); // glyph が配列なら1つずつ違うマーク
       const sp = new THREE.Sprite(m);
       g.add(sp);
       mats.push(m);

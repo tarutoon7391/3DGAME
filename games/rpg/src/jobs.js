@@ -865,6 +865,7 @@ const GENERIC = {
       p.dodgeX = Math.sin(y);
       p.dodgeZ = Math.cos(y);
     }
+    if (sk.unseen && local) game.bossCommand({ type: 'unseen', id: p.id, dur: sk.unseen }); // ポルターガイスト：敵に気づかれない
     if (sk.strike && local) radiusHit(game, p, sk.strike.mult, sk.strike.radius, { gauge: GAUGE.gainSkill, knock: 1.5, color: 0xfff176 });
     if (local) {
       p.buff(sk.buff, sk.dur, { ...sk.vals });

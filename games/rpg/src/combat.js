@@ -230,8 +230,10 @@ export function hurtPlayer(game, pl, frac, fromX, fromZ) {
 export function nearestPlayer(game, x, z, maxDist = Infinity) {
   let best = null;
   let bd = maxDist * maxDist;
+  const now = performance.now();
   for (const p of game.players) {
     if (!p.alive) continue;
+    if (game.unseenUntil?.[p.id] > now) continue; // ポルターガイスト中は敵に気づかれない
     const d = (p.pos.x - x) ** 2 + (p.pos.z - z) ** 2;
     if (d < bd) {
       bd = d;
