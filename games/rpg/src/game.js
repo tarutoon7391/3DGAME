@@ -344,6 +344,17 @@ export function createGame() {
 
   // ---- やられた・全滅・クリア ----
   game.onPlayerDown = (pl) => {
+    // 不死鳥使い：1回の挑戦で一度だけ、倒れてもその場で復活する
+    const pr0 = game.state.progress;
+    if (pl.job.autoRevive && !pr0.usedOnce?.phoenixrise) {
+      pr0.usedOnce = { ...(pr0.usedOnce || {}), phoenixrise: true };
+      pl.hp = Math.round(pl.maxHp * pl.job.autoRevive);
+      pl.invuln = Math.max(pl.invuln, 2.5);
+      game.fx.burst(pl.pos.x, 1.5, pl.pos.z, 0xff7043, 70, { speed: 8, up: 9, life: 1.1, size: 0.3 });
+      game.sound.se('roar');
+      game.toast('不死鳥の炎で蘇った！（この挑戦では一度だけ）', 2400);
+      return;
+    }
     if (game.raid) {
       // 協力プレイ：その場で倒れて、仲間の蘇生を待つ（全員倒れたら全滅）
       pl.knockDown();

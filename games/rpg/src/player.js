@@ -6,7 +6,7 @@ import { makeHero, animateWalk } from './models.js';
 import { PLAYER, STAMINA } from './data/player.js';
 import { JOBS, DEFAULT_JOB, GAUGE, REVIVE } from './data/jobs.js';
 import { lerpAngle, lerpAngle as la } from './util.js';
-import { meleeArc, strike, forEachTarget } from './combat.js';
+import { meleeArc, strike, forEachTarget, radiusHit } from './combat.js';
 import { castQ, castE, castR, basicShot } from './jobs.js';
 
 /** 空の入力（何も押していない） */
@@ -90,6 +90,8 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
       p.cd.q = 0;
       p.cd.e = 0;
       p.hpHist.length = 0;
+      p.wolfUsed = false;
+      p.mark = null;
       p.shotCd = 0;
       p.buffs = {};
       p.pending.length = 0;
@@ -123,6 +125,7 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
       // 汎用：バフの dmgMul（怒号・竜化・闇の衣など）をすべて掛ける
       for (const b of Object.values(p.buffs)) if (b.dmgMul) m *= b.dmgMul;
       if (game.paladinAura?.(p)) m *= 0.9; // 聖騎士の近くでは被ダメ -10%
+      if (J.stillGuard && p.still > 0.5) m *= J.stillGuard; // 要塞兵：止まっていると硬い
       if (p.buffs.aegis) m *= 0.5;
       if (J.summonGuard && game.allies?.ownedBy(p.id)) m *= J.summonGuard;
       return m;
@@ -226,6 +229,30 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
         animateDown();
         return;
       }
+      // 狩人の印の残り時間
+      if (p.mark) {
+        p.mark.t -= dt;
+        if (p.mark.t <= 0 || !p.mark.target.alive) p.mark = null;
+      }
+      // 人狼：HP が半分を切ると一度だけ自動で獣化（エリアに入り直すとまた使える）
+      if (J.wolfAt && !p.wolfUsed && p.hp / p.maxHp < J.wolfAt) {
+        p.wolfUsed = true;
+        p.buff('wolf', J.wolfBuff.dur, { ...J.wolfBuff.vals });
+        game.fx.burst(p.pos.x, 1.6, p.pos.z, 0x795548, 40, { speed: 6, up: 5, life: 0.8 });
+        game.sound.se('roar');
+        game.toastOnce('獣化！ 人狼の力が目覚めた', 1600);
+      }
+      // 治癒拳士：殴った分をまとめて周りの仲間の回復に（1.2秒ごと）
+      if (J.healPool) {
+        p.healT = (p.healT ?? 1.2) - dt;
+        if (p.healT <= 0) {
+          p.healT = 1.2;
+          if (p.healPool > 0) {
+            game.teamEffect({ kind: 'heal', x: +p.pos.x.toFixed(1), z: +p.pos.z.toFixed(1), r: J.healPool.radius, amount: Math.min(J.healPool.max, p.healPool * J.healPool.rate), quiet: true });
+            p.healPool = 0;
+          }
+        }
+      }
       // 鷹匠：鷹が一定間隔で一番近い敵を自動で攻撃する
       if (J.hawk) {
         p.hawkT = (p.hawkT ?? J.hawk.every) - dt * (p.buffs.hawkfrenzy ? 2.5 : 1);
@@ -268,6 +295,12 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
         p.useStamina(STAMINA.dodgeCost * (J.dodgeCostMul ?? 1));
         if (J.dodgeCostMul) p.critNext = true; // 忍者：回避直後の1撃は会心
         if (J.dodgeGauge) p.addGauge(J.dodgeGauge); // 踊り子：回避で必殺ゲージ
+        // 曲芸師：回避したその場で爆発
+        if (J.dodgeBlast) {
+          game.fx.burst(p.pos.x, 0.8, p.pos.z, 0xffd54f, 24, { speed: 6, up: 4, life: 0.5 });
+          radiusHit(game, p, J.dodgeBlast.mult, J.dodgeBlast.radius, { gauge: 2, color: 0xffd54f, knock: 1 });
+          game.raid?.sendSkill(p, '_dodgeblast', { x: p.pos.x, z: p.pos.z });
+        }
         game.sound.se('dodge');
         game.fx.burst(p.pos.x, 0.3, p.pos.z, 0xd7ccc8, 8, { speed: 2, up: 1, life: 0.4 });
       } else if (intent.dodge && p.tired && p === game.me()) {
@@ -279,7 +312,7 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
         if (p.cd[slot] > 0) {
           if (p === game.me()) game.toastOnce(`${sk.name}はあと ${p.cd[slot].toFixed(1)} 秒`, 900);
         } else if ((slot === 'q' ? castQ : castE)(game, p, intent)) {
-          p.cd[slot] = sk.cd;
+          p.cd[slot] = sk.cd * (J.cdMul || 1); // 賢者はクールダウンが短い
         }
       } else if (intent.skillR && !busy) {
         // R：必殺技（必殺ゲージ。oncePerRun なら1回の挑戦で1度だけ）

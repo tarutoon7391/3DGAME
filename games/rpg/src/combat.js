@@ -34,6 +34,13 @@ export function strike(game, pl, target, mult, opts = {}) {
   const crit = forceCrit || Math.random() < critRate;
   // 道化師：たまにダメージ2倍
   if (J.luckyChance && Math.random() < J.luckyChance) mult *= 2;
+  // 暗殺者：相手の背中側から当てると強い
+  if (J.backstab && target.yaw !== undefined) {
+    const toMe = Math.atan2(pl.pos.x - target.pos.x, pl.pos.z - target.pos.z);
+    if (Math.abs(angleDiff(target.yaw, toMe)) > Math.PI * 0.55) mult *= J.backstab;
+  }
+  // 狩人：印を付けた相手には自分のダメージが上がる
+  if (pl.mark && pl.mark.t > 0 && pl.mark.target === target) mult *= pl.job.markBonus || 1.5;
   // 職業の特性による倍率：腐食中のボス（錬金術師）・瀕死のボス（処刑人）
   if (J.vulnBonus && target.debuffs?.vuln) mult *= J.vulnBonus;
   if (J.executeBonus && target.maxHp && target.hp / target.maxHp <= J.executeAt) mult *= J.executeBonus;
@@ -52,6 +59,7 @@ export function strike(game, pl, target, mult, opts = {}) {
     // 格闘家：当て続けるほど強くなる
     if (J.chainPer && melee) pl.chain = Math.min(J.chainMax, (pl.chain || 0) + 1);
     if (J.soulPer && !opts.clone) pl.soul = Math.min(J.soulMax, (pl.soul || 0) + J.soulPer); // 魂喰い
+    if (J.healPool && melee) pl.healPool = (pl.healPool || 0) + dmg; // 治癒拳士：殴った分を仲間の回復に回す
   }
   game.fx.text(target.pos.x, target.hpY ?? 2, target.pos.z, crit ? `${dmg}!` : String(dmg), clone ? '#ce93d8' : crit ? '#ffd54f' : '#ffffff', crit);
   game.fx.burst(target.pos.x, 1, target.pos.z, color, crit ? 14 : 8, { speed: 5, up: 3, life: 0.4 });
@@ -141,6 +149,11 @@ export function hurtPlayer(game, pl, frac, fromX, fromZ) {
   // 重騎士の守護結界の中にいれば被ダメ半減
   if (game.inAegis?.(pl.pos.x, pl.pos.z)) pl.buff('aegis', 0.2);
   let dmg = Math.max(1, Math.ceil(pl.maxHp * frac * pl.dmgTakenMul()));
+  // 剣闘士：正面（向いている方向の左右60°）からの攻撃は 40% カット
+  if (pl.job.frontGuard) {
+    const toFrom = Math.atan2(fromX - pl.pos.x, fromZ - pl.pos.z);
+    if (Math.abs(angleDiff(pl.yaw, toFrom)) < Math.PI / 3) dmg = Math.max(1, Math.ceil(dmg * pl.job.frontGuard));
+  }
   // 結界師のバリア：先にバリアが受け止める
   const bar = pl.buffs.barrier;
   if (bar && bar.hp > 0) {
