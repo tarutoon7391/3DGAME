@@ -76,6 +76,8 @@ export function createProjectiles(game) {
       pierce: !!o.pierce, explode: o.explode || 0, wobble: !!o.wobble, local: o.local !== false,
       gauge: o.gauge, basic: !!o.basic, hit: new Set(), onHit: o.onHit || null, zap: !!o.zap, dot: o.dot || null,
       split: o.split || null, boomerang: !!o.boomerang, back: false,
+      // orbit：進みながら中心のまわりを右回りに回る（ジャグリング爆弾）。cx・cz が中心、oa が角度
+      orbit: o.orbit || null, cx: x + Math.sin(yaw) * 0.8, cz: z + Math.cos(yaw) * 0.8, oa: o.orbit?.phase || 0, oy: 0,
       look: o.look || pickShotLook(jobIdOf(pl), o),
     });
   }
@@ -95,8 +97,21 @@ export function createProjectiles(game) {
     for (let i = pshots.length - 1; i >= 0; i--) {
       const s = pshots[i];
       s.age += dt;
-      s.x += s.vx * dt;
-      s.z += s.vz * dt;
+      if (s.orbit) {
+        // 中心は前へ進み、玉は進む向きに立てた輪の上を右回り（後ろから見て時計回り）に回る
+        s.cx += s.vx * dt;
+        s.cz += s.vz * dt;
+        s.oa -= s.orbit.w * dt;
+        const sp = Math.hypot(s.vx, s.vz) || 1;
+        const rx = -s.vz / sp; // 進む向きの右（画面の右）
+        const rz = s.vx / sp;
+        s.x = s.cx + rx * Math.cos(s.oa) * s.orbit.r;
+        s.z = s.cz + rz * Math.cos(s.oa) * s.orbit.r;
+        s.oy = Math.sin(s.oa) * s.orbit.r;
+      } else {
+        s.x += s.vx * dt;
+        s.z += s.vz * dt;
+      }
       s.dist += Math.hypot(s.vx, s.vz) * dt;
       // ブーメラン：届く距離まで行ったら、投げた人の方へ戻ってくる（帰りも当たる）
       if (s.boomerang && !s.back && s.dist > s.range) {
@@ -145,7 +160,7 @@ export function createProjectiles(game) {
         pshots.splice(i, 1);
         continue;
       }
-      const y = 1.1 + (s.wobble ? Math.sin(s.age * 18) * 0.25 : 0);
+      const y = 1.1 + (s.wobble ? Math.sin(s.age * 18) * 0.25 : 0) + (s.orbit ? 0.35 + s.oy : 0);
       // 向きは今の進み方から（ブーメランの帰りは逆を向く）
       shotDraw.add(s.look, s.x, y, s.z, Math.atan2(s.vx, s.vz), s.age, s.size, s.color);
     }

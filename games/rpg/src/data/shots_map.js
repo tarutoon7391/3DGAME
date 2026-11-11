@@ -20,7 +20,7 @@ export const JOB_SHOTS = {
   barrier: { basic: 'hex' },
   astrologer: { basic: 'star' },
   spellblade: { skill: { 0x7c4dff: 'crescent' } },
-  jester: { basic: 'card', skill: { 0xffeb3b: 'bomb', 0xffffff: 'bird' } },
+  jester: { basic: 'card', skill: { 0xffeb3b: 'juggle', 0xff5252: 'juggle', 0x40c4ff: 'juggle', 0xffffff: 'bird' } },
   gunslinger: { basic: 'bullet' },
   shaman: { basic: 'feather' },
   shifter: { basic: 'swirl', skill: { 0x80deea: 'ice' } },

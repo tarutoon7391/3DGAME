@@ -4,6 +4,7 @@ import { PI, B, C, S, K, T, O, G, sc, rep, blade, tip, haft, sword, staff } from
 export const WEAPONS_B = {
   // 竜人：背にとげのある竜の大刀
   dragonkin: {
+    lastV: true, // 3段目は真上からの縦斬り
     parts: [
       C(0.022, 0.022, 0.18, 'k', 0, 0, 0), B(0.1, 0.04, 0.05, 'r', -0.06, 0.12, 0, 0, 0, 0.4), B(0.1, 0.04, 0.05, 'r', 0.06, 0.12, 0, 0, 0, -0.4),
       blade(0.5, 0.12, 0.026, 'm', 0.12, 0.01), tip(0.12, 0.026, 0.12, 'm', 0.62, 0.01),

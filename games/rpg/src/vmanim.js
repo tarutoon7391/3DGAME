@@ -7,7 +7,7 @@ const smooth = (a, b, v) => {
   return k * k * (3 - 2 * k);
 };
 /** 縦斬り：振り上げ（0→up）→ 振り下ろし（up→down）。u は 0〜1 */
-function vertical(P, raise, down) {
+export function vertical(P, raise, down) {
   P.ry = 0;
   P.rz = 0;
   P.twist = 0;
@@ -139,6 +139,17 @@ export function animateSpecial(V, k, Rp, Lp, setFlash) {
       vertical(Rp, 1, smooth(V.w, V.w + 0.12, t));
       if (t < V.w + 0.3) setFlash(0x6a2adf);
     }
+  } else if (V.kind === 'hat') {
+    // 手品：左手の帽子に右手を入れて、何かをぱっと取り出す
+    const t = V.t;
+    const into = smooth(0, 0.25, t) * (1 - smooth(0.32, 0.45, t)); // 手を帽子へ
+    const pull = smooth(0.32, 0.5, t) * (1 - smooth(0.75, V.dur, t)); // 取り出して掲げる
+    Rp.x += -0.22 * into - 0.12 * pull;
+    Rp.y += -0.16 * into + 0.2 * pull;
+    Rp.z += 0.02 * into;
+    Rp.rx += -0.5 * into + 0.9 * pull;
+    out.hat = 1 - smooth(0.85, V.dur, t);
+    if (pull > 0.3) setFlash(0x5a5a1a);
   } else if (V.kind === 'plant') {
     // 結界の衝撃：杖をそのままの向きで真上へ持ち上げ、地面へまっすぐ落とす（V.hit 秒で地面）
     const t = V.t;
