@@ -26,7 +26,10 @@ export function forEachTarget(game, fn) {
 export function strike(game, pl, target, mult, opts = {}) {
   const { knock = 1, color = 0xffffff, melee = false, crit: forceCrit = false, clone = false } = opts;
   const J = pl.job;
-  const crit = forceCrit || Math.random() < PLAYER.critRate;
+  const crit = forceCrit || Math.random() < PLAYER.critRate + (J.critBonus || 0);
+  // 職業の特性による倍率：腐食中のボス（錬金術師）・瀕死のボス（処刑人）
+  if (J.vulnBonus && target.debuffs?.vuln) mult *= J.vulnBonus;
+  if (J.executeBonus && target.maxHp && target.hp / target.maxHp <= J.executeAt) mult *= J.executeBonus;
   const dmg = calcDamage(pl.atkNow(), mult * (crit ? PLAYER.critMul : 1), target.defense);
   const dx = target.pos.x - pl.pos.x;
   const dz = target.pos.z - pl.pos.z;
@@ -34,6 +37,13 @@ export function strike(game, pl, target, mult, opts = {}) {
   const brk = dmg * (melee ? 1 : GAUGE.breakShot) * (J.breakMul ?? 1);
   target.takeHit(game, dmg, dx / len, dz / len, knock, { brk, from: pl.id });
   pl.addGauge(opts.gauge ?? (melee ? GAUGE.gainMelee : GAUGE.gainShot));
+  if (!pl.remote) {
+    // 吸血（呪術師の特性・狂戦士の血の旋風）
+    const ls = (J.lifesteal || 0) + (opts.lifesteal || 0);
+    if (ls && pl.alive && pl.hp !== undefined) pl.hp = Math.min(pl.maxHp, pl.hp + dmg * ls);
+    // 格闘家：当て続けるほど強くなる
+    if (J.chainPer && melee) pl.chain = Math.min(J.chainMax, (pl.chain || 0) + 1);
+  }
   game.fx.text(target.pos.x, target.hpY ?? 2, target.pos.z, crit ? `${dmg}!` : String(dmg), clone ? '#ce93d8' : crit ? '#ffd54f' : '#ffffff', crit);
   game.fx.burst(target.pos.x, 1, target.pos.z, color, crit ? 14 : 8, { speed: 5, up: 3, life: 0.4 });
   game.sound.se(crit ? 'crit' : 'hit');

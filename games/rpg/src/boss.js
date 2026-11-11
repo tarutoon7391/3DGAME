@@ -63,6 +63,7 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
     novas: [], // 広がる輪 { r, max, speed, width, hit:Set, mesh, x, z }
     stalkers: [], // 追尾する赤円 { tgt, x, z, t, follow, delay, r, tele, color }
     taunt: null, // 挑発 { id, t }
+    debuffs: {}, // 弱体化 { vuln: {t, mul}, slow: {t, mul} }（錬金術師の腐食・時魔導士の鈍化）
     net: null, // puppet：届いた状態
     takeHit(g, dmg, dx, dz, knock, o = {}) {
       if (puppet) {
@@ -102,6 +103,10 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
         b.t = 0;
       }
       b.pattern = s.pattern;
+      // 参加者：弱体化の有無だけ（見た目と錬金術師の特性用）
+      b.debuffs = {};
+      if (s.vuln) b.debuffs.vuln = { t: 1, mul: 1 };
+      if (s.slow) b.debuffs.slow = { t: 1, mul: 1 };
     },
     /** 参加者：ホストから届いた「場の仕掛け」を再生する（輪・壁・引き寄せは自分に当たったかをこちらで判定） */
     playFx(name, d) {
@@ -135,6 +140,7 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
     if (!b.alive) return;
     if (b.state === 'rage') dmg = 0; // 怒りの咆哮中は無敵
     if (b.state === 'stun') dmg = Math.round(dmg * BREAK.dmgMul);
+    if (b.debuffs.vuln) dmg = Math.round(dmg * b.debuffs.vuln.mul); // 腐食：被ダメージ増
     b.hp = Math.max(0, b.hp - dmg);
     b.flash = 0.1;
     if (b.state !== 'stun' && b.active && b.state !== 'rage' && b.state !== 'intro') {
@@ -589,7 +595,14 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
     }
   }
 
-  function update(dt) {
+  function update(rawDt) {
+    // 弱体化の残り時間（実時間で減る）
+    for (const [k, d] of Object.entries(b.debuffs)) {
+      d.t -= rawDt;
+      if (d.t <= 0) delete b.debuffs[k];
+    }
+    // 時魔導士の鈍化：ボスの時間そのものを遅くする（移動・予備動作・弾幕の間隔すべて）
+    const dt = b.debuffs.slow ? rawDt * b.debuffs.slow.mul : rawDt;
     b.t += dt;
     b.flash = Math.max(0, b.flash - dt);
     if (b.taunt) {
@@ -621,6 +634,11 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
         poseStun();
         if (Math.random() < 0.3) game.fx.burst(b.pos.x + rand(-1, 1), C.hpY * 0.9, b.pos.z + rand(-1, 1), 0xffee58, 1, { speed: 1, up: 1, life: 0.5, grav: 0 });
         if (b.t > BREAK.stun) { b.state = 'rest'; b.t = 0; m.root.position.y = 0; m.root.rotation.x = 0; }
+        break;
+      case 'frozen':
+        // 時間停止：その場で固まる（被ダメの増加はない）
+        if (Math.random() < 0.3) game.fx.burst(b.pos.x + rand(-1.5, 1.5), rand(1, C.hpY), b.pos.z + rand(-1.5, 1.5), 0xb388ff, 1, { speed: 0.5, up: 0.5, life: 0.6, grav: 0 });
+        if (b.t > b.frozenFor) { b.state = 'rest'; b.t = 0; }
         break;
       case 'rest':
       case 'move':
@@ -858,6 +876,7 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
         m.armR.rotation.set(-2.6, 0, -0.4);
         break;
       case 'stun': poseStun(); break;
+      case 'frozen': break;
       case 'windup':
         if (kind === 'sweep' || kind === 'fan' || kind === 'charge') poseWindup(kind);
         else if (kind === 'slam') m.armR.rotation.set(-2.9, 0, 0);
@@ -917,7 +936,14 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
   function drawGlow() {
     const glow = b.state === 'windup' || b.state === 'charge' ? 0.5 + 0.5 * Math.sin(b.t * 25) : b.raged ? 0.25 : 0;
     const stun = b.state === 'stun' ? 0.35 + 0.25 * Math.sin(b.t * 10) : 0;
-    m.bodyMat.emissive.setRGB(b.flash > 0 ? 1 : Math.max(glow, stun), b.flash > 0 ? 1 : stun, b.flash > 0 ? 1 : 0);
+    if (b.flash > 0) m.bodyMat.emissive.setRGB(1, 1, 1);
+    else if (b.state === 'frozen') m.bodyMat.emissive.setRGB(0.35, 0.25, 0.8); // 時間停止：紫
+    else {
+      // 腐食は緑、鈍化は青みを足す
+      const v = b.debuffs.vuln ? 0.35 : 0;
+      const s = b.debuffs.slow ? 0.35 : 0;
+      m.bodyMat.emissive.setRGB(Math.max(glow, stun), Math.max(stun, v), s);
+    }
   }
 
   /** ホスト：参加者へ送る状態 */
@@ -925,9 +951,25 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
     key: b.key, idx: b.idx, x: +b.pos.x.toFixed(2), z: +b.pos.z.toFixed(2), y: +b.pos.y.toFixed(2), yaw: +b.yaw.toFixed(3),
     hp: Math.round(b.hp), maxHp: b.maxHp, brk: Math.round(b.brk), brkMax: b.brkMax,
     state: b.state, pattern: b.pattern, raged: b.raged, active: b.active, alive: b.alive,
+    vuln: !!b.debuffs.vuln, slow: !!b.debuffs.slow,
   });
   /** ホスト：挑発 */
   b.setTaunt = (id, dur) => { b.taunt = { id, t: dur }; };
+  /** ホスト：弱体化（vuln：被ダメ倍率、slow：時間の倍率） */
+  b.setDebuff = (name, dur, mul) => {
+    b.debuffs[name] = { t: dur, mul };
+    game.toast(name === 'vuln' ? `${C.name}が腐食した！（被ダメージ ${Math.round((mul - 1) * 100)}% 増・${dur}秒）` : `${C.name}の動きが鈍った！（${dur}秒）`, 2000);
+  };
+  /** ホスト：時間停止（攻撃を中断して dur 秒 固まる） */
+  b.freeze = (dur) => {
+    if (!b.alive || !b.active || b.state === 'dead') return;
+    cancelAll();
+    b.state = 'frozen';
+    b.t = 0;
+    b.frozenFor = dur;
+    game.sound.se('gate');
+    game.toast(`時間停止！ ${C.name}が${dur}秒 止まった`, 2000);
+  };
 
   return b;
 }

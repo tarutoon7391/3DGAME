@@ -3,7 +3,7 @@
 // 味方への回復・強化は game.teamEffect（全員に配って各自が自分に適用）、ボスへの挑発・召喚は game.bossCommand（ホストが処理）
 import * as THREE from 'three';
 import { JOBS, GAUGE } from './data/jobs.js';
-import { radiusHit, strike, forEachTarget } from './combat.js';
+import { radiusHit, strike, forEachTarget, meleeArc } from './combat.js';
 import { angleDiff, yawTo } from './util.js';
 
 const fwd = (yaw, d) => [Math.sin(yaw) * d, Math.cos(yaw) * d];
@@ -96,26 +96,7 @@ const SKILLS = {
   },
   // ---- 忍者 ----
   shadowstep(game, p, d, local) {
-    const q = JOBS.ninja.q;
-    startAction(p, 'dash', q.time);
-    p.dodgeX = Math.sin(d.yaw);
-    p.dodgeZ = Math.cos(d.yaw);
-    p.yaw = d.yaw;
-    p.dashSpeed = q.dist / q.time;
-    if (local) p.invuln = Math.max(p.invuln, q.time + 0.15);
-    const hit = new Set();
-    game.sound.se('spin');
-    p.skillTick = () => {
-      game.fx.burst(p.pos.x, 1, p.pos.z, 0xb39ddb, 3, { speed: 2, up: 1, life: 0.3 });
-      if (!local) return;
-      forEachTarget(game, (e) => {
-        if (hit.has(e)) return;
-        if (Math.hypot(e.pos.x - p.pos.x, e.pos.z - p.pos.z) < e.radius + q.width) {
-          hit.add(e);
-          strike(game, p, e, q.mult, { melee: true, gauge: GAUGE.gainSkill, color: 0xb39ddb });
-        }
-      });
-    };
+    dashStrike(game, p, d, local, JOBS.ninja.q, 0xb39ddb);
   },
   clone(game, p, d, local) {
     const e = JOBS.ninja.e;
@@ -153,6 +134,198 @@ const SKILLS = {
     game.sound.se('slam');
     game.fx.burst(d.x, 1, d.z, 0xa1887f, 40, { speed: 6, up: 5, life: 0.8 });
     if (local) game.bossCommand({ type: 'summon', kind: 'golem', x: d.x, z: d.z, owner: p.id });
+  },
+
+  // ---- 槍兵 ----
+  lunge(game, p, d, local) {
+    dashStrike(game, p, d, local, JOBS.lancer.q, 0xffab91);
+  },
+  skyfall(game, p, d, local) {
+    const e = JOBS.lancer.e;
+    startAction(p, 'dash', e.time);
+    const dx = d.tx - p.pos.x;
+    const dz = d.tz - p.pos.z;
+    const len = Math.hypot(dx, dz) || 1;
+    p.dodgeX = dx / len;
+    p.dodgeZ = dz / len;
+    p.yaw = d.yaw;
+    p.dashSpeed = len / e.time;
+    if (local) p.invuln = Math.max(p.invuln, e.time + 0.2);
+    game.sound.se('dodge');
+    p.skillTick = () => {
+      p.model.root.position.y = Math.sin(Math.min(1, p.actT / e.time) * Math.PI) * 4;
+      if (p.didSkill || p.actT < e.time * 0.9) return;
+      p.didSkill = true;
+      p.model.root.position.y = 0;
+      game.fx.burst(p.pos.x, 0.5, p.pos.z, 0xffab91, 50, { speed: 10, up: 6, life: 0.7, size: 0.25 });
+      game.fx.shake(0.9);
+      game.sound.se('slam');
+      if (local) radiusHit(game, p, e.mult, e.radius, { melee: true, gauge: 0, knock: 2, color: 0xffab91 });
+    };
+  },
+  // ---- 格闘家 ----
+  kiblast(game, p, d, local) {
+    const q = JOBS.monk.q;
+    startAction(p, 'cast', 0.3);
+    game.sound.se('wave');
+    for (let i = 0; i < 18; i++) {
+      const a = d.yaw + (Math.random() - 0.5) * q.arc;
+      const r = Math.random() * q.range;
+      game.fx.burst(p.pos.x + Math.sin(a) * r, 1, p.pos.z + Math.cos(a) * r, 0xffcc80, 2, { speed: 3, up: 1, life: 0.35, grav: 0 });
+    }
+    if (local) meleeArc(game, p, d.yaw, q.mult, q.range, q.arc, { knock: 2.5, gauge: GAUGE.gainSkill });
+  },
+  barrage(game, p, d, local) {
+    const e = JOBS.monk.e;
+    startAction(p, 'cast', e.dur + 0.3);
+    p.yaw = d.yaw;
+    let tick = 0;
+    let finished = false;
+    game.sound.se('roar');
+    p.skillTick = (dt) => {
+      tick -= dt;
+      if (p.actT < e.dur && tick <= 0) {
+        tick = e.every;
+        const a = p.yaw + (Math.random() - 0.5) * 0.8;
+        game.fx.burst(p.pos.x + Math.sin(a) * 1.6, 1.2, p.pos.z + Math.cos(a) * 1.6, 0xffcc80, 3, { speed: 3, up: 1, life: 0.2, grav: 0 });
+        if (local) meleeArc(game, p, p.yaw, e.mult, e.range, 2, { gauge: 0 });
+      } else if (p.actT >= e.dur && !finished) {
+        finished = true;
+        game.fx.shake(0.6);
+        if (local) meleeArc(game, p, p.yaw, e.finish, e.range + 0.5, 2, { gauge: 0, knock: 3, crit: true });
+      }
+    };
+  },
+  // ---- 錬金術師 ----
+  corrode(game, p, d, local) {
+    const q = JOBS.alchemist.q;
+    startAction(p, 'cast', 0.3);
+    game.projectiles.playerShot(p, d.x, d.z, d.yaw, { speed: q.speed, mult: 0.8, color: 0x76ff03, size: 0.4, range: 22, local, gauge: GAUGE.gainSkill,
+      onHit: (t) => { if (t && t === game.boss) game.bossCommand({ type: 'debuff', name: 'vuln', dur: q.dur, mul: q.mul }); } });
+    game.sound.se('shoot');
+  },
+  bigflask(game, p, d, local) {
+    const e = JOBS.alchemist.e;
+    startAction(p, 'cast', 0.4);
+    game.projectiles.playerShot(p, d.x, d.z, d.yaw, { speed: e.speed, mult: e.mult, color: 0x76ff03, size: 0.8, range: 22, explode: e.radius, local,
+      onHit: (t, s) => {
+        const b = game.boss;
+        if (b && b.active && b.alive && Math.hypot(b.pos.x - s.x, b.pos.z - s.z) <= e.radius + b.radius) game.bossCommand({ type: 'debuff', name: 'vuln', dur: e.dur, mul: e.mul });
+      } });
+    game.sound.se('shoot');
+  },
+  // ---- 狂戦士 ----
+  warcry(game, p, d, local) {
+    const q = JOBS.berserker.q;
+    startAction(p, 'cast', 0.45);
+    game.sound.se('roar');
+    game.fx.burst(p.pos.x, 1.6, p.pos.z, 0xff1744, 40, { speed: 6, up: 4, life: 0.7 });
+    if (local) {
+      p.buff('warcry', q.dur, { atkMul: q.atkMul, dmgMul: q.dmgMul });
+      game.toastOnce('怒号！ 攻撃力アップ（被ダメージも増える）', 1600);
+    }
+  },
+  bloodstorm(game, p, d, local) {
+    const e = JOBS.berserker.e;
+    startAction(p, 'spin', e.hits * e.every + 0.15);
+    let tick = 0;
+    let n = 0;
+    game.sound.se('spin');
+    p.skillTick = (dt) => {
+      tick -= dt;
+      if (n < e.hits && tick <= 0) {
+        tick = e.every;
+        n++;
+        game.fx.burst(p.pos.x, 1, p.pos.z, 0xb71c1c, 25, { speed: 8, up: 1.5, life: 0.4, size: 0.16, grav: 2 });
+        if (local) radiusHit(game, p, e.mult, e.radius, { melee: true, gauge: 0, lifesteal: e.lifesteal, color: 0xb71c1c });
+      }
+    };
+  },
+  // ---- 時魔導士 ----
+  slowfield(game, p, d, local) {
+    const q = JOBS.chrono.q;
+    startAction(p, 'cast', 0.4);
+    game.sound.se('gate');
+    const b = game.boss;
+    if (b) ringFx(game, b.pos.x, b.pos.z, b.radius + 2, 0xb388ff);
+    if (local) game.bossCommand({ type: 'debuff', name: 'slow', dur: q.dur, mul: q.mul });
+  },
+  timestop(game, p, d, local) {
+    const e = JOBS.chrono.e;
+    startAction(p, 'cast', 0.5);
+    game.sound.se('gate');
+    game.fx.burst(p.pos.x, 2, p.pos.z, 0xb388ff, 50, { speed: 8, up: 4, life: 0.9 });
+    if (local) game.bossCommand({ type: 'freeze', dur: e.dur });
+  },
+  // ---- 砲術士 ----
+  buckshot(game, p, d, local) {
+    const q = JOBS.gunner.q;
+    startAction(p, 'cast', 0.25);
+    p.waveT = 0.25;
+    for (let i = 0; i < q.count; i++) {
+      const a = d.yaw + (i - (q.count - 1) / 2) * q.spread + (Math.random() - 0.5) * 0.04;
+      game.projectiles.playerShot(p, d.x, d.z, a, { speed: q.speed, mult: q.mult, color: 0xffd180, size: 0.16, range: q.range, local, gauge: GAUGE.gainSkill });
+    }
+    game.fx.shake(0.2);
+    game.sound.se('slam');
+  },
+  cannon(game, p, d, local) {
+    const e = JOBS.gunner.e;
+    startAction(p, 'cast', 0.45);
+    game.projectiles.playerShot(p, d.x, d.z, d.yaw, { speed: e.speed, mult: e.mult, color: 0xff6f00, size: 0.9, range: 34, explode: e.radius, local });
+    game.fx.shake(0.5);
+    game.sound.se('slam');
+  },
+  // ---- 呪術師 ----
+  hex(game, p, d, local) {
+    const q = JOBS.warlock.q;
+    startAction(p, 'cast', 0.3);
+    game.projectiles.playerShot(p, d.x, d.z, d.yaw, { speed: q.speed, mult: 0.5, color: 0x7b1fa2, size: 0.45, range: 24, local, gauge: GAUGE.gainSkill, dot: q.dot });
+    game.sound.se('shoot');
+  },
+  drain(game, p, d, local) {
+    const e = JOBS.warlock.e;
+    startAction(p, 'cast', e.dur);
+    p.yaw = d.yaw;
+    let tick = 0;
+    game.sound.se('seal');
+    p.skillTick = (dt) => {
+      tick -= dt;
+      if (tick > 0) return;
+      tick = e.every;
+      const t = frontTarget(game, p, e.range, 0.7);
+      if (!t) return;
+      // 命を吸う線
+      for (let k = 0.15; k < 1; k += 0.17) game.fx.burst(t.pos.x + (p.pos.x - t.pos.x) * k, 1.4, t.pos.z + (p.pos.z - t.pos.z) * k, 0xce93d8, 1, { speed: 0.5, up: 0.3, life: 0.3, grav: 0 });
+      if (local) {
+        strike(game, p, t, e.mult, { gauge: 0, knock: 0, color: 0xce93d8 });
+        game.teamEffect({ kind: 'heal', amount: e.heal, quiet: true });
+      }
+    };
+  },
+  // ---- 処刑人 ----
+  soulreap(game, p, d, local) {
+    const q = JOBS.reaper.q;
+    startAction(p, 'spin', 0.45);
+    game.sound.se('spin');
+    game.fx.burst(p.pos.x, 1, p.pos.z, 0xb0bec5, 30, { speed: 9, up: 1, life: 0.4, size: 0.14, grav: 2 });
+    if (local) meleeArc(game, p, d.yaw, q.mult, q.range, q.arc, { gauge: q.gauge });
+  },
+  verdict(game, p, d, local) {
+    const e = JOBS.reaper.e;
+    startAction(p, 'cast', 0.5);
+    game.sound.se('roar');
+    const t = frontTarget(game, p, e.range, 0.9);
+    if (!t) {
+      if (local) game.toastOnce('前に敵がいない！', 1000);
+      return;
+    }
+    game.fx.burst(t.pos.x, (t.hpY || 2) * 0.6, t.pos.z, 0x000000, 50, { speed: 7, up: 6, life: 0.8, size: 0.3 });
+    game.fx.shake(0.9);
+    if (local) {
+      const missing = t.maxHp ? 1 - t.hp / t.maxHp : 0;
+      strike(game, p, t, e.mult + e.missingMult * missing, { melee: true, gauge: 0, crit: true, knock: 2, color: 0xb0bec5 });
+    }
   },
 };
 
@@ -214,6 +387,72 @@ SKILLS._shot = (game, p, d, local) => {
   shoot(game, p, d, local);
 };
 
+
+/** 前方（角度 halfArc 以内）で一番近い攻撃対象 */
+function frontTarget(game, p, range, halfArc) {
+  let best = null;
+  let bd = Infinity;
+  forEachTarget(game, (e) => {
+    const d = Math.hypot(e.pos.x - p.pos.x, e.pos.z - p.pos.z);
+    if (d > range + e.radius || d >= bd) return;
+    if (d > e.radius + 0.5 && Math.abs(angleDiff(p.yaw, yawTo(p.pos.x, p.pos.z, e.pos.x, e.pos.z))) > halfArc) return;
+    bd = d;
+    best = e;
+  });
+  return best;
+}
+
+/** まっすぐ駆け抜けて通り道を斬る（忍者の瞬影斬・槍兵の突進突き） */
+function dashStrike(game, p, d, local, q, color) {
+  startAction(p, 'dash', q.time);
+  p.dodgeX = Math.sin(d.yaw);
+  p.dodgeZ = Math.cos(d.yaw);
+  p.yaw = d.yaw;
+  p.dashSpeed = q.dist / q.time;
+  if (local) p.invuln = Math.max(p.invuln, q.time + 0.15);
+  const hit = new Set();
+  game.sound.se('spin');
+  p.skillTick = () => {
+    game.fx.burst(p.pos.x, 1, p.pos.z, color, 3, { speed: 2, up: 1, life: 0.3 });
+    if (!local) return;
+    forEachTarget(game, (e) => {
+      if (hit.has(e)) return;
+      if (Math.hypot(e.pos.x - p.pos.x, e.pos.z - p.pos.z) < e.radius + q.width) {
+        hit.add(e);
+        strike(game, p, e, q.mult, { melee: true, gauge: GAUGE.gainSkill, color });
+      }
+    });
+  };
+}
+
+// ---------------- 継続ダメージ（呪術師の呪い） ----------------
+const dots = [];
+/** target に呪いを付ける（同じ人の同じ強さの呪いは時間を延ばすだけ） */
+export function addDot(game, p, target, dot) {
+  const old = dots.find((o) => o.p === p && o.target === target && o.mult === dot.mult);
+  if (old) {
+    old.left = dot.dur;
+    return;
+  }
+  dots.push({ p, target, mult: dot.mult, every: dot.every, t: dot.every, left: dot.dur });
+}
+function updateDots(game, dt) {
+  for (let i = dots.length - 1; i >= 0; i--) {
+    const o = dots[i];
+    o.left -= dt;
+    o.t -= dt;
+    if (!o.target.alive || o.left <= 0) {
+      dots.splice(i, 1);
+      continue;
+    }
+    if (o.t <= 0) {
+      o.t = o.every;
+      strike(game, o.p, o.target, o.mult, { gauge: 1, knock: 0, color: 0x7b1fa2 });
+      game.fx.burst(o.target.pos.x, (o.target.hpY || 2) * 0.7, o.target.pos.z, 0x7b1fa2, 4, { speed: 1.5, up: 2, life: 0.4 });
+    }
+  }
+}
+
 // ---------------- スキルが残す効果（隕石・矢の雨・結界） ----------------
 
 const zones = [];
@@ -264,6 +503,7 @@ function removeZone(i) {
 
 /** 毎フレーム（ホスト・参加者とも） */
 export function updateJobZones(game, dt) {
+  updateDots(game, dt);
   for (let i = zones.length - 1; i >= 0; i--) {
     const z = zones[i];
     z.t -= dt;
@@ -307,6 +547,7 @@ export function inAegis(x, z) {
 }
 
 export function clearJobZones() {
+  dots.length = 0;
   for (let i = zones.length - 1; i >= 0; i--) removeZone(i);
 }
 

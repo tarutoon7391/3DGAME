@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { forEachTarget, strike, radiusHit } from './combat.js';
 import { hurtPlayer } from './combat.js';
-import { shotMult } from './jobs.js';
+import { shotMult, addDot } from './jobs.js';
 import { GAUGE } from './data/jobs.js';
 
 const MAX_SHOTS = 360; // ステージ2の弾幕に足りる数
@@ -80,14 +80,17 @@ export function createProjectiles(game) {
       vx: Math.sin(yaw) * o.speed, vz: Math.cos(yaw) * o.speed, dist: 0, age: 0,
       range: o.range || 24, size: o.size || 0.3, color: o.color || 0xffffff, mult: o.mult || 1,
       pierce: !!o.pierce, explode: o.explode || 0, wobble: !!o.wobble, local: o.local !== false,
-      gauge: o.gauge, hit: new Set(),
+      gauge: o.gauge, hit: new Set(), onHit: o.onHit || null, dot: o.dot || null,
     });
   }
 
   function explodeAt(s) {
     game.fx.burst(s.x, 1, s.z, s.color, 30, { speed: 7, up: 4, life: 0.5, size: 0.2 });
     game.sound.se('slam');
-    if (s.local) radiusHit(game, s.owner, s.mult, s.explode, { color: s.color, gauge: GAUGE.gainSkill }, s.x, s.z);
+    if (s.local) {
+      radiusHit(game, s.owner, s.mult, s.explode, { color: s.color, gauge: GAUGE.gainSkill }, s.x, s.z);
+      s.onHit?.(null, s);
+    }
   }
 
   function updatePlayerShots(dt) {
@@ -108,7 +111,11 @@ export function createProjectiles(game) {
               dead = true;
               return;
             }
-            if (s.local) strike(game, s.owner, e, shotMult(s.owner, e, s.mult), { color: s.color, knock: 0.3, gauge: s.gauge });
+            if (s.local) {
+              strike(game, s.owner, e, shotMult(s.owner, e, s.mult), { color: s.color, knock: 0.3, gauge: s.gauge });
+              if (s.dot) addDot(game, s.owner, e, s.dot);
+              s.onHit?.(e, s);
+            }
             else game.fx.burst(s.x, 1, s.z, s.color, 4, { speed: 2, life: 0.25 });
             if (!s.pierce) dead = true;
           }

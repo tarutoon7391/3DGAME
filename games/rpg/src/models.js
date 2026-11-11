@@ -132,6 +132,25 @@ export function makeHero(look) {
   } else if (weapon === 'lute') {
     blade = part(box(0.08, 0.6, 0.08), mat(0x6d4c41), 0, -0.3, 0, sword);
     part(box(0.36, 0.42, 0.14), swordMat, 0, -0.75, 0, sword);
+  } else if (weapon === 'spear') {
+    blade = part(box(0.07, 2.2, 0.07), mat(0x6d4c41), 0, -0.6, 0, sword);
+    part(cone(0.1, 0.4, 4), swordMat, 0, -1.85, 0, sword).rotation.x = Math.PI;
+  } else if (weapon === 'fist') {
+    // 籠手（武器は持たない）
+    blade = part(box(0.22, 0.22, 0.24), swordMat, 0, 0.05, 0, sword);
+    part(box(0.22, 0.22, 0.24), swordMat, 0, -0.67, 0, h.armL);
+  } else if (weapon === 'flask') {
+    blade = part(box(0.06, 0.18, 0.06), mat(0xeeeeee), 0, -0.05, 0, sword);
+    part(sphere(0.17, 8, 6), swordMat, 0, -0.28, 0, sword);
+  } else if (weapon === 'axe') {
+    blade = part(box(0.08, 1.4, 0.08), mat(0x5d4037), 0, -0.5, 0, sword);
+    part(box(0.08, 0.5, 0.55), swordMat, 0, -1.05, 0.22, sword);
+  } else if (weapon === 'gun') {
+    blade = part(box(0.12, 1.1, 0.12), mat(0x424242), 0, -0.35, 0.05, sword);
+    part(box(0.14, 0.3, 0.22), mat(0x6d4c41), 0, 0.15, 0.05, sword);
+  } else if (weapon === 'scythe') {
+    blade = part(box(0.07, 2.0, 0.07), mat(0x263238), 0, -0.5, 0, sword);
+    part(box(0.9, 0.1, 0.05), swordMat, 0.38, -1.45, 0, sword).rotation.z = -0.35;
   } else if (weapon === 'mace') {
     part(box(0.1, 0.22, 0.1), mat(0x4e342e), 0, -0.04, 0, sword);
     blade = part(box(0.1, 0.8, 0.1), mat(0x546e7a), 0, -0.5, 0, sword);
@@ -146,7 +165,7 @@ export function makeHero(look) {
   }
   // 盾（重騎士は大盾。飛び道具の職業は持たない）
   if (look.bigShield) part(box(0.1, 1.0, 0.7), armorMat, -0.16, -0.5, 0.05, h.armL);
-  else if (weapon === 'sword' || weapon === 'mace') part(box(0.08, 0.55, 0.46), armorMat, -0.14, -0.42, 0.05, h.armL);
+  else if (weapon === 'sword' || weapon === 'mace' || weapon === 'spear') part(box(0.08, 0.55, 0.46), armorMat, -0.14, -0.42, 0.05, h.armL);
   h.armR.rotation.x = -0.9;
   return { ...h, sword, blade, swordMat, armorMat };
 }
