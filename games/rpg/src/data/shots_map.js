@@ -32,7 +32,7 @@ export const JOB_SHOTS = {
   sniper: { basic: 'tracer' },
   prophet: { basic: 'eye' },
   ghost: { basic: 'ghost' },
-  twins: { basic: 'heart' },
+  twins: { basic: 'heart', skill: { 0xff1744: 'orb', 0x2979ff: 'orb' } }, // ふたりの嵐：赤と青の光の玉
   machinegunner: { basic: 'bullet' },
   flamer: { basic: 'flame' },
   rocketeer: { basic: 'rocket' },
