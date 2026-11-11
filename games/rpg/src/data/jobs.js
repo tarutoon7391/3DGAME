@@ -619,7 +619,7 @@ export const JOBS = {
     basic: { type: 'shot', cd: 0.4, speed: 26, mult: 0.55, color: 0xf48fb1, size: 0.24, range: 22, count: 2, spread: 0.1 },
     q: { id: 'twinshot', kind: 'shots', name: 'ふたり撃ち', desc: '左右から3発ずつ撃つ', cd: 5, count: 6, spread: 0.12, speed: 28, mult: 0.7, size: 0.24, range: 22, color: 0xf48fb1 },
     e: { id: 'swap', kind: 'dash', name: '入れ替わり', desc: '片割れと入れ替わるように5m 跳ぶ（無敵）', cd: 6, mult: 1.0, dist: 5, time: 0.2, width: 1.2, color: 0x90caf9 },
-    r: { id: 'twinstorm', kind: 'shots', name: 'ふたりの嵐', desc: '2人がかりで弾を20発ばらまく', count: 20, spread: 0.3, speed: 24, mult: 0.8, size: 0.26, range: 22, color: 0xf48fb1 },
+    r: { id: 'twinstorm', kind: 'shots', name: 'ふたりの嵐', desc: '2人がかりで前方へ弾を20発撃ち込む', count: 20, spread: 0.04, colors: [0xf48fb1, 0x90caf9], speed: 24, mult: 0.8, size: 0.26, range: 22, color: 0xf48fb1 },
     trait: '通常攻撃は2発同時（双子の片割れも撃つ）',
     breakMul: 1,
     look: { armorColor: 0xad1457, swordColor: 0x90caf9, swordLen: 0.6, cape: 0x1565c0, weapon: 'gun' },
