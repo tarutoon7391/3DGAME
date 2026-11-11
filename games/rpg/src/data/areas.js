@@ -1,5 +1,5 @@
 // エリア定義（大きさ・つながり・配置）。形状の組み立ては src/world/*.js
-// 座標は XZ 平面（Y が上）。北が -Z。ステージ1→2→3→4 の一方通行で、ゲートをくぐると次のエリアへ
+// 座標は XZ 平面（Y が上）。北が -Z。1-1→1-2→1-3 の一方通行（ステージ2 の冥王の城は単独）で、ゲートをくぐると次のエリアへ
 //
 // 迷路（maze）：cols×rows マスの完全迷路をシードから生成する（同じシードなら毎回同じ形）。
 //   入口は南端の entryCol、出口は北端の exitCol。正解ルート上に「結界」を置き、
@@ -22,7 +22,7 @@ function mazeArea(o) {
 
 export const AREAS = {
   forest: mazeArea({
-    name: 'ステージ1　迷いの森', stage: 1, bgm: 'village', next: 'canyon', nextLabel: '岩の迷宮へ',
+    name: '1-1　迷いの森', stage: 1, bgm: 'village', next: 'canyon', nextLabel: '岩の迷宮へ',
     sky: 0x9fd3f0, fog: [40, 110], ground: 0x6aa84f, wall: 0x2e7d32, wallTop: 0x43a047, wallH: 2.8,
     sun: { color: 0xfff1d6, intensity: 2.2, hemi: 0.9 },
     camPitch: 0.75, // 迷路は高めの視点で見下ろす（マウスで変えられる）
@@ -38,7 +38,7 @@ export const AREAS = {
   }),
 
   canyon: mazeArea({
-    name: 'ステージ2　岩の迷宮', stage: 2, bgm: 'field', next: 'dungeon', nextLabel: '魔窟へ',
+    name: '1-2　岩の迷宮', stage: 2, bgm: 'field', next: 'dungeon', nextLabel: '魔窟へ',
     sky: 0xe7b98a, fog: [35, 100], ground: 0xb08d63, wall: 0x8d6e63, wallTop: 0xa1887f, wallH: 3.2,
     sun: { color: 0xffd9b0, intensity: 2.0, hemi: 0.8 },
     camPitch: 0.8,
@@ -53,9 +53,9 @@ export const AREAS = {
     signs: [{ key: 'canyon', dx: 1.8, dz: -1 }],
   }),
 
-  // ステージ3（構造は旧仕様のまま。レバー・宝箱・草原へ戻るゲートは撤去し、扉は最初から開いている）
+  // 1-3（構造は旧仕様のまま。レバー・宝箱・草原へ戻るゲートは撤去し、扉は最初から開いている）
   dungeon: {
-    name: 'ステージ3　魔窟', stage: 3, bgm: 'dungeon', dark: true, wallH: 6,
+    name: '1-3　魔窟', stage: 3, bgm: 'dungeon', dark: true, wallH: 6,
     bounds: { minX: -22, maxX: 22, minZ: -50, maxZ: 50 },
     sky: 0x07060a, fog: [8, 46], ground: 0x3b3640,
     sun: { color: 0x8f7fd0, intensity: 0.5, hemi: 0.35 },
@@ -75,14 +75,13 @@ export const AREAS = {
     ],
     // ボス（bosses の順に戦う）。triggerZ より奥へ入ると戦闘開始、door はそのとき閉まる扉の番号
     bosses: [{ key: 'galdra', x: 0, z: -34, triggerZ: -18, door: 0 }],
-    next: 'castle', // ガルドラを倒すとステージ4へ
     signs: [{ x: 3.5, z: 34, key: 'dungeon' }],
   },
 
-  // ステージ4：入口通路 → 中ボス1の間 → 中ボス2の間 → 冥王の間 と一直線。各部屋は扉で区切る
+  // ステージ2：入口通路 → 中ボス1の間 → 中ボス2の間 → 冥王の間 と一直線。各部屋は扉で区切る
   // 部屋に入ると後ろの扉が閉まり、ボスを倒すと次の扉が開く。やられたら「いま戦っているボスの部屋の前」から
   castle: {
-    name: 'ステージ4　冥王の城', stage: 4, bgm: 'castle', dark: true, wallH: 7, castle: true,
+    name: 'ステージ2　冥王の城', stage: 4, bgm: 'castle', dark: true, wallH: 7, castle: true,
     bounds: { minX: -20, maxX: 20, minZ: -84, maxZ: 50 },
     sky: 0x0b0614, fog: [12, 60], ground: 0x2a2233,
     sun: { color: 0xb388ff, intensity: 0.45, hemi: 0.35 },
@@ -114,3 +113,23 @@ export const AREA_ORDER = ['forest', 'canyon', 'dungeon', 'castle'];
 
 /** 古いセーブ（version 1）のエリア id → 新しい id */
 export const OLD_AREA_MAP = { village: 'forest', field: 'canyon', dungeon: 'dungeon' };
+
+/**
+ * タイトルで選ぶステージ（コース）。areas はそのコースに含まれるエリア、recKey はセーブの記録の置き場所
+ * ステージ1 は旧来の3エリア（ガルドラ撃破でクリア）、ステージ2 は冥王の城だけ（冥王撃破でクリア）
+ */
+export const COURSES = [
+  {
+    key: 'cave', label: 'ステージ1', name: '魔窟の主', start: 'forest', areas: ['forest', 'canyon', 'dungeon'], recKey: 'records',
+    desc: '迷路2つを抜けて、魔窟の主ガルドラを倒す', clearMsg: '魔窟の主ガルドラを討ち取った！',
+  },
+  {
+    key: 'castle', label: 'ステージ2', name: '冥王の城', start: 'castle', areas: ['castle'], recKey: 'records2',
+    desc: '中ボス2連戦のあと冥王と戦う弾幕ボスラッシュ（難しい）', clearMsg: '冥王ザルヴァーンを討ち取った！',
+  },
+];
+
+/** エリア id → そのエリアを含むコース */
+export function courseOf(area) {
+  return COURSES.find((c) => c.areas.includes(area)) || COURSES[0];
+}

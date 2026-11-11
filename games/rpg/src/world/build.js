@@ -1,5 +1,5 @@
 // エリアの共通組み立て：地面・ゲート・看板・当たり判定・破棄
-// エリア固有の形は maze.js（ステージ1・2）/ dungeon.js（ステージ3）/ castle.js（ステージ4）が ctx に追加する
+// エリア固有の形は maze.js（1-1・1-2）/ dungeon.js（1-3）/ castle.js（ステージ2）が ctx に追加する
 import * as THREE from 'three';
 import { AREAS } from '../data/areas.js';
 import { SIGNS } from '../data/dialogs.js';

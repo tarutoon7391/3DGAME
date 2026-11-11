@@ -3,7 +3,7 @@
 import { createApp } from '/shared/engine.js';
 import { createInput } from '/shared/input.js';
 import { createAudio } from '/shared/audio.js';
-import { showTitle, showPause, hidePause, isPaused, showResult, toast, isOverlayOpen } from '/shared/ui.js';
+import { showTitle, showPause, hidePause, isPaused, showResult, toast, isOverlayOpen, closeAll } from '/shared/ui.js';
 import { createSave } from '/shared/save.js';
 import { createState, newProgress, migrateProgress } from './state.js';
 import { createPlayer, emptyIntent } from './player.js';
@@ -17,7 +17,7 @@ import { VIEW } from './data/view.js';
 import { createHudView } from './ui/hudview.js';
 import { createModalHost, createDialog } from './ui/dialog.js';
 import { createLights, loadArea, updateAreaLogic, checkSeals, bossDown } from './area.js';
-import { AREAS, AREA_ORDER } from './data/areas.js';
+import { AREAS, AREA_ORDER, COURSES, courseOf } from './data/areas.js';
 import { fmtTime } from './util.js';
 
 const TITLE = '3DRPG 〜魔窟の主〜';
@@ -36,7 +36,8 @@ export function createGame() {
   const audio = createAudio();
   const store = createSave('rpg');
   const saveData = store.load({ records: { clears: 0, bestTime: 0 }, progress: null });
-  if (!saveData.records) saveData.records = { clears: 0, bestTime: 0 };
+  if (!saveData.records) saveData.records = { clears: 0, bestTime: 0 }; // ステージ1 の記録
+  if (!saveData.records2) saveData.records2 = { clears: 0, bestTime: 0 }; // ステージ2 の記録
   saveData.progress = migrateProgress(saveData.progress); // 旧形式（レベル制）は到達エリアだけ引き継ぐ
   // 設定（視点）は進行とは別に保存する（クリアしても消えない）
   if (!saveData.settings || !['fps', 'tps'].includes(saveData.settings.view)) saveData.settings = { view: VIEW.defaultMode };
@@ -187,12 +188,13 @@ export function createGame() {
 
   game.onBossDefeated = () => {
     const pr = game.state.progress;
+    const course = courseOf(pr.area);
     game.playing = false;
     expectUnlock = true;
     input.unlockPointer();
     game.sound.bgm('clear');
     const time = pr.stats.time;
-    const rec = saveData.records;
+    const rec = saveData[course.recKey];
     rec.clears++;
     const best = !rec.bestTime || time < rec.bestTime;
     if (best) rec.bestTime = time;
@@ -200,14 +202,15 @@ export function createGame() {
     store.save(saveData);
     game.hudView.show(false);
     showResult({
-      title: 'クリア！ 冥王ザルヴァーンを討ち取った！',
+      title: `${course.label} クリア！ ${course.clearMsg}`,
       lines: [
         `プレイ時間 ${fmtTime(time)}${best ? '（ベスト更新！）' : `（ベスト ${fmtTime(rec.bestTime)}）`}`,
         `撃破数 ${pr.stats.kills}　やられた回数 ${pr.stats.deaths}`,
         `クリア回数 ${rec.clears}`,
       ],
-      retryLabel: 'はじめから遊ぶ',
-      onRetry: () => begin(newProgress()),
+      retryLabel: `${course.label}をもう一度`,
+      onRetry: () => begin(newProgress(course.start)),
+      extraButtons: [{ label: 'タイトルへ', onClick: () => title() }],
     });
   };
 
@@ -223,20 +226,50 @@ export function createGame() {
     game.autosave();
     input.lockPointer();
     if (pr.area === AREA_ORDER[0]) setTimeout(() => toast('迷路を抜けて北の出口へ。赤い結界は番人を全部倒すと消える', 4000), 800);
+    if (pr.area === COURSES[1].start && !pr.bossStep) setTimeout(() => toast('中ボス2体を倒して、最奥の冥王を討て。弾幕は横に走るか回避の無敵でくぐれ', 4000), 800);
   }
 
+  /** タイトル：ステージ1／ステージ2 を選ぶ（shared の showTitle はボタン1つなので、2つ目はここで足す） */
   function title() {
-    const rec = saveData.records;
+    game.playing = false;
+    game.hudView.show(false);
     const has = !!saveData.progress;
-    const recLine = rec.clears ? `　クリア ${rec.clears} 回／ベスト ${fmtTime(rec.bestTime)}` : '';
+    const recText = (c) => {
+      const r = saveData[c.recKey];
+      return r.clears ? `クリア ${r.clears} 回／ベスト ${fmtTime(r.bestTime)}` : '未クリア';
+    };
+    const desc = [
+      'ステージを選んでください。育成も収集もないアクション。',
+      ...COURSES.map((c) => `${c.label}「${c.name}」：${c.desc}（${recText(c)}）`),
+    ].join('\n');
+    const cont = has ? courseOf(saveData.progress.area) : null;
     showTitle({
       title: TITLE,
-      desc: `迷路を進みながら魔物と戦い、魔窟の主ガルドラを倒し、冥王の城で中ボス2連戦と冥王を倒せばクリア。育成も収集もない4ステージのアクション。${recLine}`,
+      desc,
       controls: CONTROLS,
-      onStart: () => begin(newProgress()),
-      startLabel: has ? 'はじめから' : 'はじめる',
+      onStart: () => begin(newProgress(COURSES[0].start)),
+      startLabel: `${COURSES[0].label}　${COURSES[0].name}`,
       onContinue: has ? () => begin(saveData.progress) : undefined,
+      continueLabel: has ? `つづきから（${cont.label}：${AREAS[saveData.progress.area].name.replace(/^\S+\s+/, '')}）` : undefined,
     });
+    // 説明文はステージごとに改行して見せる
+    const descEl = document.querySelector('.g3-overlay .g3-panel > p');
+    if (descEl) descEl.style.whiteSpace = 'pre-line';
+    // 2つ目のステージのボタン（見た目は shared のボタンに合わせる）
+    const row = document.querySelector('.g3-overlay .g3-btns');
+    if (row) {
+      const c = COURSES[1];
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'g3-btn' + (has ? ' sub' : '');
+      b.textContent = `${c.label}　${c.name}`;
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAll();
+        begin(newProgress(c.start));
+      });
+      row.appendChild(b);
+    }
   }
 
   // ---- 入力 → intent（データ） ----
