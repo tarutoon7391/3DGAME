@@ -255,7 +255,7 @@ export function createHudView(game) {
         ui.bar.classList.toggle('raged', bs.raged);
         ui.bar.classList.toggle('stun', bs.state === 'stun');
       });
-      hint.style.display = game.input.mouse.locked ? 'none' : 'block';
+      hint.style.display = game.input.mouse.locked || game.touch ? 'none' : 'block';
       // 被弾の縁・方向マーカー・足元の予兆の警告
       hurtT = Math.max(0, hurtT - dt);
       vignette.style.opacity = String(Math.min(1, hurtT / VIEW.hurtFlash) * 0.9);

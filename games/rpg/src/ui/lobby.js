@@ -78,7 +78,7 @@ export function openLobby({ settings, save, onSolo, onStart, onBack, area = 'cas
     }
     el.innerHTML = `<div class="rpg-lobby-panel">
       <h2>${esc(heading)}　―　レイド（1〜${MAX_PLAYERS}人）</h2>
-      <p class="rpg-small">左クリック：通常攻撃（長押しで連続）　Q・E：スキル　R：必殺技（攻撃を当てて溜める。近接ほど早く溜まる）。ボスは近接で殴るとブレイク（気絶）する。倒れた味方はそばに立つと蘇生。</p>
+      <p class="rpg-small">${document.body.classList.contains('rpg-touch-on') ? '攻撃ボタン' : '左クリック'}：通常攻撃（長押しで連続）　Q・E：スキル　R：必殺技（攻撃を当てて溜める。近接ほど早く溜まる）。ボスは近接で殴るとブレイク（気絶）する。倒れた味方はそばに立つと蘇生。</p>
       ${msg ? `<p class="rpg-lobby-msg">${esc(msg)}</p>` : ''}
       ${top}
       ${jobGridHtml(job, tab)}
