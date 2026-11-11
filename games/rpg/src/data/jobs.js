@@ -607,7 +607,7 @@ export const JOBS = {
     basic: { type: 'shot', cd: 0.45, speed: 20, mult: 0.85, color: 0xeceff1, size: 0.3, range: 22, wobble: true },
     q: { id: 'haunt', kind: 'cone', name: '憑依', desc: '前方の敵に取り憑いて継続ダメージ', cd: 6, mult: 1.0, range: 5, arc: 1.4, color: 0xeceff1, melee: false, dot: { mult: 0.35, every: 0.5, dur: 5 } },
     e: { id: 'phase', kind: 'selfbuff', name: '透過', desc: '2秒間 完全に無敵', cd: 12, buff: 'phase', dur: 2, vals: {}, invuln: 2, color: 0xeceff1, sound: 'dodge' },
-    r: { id: 'poltergeist', kind: 'shots', name: 'ポルターガイスト', desc: '周りに物を12個 投げつける', count: 12, spread: 0.52, speed: 20, mult: 1.0, size: 0.35, range: 18, color: 0xb0bec5 },
+    r: { id: 'poltergeist', kind: 'selfbuff', name: 'ポルターガイスト', desc: '自分の周りで爆発を起こし、4秒間 敵に気づかれず無敵になる', buff: 'unseen', dur: 4, vals: {}, invuln: 4, unseen: 4, strike: { mult: 3, radius: 5.5 }, color: 0xb0bec5, sound: 'slam' },
     trait: '50% の確率で攻撃がすり抜ける（そのかわり HP がとても低い）',
     evade: 0.5, breakMul: 1,
     look: { armorColor: 0xb0bec5, swordColor: 0xeceff1, swordLen: 0.6, cape: 0xeceff1, weapon: 'staff', hat: 0xcfd8dc },

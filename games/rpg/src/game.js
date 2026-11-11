@@ -283,6 +283,7 @@ export function createGame() {
     // 挑発・鈍化・時間停止は部屋のボス全員に、腐食は当てた1体に（sub で指定）
     const alive = game.bosses.filter((b) => b.alive);
     if (cmd.type === 'taunt') alive.forEach((b) => b.setTaunt(cmd.id, cmd.dur));
+    else if (cmd.type === 'unseen') (game.unseenUntil ||= {})[cmd.id] = performance.now() + cmd.dur * 1000; // 敵に気づかれない（combat.js の nearestPlayer）
     else if (cmd.type === 'debuff') alive.filter((b) => cmd.sub === undefined || b.sub === cmd.sub).forEach((b) => b.setDebuff(cmd.name, cmd.dur, cmd.mul));
     else if (cmd.type === 'pull') {
       // 重力術師：近くのボスを (x,z) の方へ引き寄せる（壁は越えない）

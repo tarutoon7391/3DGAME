@@ -91,7 +91,7 @@ export const SKILL_VIS = {
   // ---- 幽霊 ----
   haunt: { cast: [['orbit', { where: 'target', tex: 'smoke', color: 0xeceff1, n: 10, r: 1.6, h: 3, dur: 3, rise: 0.5, size: 1, opacity: 0.6 }], ['skulls', { color: 0xeceff1 }]] },
   phase: { cast: [['whiteout', { css: '#eceff1', max: 0.3 }], ['orbit', { tex: 'smoke', color: 0xeceff1, n: 10, r: 0.9, h: 2.4, rise: 0.8, size: 1, opacity: 0.5 }]] },
-  poltergeist: { cast: [vm('cheer', 0.9), ['burst', { color: 0xb0bec5, n: 30, up: 6 }], ['ring', { glyph: '☁', color: 0xeceff1, r: 5, n: 10 }]] },
+  poltergeist: { cast: [vm('cheer', 0.8), ['explode', { r: 5.5, color: 0xb0bec5, big: true }], ['explode', { r: 3.5, color: 0xeceff1, at: 0.1 }], ['whiteout', { css: '#eceff1', max: 0.45 }], ['orbit', { glyph: ['✎', '☕', '✂', '☐', '♜'], color: 0xcfd8dc, n: 10, r: 2.2, h: 2.5, dur: 4, spin: 2.5, size: 0.55, normal: true }], ['orbit', { tex: 'smoke', color: 0xeceff1, n: 10, r: 0.8, h: 2.4, dur: 4, rise: 0.6, size: 1, opacity: 0.5 }], shake(0.6)] },
   // ---- 双子 ----
   twinshot: { cast: [vm('kiblast', 0.4)] },
   swap: { cast: [['flash', { color: 0xf48fb1, size: 4 }], ['flash', { where: 'front', dist: 5, color: 0x90caf9, size: 4, at: 0.15 }]] },
@@ -297,7 +297,7 @@ export const BUFF_FRAMES = {
   shieldwall: '144,202,249', endure: '255,82,82', hawkfrenzy: '188,170,164', nightlord: '123,31,162', ember: '255,138,101', sunshine: '255,238,88',
   vanish: '97,97,97', elemshield: '128,203,196', moon: '121,85,72', entrench: '144,164,174', enlight: '255,245,157', prism: '129,212,250',
   warbeat: '255,235,59', festival: '255,214,0', thornarmor: '104,159,56', warcry: '213,0,0', tempo: '206,147,216',
-  wartotem: '255,112,67', healtotem: '105,240,174', spirittotem: '255,213,79',
+  unseen: '176,190,197', wartotem: '255,112,67', healtotem: '105,240,174', spirittotem: '255,213,79',
 };
 
 /** 3段目を真上からの縦斬りにする近接職（鎖鎌使いより後） */
