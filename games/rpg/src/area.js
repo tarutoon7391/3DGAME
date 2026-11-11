@@ -1,9 +1,9 @@
 // エリアの読み込み・ライティング・ゲート遷移・調べる・ボス部屋の開始
 import * as THREE from 'three';
-import { AREAS } from './data/areas.js';
+import { AREAS, COURSES, courseOf } from './data/areas.js';
 import { createWorld } from './world/build.js';
 import { createBoss } from './boss.js';
-import { RAID_SCALE } from './data/jobs.js';
+import { RAID_SCALE, STAGE1_SCALE } from './data/jobs.js';
 import { clearJobZones } from './jobs.js';
 
 /**
@@ -11,7 +11,7 @@ import { clearJobZones } from './jobs.js';
  * 部屋の定義 bd に pair（[{ key, x, z }, ...]）があれば2体同時。戻り値はボスの配列
  */
 export function makeRoom(game, bd, idx) {
-  const o = { puppet: !!game.isClient, scale: RAID_SCALE(game.players.length) };
+  const o = { puppet: !!game.isClient, scale: courseOf(game.state.progress.area) === COURSES[0] ? STAGE1_SCALE : RAID_SCALE(game.players.length) };
   const list = bd.pair || [{ key: bd.key, x: bd.x, z: bd.z }];
   return list.map((m, sub) => createBoss(game, m.key, m.x, m.z, idx, { ...o, sub }));
 }

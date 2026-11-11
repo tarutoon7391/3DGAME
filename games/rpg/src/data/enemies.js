@@ -73,6 +73,8 @@ export const AI = {
  * 弾の間隔：輪は 12〜14 発、扇は 0.3 ラジアン以上あけて、すき間を走り抜けられるようにしている
  * look：見た目（models.js の makeBossModel）
  */
+// ボスの hp は「剣士ひとり（人数補正 1）が攻撃できる時間 55% で倒すのにかかる秒数」から決めている：
+// 中ボス 3分前後／2体同時の部屋は合わせて 4〜5分／最後のボス 5分（docs/balance/policy.md・bosses.md）
 export const BOSSES = {
   // ---- 1-3 の主（強さ・動きは旧仕様のまま） ----
   galdra: {
@@ -104,7 +106,7 @@ export const BOSSES = {
   // ---- ステージ2 中ボス1：剣の連撃・旋風・突進・炎の壁で攻める騎士 ----
   ignis: {
     name: '業火の騎士イグニス', color: 0xd84315,
-    hp: 950, def: 7, speed: 5.0, radius: 1.4, hpY: 5,
+    hp: 16600, def: 7, speed: 5.0, radius: 1.4, hpY: 5,
     shotHit: 1 / 7, meleeHit: 1 / 4.5, // 弾1発 約14%、それ以外 約22%（職業の HP で変わる）
     nearRange: 6,
     near: { sweep: 0.3, whirl: 0.2, donut: 0.1, nova: 0.1, charge: 0.1, erupt: 0.1, stalker: 0.1 },
@@ -130,7 +132,7 @@ export const BOSSES = {
   // ---- ステージ2 中ボス2：瞬間移動・引き寄せ・光線・氷壁で翻弄する魔導士 ----
   frosga: {
     name: '氷霧の魔導士フロスガ', color: 0x4fc3f7,
-    hp: 820, def: 5, speed: 3.4, radius: 1.3, hpY: 5, keep: 9,
+    hp: 17500, def: 5, speed: 3.4, radius: 1.3, hpY: 5, keep: 9,
     shotHit: 1 / 7, meleeHit: 1 / 4.5,
     nearRange: 5,
     near: { blink: 0.25, pull: 0.15, donut: 0.15, nova: 0.15, slam: 0.15, ring: 0.15 },
@@ -157,7 +159,7 @@ export const BOSSES = {
   // ---- ステージ2 ボス：全部の技を織り交ぜる＋手下召喚 ----
   zarvan: {
     name: '冥王ザルヴァーン', color: 0x6a1b9a,
-    hp: 1500, def: 8, speed: 3.6, radius: 1.9, hpY: 7,
+    hp: 26900, def: 8, speed: 3.6, radius: 1.9, hpY: 7,
     shotHit: 1 / 8, meleeHit: 1 / 5,
     nearRange: 7,
     near: { sweep: 0.2, whirl: 0.1, donut: 0.1, pull: 0.1, slam: 0.1, nova: 0.1, blink: 0.1, charge: 0.1, ring: 0.1 },
@@ -195,7 +197,7 @@ export const BOSSES = {
   // ---- 1戦目：鉄巨人ゴルゴス（遅いが一撃が重い。叩きつけと地割れ） ----
   golgoth: {
     name: '鉄巨人ゴルゴス', color: 0x546e7a,
-    hp: 1400, def: 10, speed: 3.4, radius: 2.2, hpY: 7.5,
+    hp: 15300, def: 10, speed: 3.4, radius: 2.2, hpY: 7.5,
     shotHit: 1 / 6, meleeHit: 1 / 3.5,
     nearRange: 7,
     near: { sweep: 0.3, whirl: 0.15, donut: 0.15, slam: 0.15, nova: 0.15, erupt: 0.1 },
@@ -220,7 +222,7 @@ export const BOSSES = {
   // ---- 2戦目：風の魔女シルファ（速い。瞬間移動と光線・壁で翻弄） ----
   sylpha: {
     name: '風の魔女シルファ', color: 0x26a69a,
-    hp: 1200, def: 6, speed: 4.6, radius: 1.3, hpY: 5, keep: 9,
+    hp: 17100, def: 6, speed: 4.6, radius: 1.3, hpY: 5, keep: 9,
     shotHit: 1 / 6, meleeHit: 1 / 3.5,
     nearRange: 5,
     near: { blink: 0.3, nova: 0.2, donut: 0.15, pull: 0.15, ring: 0.2 },
@@ -245,7 +247,7 @@ export const BOSSES = {
   // ---- 3戦目：毒の司祭ヴェクシス（範囲攻撃の嵐） ----
   vexis: {
     name: '毒の司祭ヴェクシス', color: 0x7cb342,
-    hp: 1300, def: 8, speed: 3.6, radius: 1.6, hpY: 6,
+    hp: 17900, def: 8, speed: 3.6, radius: 1.6, hpY: 6,
     shotHit: 1 / 6, meleeHit: 1 / 3.5,
     nearRange: 6,
     near: { donut: 0.2, pull: 0.2, nova: 0.15, sweep: 0.2, ring: 0.1, erupt: 0.15 },
@@ -271,7 +273,7 @@ export const BOSSES = {
   // ---- 4戦目（2体同時）：双子の剣士カイン（近接）と魔弓のアベル（遠距離） ----
   kain: {
     name: '紅の双剣カイン', color: 0xc62828,
-    hp: 1050, def: 8, speed: 5.4, radius: 1.3, hpY: 5,
+    hp: 10800, def: 8, speed: 5.4, radius: 1.3, hpY: 5,
     shotHit: 1 / 6, meleeHit: 1 / 3.5,
     nearRange: 6,
     near: { sweep: 0.35, whirl: 0.25, nova: 0.15, donut: 0.1, erupt: 0.15 },
@@ -294,7 +296,7 @@ export const BOSSES = {
   },
   abel: {
     name: '蒼の魔弓アベル', color: 0x1565c0,
-    hp: 950, def: 6, speed: 3.8, radius: 1.3, hpY: 5, keep: 11,
+    hp: 11400, def: 6, speed: 3.8, radius: 1.3, hpY: 5, keep: 11,
     shotHit: 1 / 6, meleeHit: 1 / 3.5,
     nearRange: 6,
     near: { blink: 0.3, nova: 0.25, ring: 0.2, donut: 0.25 },
@@ -318,7 +320,7 @@ export const BOSSES = {
   // ---- 5戦目（2体同時）：深淵王ネザル（近接の王）と深淵の女王リリス（魔法の女王） ----
   nezal: {
     name: '深淵王ネザル', color: 0x263238,
-    hp: 1500, def: 10, speed: 4.0, radius: 2.0, hpY: 7.5,
+    hp: 12800, def: 10, speed: 4.0, radius: 2.0, hpY: 7.5,
     shotHit: 1 / 6, meleeHit: 1 / 3.2,
     nearRange: 7,
     near: { sweep: 0.25, whirl: 0.2, slam: 0.15, donut: 0.15, pull: 0.1, nova: 0.15 },
@@ -343,7 +345,7 @@ export const BOSSES = {
   },
   lilith: {
     name: '深淵の女王リリス', color: 0xad1457,
-    hp: 1300, def: 7, speed: 4.2, radius: 1.4, hpY: 5.5, keep: 10,
+    hp: 13800, def: 7, speed: 4.2, radius: 1.4, hpY: 5.5, keep: 10,
     shotHit: 1 / 6, meleeHit: 1 / 3.2,
     nearRange: 6,
     near: { blink: 0.3, nova: 0.2, donut: 0.2, ring: 0.15, pull: 0.15 },
@@ -371,7 +373,7 @@ export const BOSSES = {
   // ---- 1戦目：飛竜ワイバーン（速い。突進・炎の扇・炎の壁） ----
   wyvern: {
     name: '飛竜ワイバーン', color: 0xbf360c,
-    hp: 1600, def: 9, speed: 5.4, radius: 2.2, hpY: 7,
+    hp: 15700, def: 9, speed: 5.4, radius: 2.2, hpY: 7,
     shotHit: 1 / 5.5, meleeHit: 1 / 3.2,
     nearRange: 7,
     near: { sweep: 0.25, whirl: 0.15, nova: 0.15, slam: 0.15, donut: 0.15, charge: 0.15 },
@@ -396,7 +398,7 @@ export const BOSSES = {
   // ---- 2戦目：大地獣ベヒモス（重い。叩きつけ・地割れ・突進） ----
   behemoth: {
     name: '大地獣ベヒモス', color: 0x5d4037,
-    hp: 1900, def: 12, speed: 3.8, radius: 2.5, hpY: 6.5,
+    hp: 16200, def: 12, speed: 3.8, radius: 2.5, hpY: 6.5,
     shotHit: 1 / 5.5, meleeHit: 1 / 3.2,
     nearRange: 7,
     near: { sweep: 0.25, slam: 0.2, whirl: 0.15, donut: 0.15, nova: 0.15, erupt: 0.1 },
@@ -421,7 +423,7 @@ export const BOSSES = {
   // ---- 3戦目：三つ首ヒュドラ（3つの首から弾幕と毒） ----
   hydra: {
     name: '三つ首ヒュドラ', color: 0x00695c,
-    hp: 1800, def: 9, speed: 3.2, radius: 2.3, hpY: 6.5, keep: 8,
+    hp: 17500, def: 9, speed: 3.2, radius: 2.3, hpY: 6.5, keep: 8,
     shotHit: 1 / 5.5, meleeHit: 1 / 3.2,
     nearRange: 6,
     near: { sweep: 0.2, donut: 0.2, pull: 0.2, nova: 0.2, ring: 0.2 },
@@ -446,7 +448,7 @@ export const BOSSES = {
   // ---- 4戦目（2体同時）：グリフォン（空から急襲）とマンティコア（毒の尾と弾） ----
   griffon: {
     name: '天翔けるグリフォン', color: 0xc8a165,
-    hp: 1300, def: 8, speed: 5.8, radius: 1.9, hpY: 6,
+    hp: 10800, def: 8, speed: 5.8, radius: 1.9, hpY: 6,
     shotHit: 1 / 5.5, meleeHit: 1 / 3.2,
     nearRange: 6,
     near: { sweep: 0.3, whirl: 0.2, nova: 0.2, blink: 0.15, slam: 0.15 },
@@ -467,7 +469,7 @@ export const BOSSES = {
   },
   manticore: {
     name: '毒尾のマンティコア', color: 0x8e2b2b,
-    hp: 1400, def: 8, speed: 4.4, radius: 1.9, hpY: 6, keep: 9,
+    hp: 10800, def: 8, speed: 4.4, radius: 1.9, hpY: 6, keep: 9,
     shotHit: 1 / 5.5, meleeHit: 1 / 3.2,
     nearRange: 6,
     near: { sweep: 0.3, donut: 0.25, pull: 0.2, ring: 0.25 },
@@ -491,7 +493,7 @@ export const BOSSES = {
   // ---- 5戦目：古竜エルドラード（巨大。全部の技＋炎の大技） ----
   eldragon: {
     name: '古竜エルドラード', color: 0x4a148c,
-    hp: 3600, def: 12, speed: 4.2, radius: 3.4, hpY: 11,
+    hp: 24400, def: 12, speed: 4.2, radius: 3.4, hpY: 11,
     shotHit: 1 / 5.5, meleeHit: 1 / 3,
     nearRange: 9,
     near: { sweep: 0.2, whirl: 0.15, slam: 0.15, donut: 0.15, pull: 0.1, nova: 0.15, charge: 0.1 },
@@ -524,7 +526,7 @@ export const BOSSES = {
   // ================= ステージ5「黄昏の古戦場」（屋外・夕方）。ステージ4 よりさらに硬く重い =================
   cerberus: {
     name: '地獄の番犬ケルベロス', color: 0x3e2723,
-    hp: 1900, def: 10, speed: 6.0, radius: 2.2, hpY: 6.5,
+    hp: 16200, def: 10, speed: 6.0, radius: 2.2, hpY: 6.5,
     shotHit: 1 / 5, meleeHit: 1 / 3,
     nearRange: 7,
     near: { sweep: 0.3, whirl: 0.2, nova: 0.15, donut: 0.15, charge: 0.2 },
@@ -547,7 +549,7 @@ export const BOSSES = {
   },
   basilisk: {
     name: '双頭のバジリスク', color: 0x558b2f,
-    hp: 2100, def: 11, speed: 3.6, radius: 2.4, hpY: 6.5, keep: 8,
+    hp: 16600, def: 11, speed: 3.6, radius: 2.4, hpY: 6.5, keep: 8,
     shotHit: 1 / 5, meleeHit: 1 / 3,
     nearRange: 6,
     near: { sweep: 0.25, pull: 0.2, donut: 0.2, nova: 0.15, erupt: 0.2 },
@@ -569,7 +571,7 @@ export const BOSSES = {
   },
   firebird: {
     name: '夕焼けの火の鳥', color: 0xff6d00,
-    hp: 1900, def: 9, speed: 6.2, radius: 2.2, hpY: 7,
+    hp: 17500, def: 9, speed: 6.2, radius: 2.2, hpY: 7,
     shotHit: 1 / 5, meleeHit: 1 / 3,
     nearRange: 7,
     near: { nova: 0.25, whirl: 0.2, slam: 0.2, donut: 0.15, blink: 0.2 },
@@ -591,7 +593,7 @@ export const BOSSES = {
   },
   minotaur: {
     name: '猛牛ミノタウロス', color: 0x6d4c41,
-    hp: 1500, def: 11, speed: 5.2, radius: 2.0, hpY: 6,
+    hp: 10400, def: 11, speed: 5.2, radius: 2.0, hpY: 6,
     shotHit: 1 / 5, meleeHit: 1 / 3,
     nearRange: 6,
     near: { sweep: 0.35, whirl: 0.25, slam: 0.2, nova: 0.2 },
@@ -612,7 +614,7 @@ export const BOSSES = {
   },
   harpy: {
     name: 'ハーピー女王', color: 0x7e57c2,
-    hp: 1350, def: 8, speed: 6.4, radius: 1.8, hpY: 5.5, keep: 10,
+    hp: 11200, def: 8, speed: 6.4, radius: 1.8, hpY: 5.5, keep: 10,
     shotHit: 1 / 5, meleeHit: 1 / 3,
     nearRange: 6,
     near: { blink: 0.3, nova: 0.25, donut: 0.2, ring: 0.25 },
@@ -634,7 +636,7 @@ export const BOSSES = {
   },
   ragna: {
     name: '黄昏竜ラグナ', color: 0x8d1b0a,
-    hp: 4200, def: 13, speed: 4.6, radius: 3.6, hpY: 11.5,
+    hp: 23800, def: 13, speed: 4.6, radius: 3.6, hpY: 11.5,
     shotHit: 1 / 5, meleeHit: 1 / 2.8,
     nearRange: 9,
     near: { sweep: 0.2, whirl: 0.15, slam: 0.15, donut: 0.15, pull: 0.1, nova: 0.15, charge: 0.1 },

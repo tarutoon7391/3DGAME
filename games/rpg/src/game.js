@@ -25,7 +25,7 @@ import { createNameplates } from './ui/nameplates.js';
 import { createLights, loadArea, updateAreaLogic, checkSeals, bossDown, makeRoom } from './area.js';
 import { AREAS, AREA_ORDER, COURSES, courseOf } from './data/areas.js';
 import { JOBS, JOB_ORDER, REVIVE, DEFAULT_JOB } from './data/jobs.js';
-import { updateJobZones, inAegis } from './jobs.js';
+import { updateJobZones, inAegis, scaleSupport } from './jobs.js';
 import { hurtPlayer } from './combat.js';
 import { createRaid } from './raid.js';
 import { createTouch, isTouchDevice } from './ui/touch.js';
@@ -200,6 +200,8 @@ export function createGame() {
 
   // ---- 味方への効果（回復・強化・蘇生）：全員に配り、各自が自分に当てはまるか見て適用 ----
   game.teamEffect = (eff) => {
+    // 支援係数：効果を出した自分の職業の support を掛けてから配る（受け取った側では掛けない）
+    eff = scaleSupport(eff, game.me()?.job.support ?? 1);
     applyTeamEffect(eff);
     game.raid?.sendTeam(eff);
   };
@@ -264,6 +266,10 @@ export function createGame() {
 
   // ---- ボスへの命令（挑発・召喚）：ホストが処理 ----
   game.bossCommand = (cmd) => {
+    // 支援係数：腐食（被ダメ増）と鎧砕きの効き目に、命令を出した自分の職業の support を掛ける
+    const sup = game.me()?.job.support ?? 1;
+    if (sup !== 1 && cmd.type === 'debuff' && cmd.name === 'vuln' && cmd.mul > 1) cmd = { ...cmd, mul: 1 + (cmd.mul - 1) * sup };
+    if (sup !== 1 && cmd.type === 'shred') cmd = { ...cmd, per: cmd.per * sup };
     if (game.isClient) game.raid.sendCommand(cmd);
     else game.withMirror ? game.withMirror(() => handleCommand(cmd)) : handleCommand(cmd);
   };
@@ -812,7 +818,7 @@ export function createGame() {
     if (!me.alive || me.hp >= me.maxHp) return;
     const J = JOBS.priest;
     if (game.players.some((o) => o.alive && o.jobId === 'priest' && Math.hypot(o.pos.x - me.pos.x, o.pos.z - me.pos.z) <= J.auraRadius)) {
-      me.hp = Math.min(me.maxHp, me.hp + me.maxHp * J.auraRegen * dt);
+      me.hp = Math.min(me.maxHp, me.hp + me.maxHp * J.auraRegen * (J.support ?? 1) * dt);
     }
   }
 

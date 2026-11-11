@@ -66,7 +66,7 @@ export function openLobby({ settings, save, onSolo, onStart, onBack, area = 'cas
       }).join('');
       const nReady = net.players.filter((p) => info.get(p.id)?.ready).length;
       top = `<div class="rpg-room">
-          <div>合言葉 <b class="rpg-room-code">${esc(net.room.code)}</b>　<span class="rpg-small">${net.players.length}/${MAX_PLAYERS} 人・ボス HP ${RAID_SCALE(net.players.length).toFixed(2)}倍　準備完了 ${nReady}/${net.players.length}</span></div>
+          <div>合言葉 <b class="rpg-room-code">${esc(net.room.code)}</b>　<span class="rpg-small">${net.players.length}/${MAX_PLAYERS} 人・ボス HP ×${RAID_SCALE(net.players.length).toFixed(2)}　準備完了 ${nReady}/${net.players.length}</span></div>
           <div class="rpg-members">${members}</div>
         </div>`;
       btns = `
