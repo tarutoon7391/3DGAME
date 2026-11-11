@@ -74,7 +74,7 @@ export function createProjectiles(game) {
       vx: Math.sin(yaw) * o.speed, vz: Math.cos(yaw) * o.speed, dist: 0, age: 0,
       range: o.range || 24, size: o.size || 0.3, color: o.color || 0xffffff, mult: o.mult || 1,
       pierce: !!o.pierce, explode: o.explode || 0, wobble: !!o.wobble, local: o.local !== false,
-      gauge: o.gauge, basic: !!o.basic, hit: new Set(), onHit: o.onHit || null, zap: !!o.zap, dot: o.dot || null,
+      gauge: o.gauge, basic: !!o.basic, hit: new Set(), onHit: o.onHit || null, zap: !!o.zap, pop: !!o.pop, dot: o.dot || null,
       split: o.split || null, boomerang: !!o.boomerang, back: false,
       // orbit：進みながら中心のまわりを右回りに回る（ジャグリング爆弾）。cx・cz が中心、oa が角度
       orbit: o.orbit || null, cx: x + Math.sin(yaw) * 0.8, cz: z + Math.cos(yaw) * 0.8, oa: o.orbit?.phase || 0, oy: 0,
@@ -135,6 +135,7 @@ export function createProjectiles(game) {
               dead = true;
               return;
             }
+            if (s.pop) game.skillFx?.explosion?.(s.x, s.z, 1.3, s.color, false); // デッドアイ：当たった所で小さく爆ぜる
             if (s.zap) game.skillFx?.zapHit?.(e, s.color); // 連鎖雷：当たった所でスパークし、近くの敵へ雷が走る（全員の画面で）
             if (s.local) {
               strike(game, s.owner, e, shotMult(s.owner, e, s.mult), { color: s.color, knock: 0.3, gauge: s.gauge, basic: s.basic });

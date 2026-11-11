@@ -164,10 +164,11 @@ export function makeHero(look) {
     blade.position.y = -0.2 - 0.5 * look.swordLen;
   }
   // 盾（重騎士は大盾。飛び道具の職業は持たない）
-  if (look.bigShield) part(box(0.1, 1.0, 0.7), armorMat, -0.16, -0.5, 0.05, h.armL);
-  else if (weapon === 'sword' || weapon === 'mace' || weapon === 'spear') part(box(0.08, 0.55, 0.46), armorMat, -0.14, -0.42, 0.05, h.armL);
+  let shield = null;
+  if (look.bigShield) shield = part(box(0.1, 1.0, 0.7), armorMat, -0.16, -0.5, 0.05, h.armL);
+  else if (weapon === 'sword' || weapon === 'mace' || weapon === 'spear') shield = part(box(0.08, 0.55, 0.46), armorMat, -0.14, -0.42, 0.05, h.armL);
   h.armR.rotation.x = -0.9;
-  return { ...h, sword, blade, swordMat, armorMat };
+  return { ...h, sword, blade, swordMat, armorMat, shield }; // shield：盾（聖騎士の神の盾で大きくなる）
 }
 
 // ---------------- 敵 ----------------

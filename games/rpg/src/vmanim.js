@@ -139,6 +139,33 @@ export function animateSpecial(V, k, Rp, Lp, setFlash) {
       vertical(Rp, 1, smooth(V.w, V.w + 0.12, t));
       if (t < V.w + 0.3) setFlash(0x6a2adf);
     }
+  } else if (V.kind === 'chainswing') {
+    // 鎖の飛びつき：右上へ振りかぶって、左下へ一気に振り下ろす
+    const t = V.t;
+    const up = smooth(0, 0.12, t);
+    const sw = smooth(0.14, 0.3, t);
+    const back = smooth(0.4, V.dur, t);
+    const s = (1 - back);
+    Rp.ry = (-0.7 * up + 1.6 * sw) * s;
+    Rp.rx = (0.9 * up - 2.2 * sw) * s;
+    Rp.rz = (-0.5 * up + 0.9 * sw) * s;
+    Rp.x = (0.05 * up - 0.3 * sw) * s;
+    Rp.y = (0.15 * up - 0.12 * sw) * s;
+    if (sw > 0 && sw < 1) out.spin = true;
+  } else if (V.kind === 'xstorm') {
+    // 鎖嵐：右上→左下、左上→右下を超高速で繰り返す
+    const f = V.t / V.every;
+    const i = Math.floor(f);
+    const u = ease(f - i);
+    const fromRight = i % 2 === 0;
+    const s = 1 - smooth(V.dur - 0.25, V.dur, V.t);
+    const sx = fromRight ? 1 : -1; // 右上から始めるなら +1
+    Rp.ry = sx * (-0.9 + 1.8 * u) * s;
+    Rp.rx = (0.8 - 2.0 * u) * s;
+    Rp.rz = sx * (-0.4 + 0.8 * u) * s;
+    Rp.x = (-0.15 + sx * (0.05 - 0.2 * u)) * s;
+    Rp.y = (0.12 - 0.1 * u) * s;
+    out.spin = true;
   } else if (V.kind === 'hat') {
     // 手品：左手の帽子に右手を入れて、何かをぱっと取り出す
     const t = V.t;
