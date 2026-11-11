@@ -1,10 +1,10 @@
 // ステージ2（レイド）の準備画面：名前・職業を選んで「ひとりで挑む」か、ルームを作る／合言葉で参加する
 // ルームの中では参加者と職業の一覧を見せ、ホストが「出発」を押すと全員一斉に始まる
 import { createNet } from '/shared/net.js';
-import { JOBS, JOB_ORDER } from '../data/jobs.js';
+import { JOBS, JOB_ORDER, MAX_RAID_PLAYERS, RAID_SCALE } from '../data/jobs.js';
 import { esc } from '../util.js';
 
-const MAX_PLAYERS = 4;
+const MAX_PLAYERS = MAX_RAID_PLAYERS;
 
 /**
  * @param {object} o
@@ -62,7 +62,7 @@ export function openLobby({ settings, save, onSolo, onStart, onBack }) {
         <div class="rpg-room">
           <div>合言葉 <b class="rpg-room-code">${esc(net.room.code)}</b>　（友達に伝えて「参加する」から入ってもらう）</div>
           <ul class="rpg-members">${members}</ul>
-          <div class="rpg-small">${net.players.length}/${MAX_PLAYERS} 人。人数が多いほどボスの HP が増える（4人で 2.8倍）</div>
+          <div class="rpg-small">${net.players.length}/${MAX_PLAYERS} 人。人数が多いほどボスの HP が増える（いまの人数で ${RAID_SCALE(net.players.length).toFixed(2)}倍。8人で ${RAID_SCALE(8).toFixed(2)}倍）</div>
         </div>
         ${jobCards()}
         <div class="rpg-lobby-btns">
@@ -72,7 +72,7 @@ export function openLobby({ settings, save, onSolo, onStart, onBack }) {
     }
     el.innerHTML = `<div class="rpg-lobby-panel">
       <h2>ステージ2　冥王の城　―　レイド（1〜${MAX_PLAYERS}人）</h2>
-      <p class="rpg-small">職業を選んでください。左クリック：通常攻撃　Q：スキル　E：必殺技（攻撃を当てて溜める。近接ほど早く溜まる）　R：回復薬<br>
+      <p class="rpg-small">職業を選んでください。左クリック：通常攻撃　Q：スキル　E：必殺技（攻撃を当てて溜める。近接ほど早く溜まる）<br>
       ボスは近接で殴るとブレイク値が溜まり、満タンで気絶（被ダメージ1.5倍）。倒れた味方はそばに立つと蘇生できる。</p>
       ${msg ? `<p class="rpg-lobby-msg">${esc(msg)}</p>` : ''}
       ${body}

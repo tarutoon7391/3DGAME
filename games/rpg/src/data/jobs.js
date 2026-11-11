@@ -112,8 +112,11 @@ export const JOBS = {
 export const JOB_ORDER = ['swordsman', 'knight', 'mage', 'priest', 'archer', 'ninja', 'bard', 'summoner'];
 export const DEFAULT_JOB = 'swordsman';
 
-/** レイドの人数補正：ボスの HP・ブレイク値の上限に掛ける（1人 1.0 → 4人 2.8） */
-export const RAID_SCALE = (n) => 1 + 0.6 * (Math.max(1, n) - 1);
+/** レイドの人数補正：ボスの HP・ブレイク値の上限に掛ける（1人 1.0 → 4人 2.65 → 8人 4.85） */
+export const RAID_SCALE = (n) => 1 + 0.55 * (Math.max(1, n) - 1);
+
+/** 1ルームの最大人数（ルーム中継の上限も 8） */
+export const MAX_RAID_PLAYERS = 8;
 
 /** ダウンした味方の蘇生（近くに立っている秒数）と、蘇生直後の HP 割合 */
 export const REVIVE = { time: 3, radius: 2.2, hp: 0.4 };

@@ -83,14 +83,6 @@ export function createHudView(game) {
     return `結界 ${s.opened}/${s.total} 解除　次の結界の番人：あと ${s.left} 体`;
   }
 
-  /** 回復薬の欄（回復薬があるステージだけ出す） */
-  function potionSlot(me) {
-    if (!game.world?.def.potions) return '';
-    const n = game.state.progress.potions || 0;
-    const usable = n > 0 && me.hp < me.maxHp;
-    return `<div class="rpg-skill ${usable ? '' : 'off'}"><b>R</b><span>回復薬</span><small>残り ${n}</small></div>`;
-  }
-
   function drawHud() {
     const me = game.me();
     const tired = me.tired;
@@ -110,7 +102,7 @@ export function createHudView(game) {
         ? `<div class="rpg-skill off"><b>E</b><span>${esc(J.e.name)}</span><small>使用済み</small></div>`
         : `<div class="rpg-skill ${full ? 'ready' : 'off'}"><b>E</b><span>${esc(J.e.name)}</span><small>${full ? '撃てる！' : `${Math.floor(me.gauge)}%`}</small><div class="rpg-gauge" style="width:${Math.min(100, me.gauge)}%"></div></div>`}
       <div class="rpg-skill ${me.dodgeCd > 0 || tired ? 'off' : ''}"><b>Space</b><span>回避</span><small>ST${STAMINA.dodgeCost}</small></div>
-      <div class="rpg-skill ${tired ? 'off' : ''} ${me.dashing ? 'on' : ''}"><b>Shift</b><span>ダッシュ</span><small>ST消費</small></div>${potionSlot(me)}`;
+      <div class="rpg-skill ${tired ? 'off' : ''} ${me.dashing ? 'on' : ''}"><b>Shift</b><span>ダッシュ</span><small>ST消費</small></div>`;
     if (html !== lastSkills) {
       lastSkills = html;
       skills.innerHTML = html;

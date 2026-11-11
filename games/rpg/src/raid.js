@@ -258,7 +258,7 @@ export function createRaid(game, net, handlers) {
       case 'toast': game.toast(a[0], a[1]); break;
       case 'banner': game.hudView.banner(a[0]); break;
       case 'shot': game.projectiles.enemyShot(a[0], a[1], a[2], a[3], a[4], a[5]); break;
-      case 'bfx': if (a[0] === 'nova') game.boss?.playNova(a[1]); break;
+      case 'bfx': game.boss?.playFx(a[0], a[1]); break;
       default: handlers.onEvent(type, a);
     }
   }

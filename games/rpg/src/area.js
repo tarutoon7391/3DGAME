@@ -56,6 +56,7 @@ export function loadArea(game, id) {
   game.enemies.clear();
   game.projectiles.clear();
   game.allies?.clear();
+  game.hazards?.clear();
   clearJobZones();
   game.fx.clear();
   if (game.boss) {
@@ -82,10 +83,13 @@ export function loadArea(game, id) {
   }
   // 自分以外のプレイヤーも入口（再開地点）の近くへ
   const sp = (step > 0 && bd?.respawn) || def.spawn;
-  game.players.forEach((p, i) => p.reset(sp.x + (i - (game.players.length - 1) / 2) * 1.4, sp.z, Math.PI));
+  // 4人ずつ横に並べる（8人なら2列。入口通路の幅に収まるように）
+  game.players.forEach((p, i) => {
+    const row = Math.floor(i / 4);
+    const inRow = Math.min(4, game.players.length - row * 4);
+    p.reset(sp.x + ((i % 4) - (inRow - 1) / 2) * 1.6, sp.z + row * 1.8, Math.PI);
+  });
   game.state.progress.area = id;
-  // 回復薬（ステージ2）：入るたび・やり直すたびに持たされる
-  pr.potions = def.potions || 0;
   game.cam.snapBehind(Math.PI);
   if (def.camPitch) game.cam.setTpsPitch(def.camPitch);
   game.sound.bgm(def.bgm);

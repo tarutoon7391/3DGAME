@@ -61,6 +61,7 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
     emitters: [], // { delay, every, n, i, fn }
     zones: [], // 時間差で落ちる円（隕石・噴火） { x, z, r, t, tele, burst, color }
     novas: [], // 広がる輪 { r, max, speed, width, hit:Set, mesh, x, z }
+    stalkers: [], // 追尾する赤円 { tgt, x, z, t, follow, delay, r, tele, color }
     taunt: null, // 挑発 { id, t }
     net: null, // puppet：届いた状態
     takeHit(g, dmg, dx, dz, knock, o = {}) {
@@ -102,9 +103,12 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
       }
       b.pattern = s.pattern;
     },
-    /** 参加者：衝撃波の輪だけは見た目と「自分に当たったか」をこちらでも動かす */
-    playNova(d) {
-      spawnNova(d.x, d.z, d.max, d.speed, d.width, d.color);
+    /** 参加者：ホストから届いた「場の仕掛け」を再生する（輪・壁・引き寄せは自分に当たったかをこちらで判定） */
+    playFx(name, d) {
+      if (name === 'nova') spawnNova(d.x, d.z, d.max, d.speed, d.width, d.color);
+      else if (name === 'wall') game.hazards?.wall(d);
+      else if (name === 'donut') game.hazards?.donut(d);
+      else if (name === 'pull') game.hazards?.startPull(d);
     },
     dispose() {
       cancelAll();
@@ -150,7 +154,45 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
     b.emitters.length = 0;
     for (const zn of b.zones) zn.tele.end();
     b.zones.length = 0;
+    for (const st of b.stalkers) st.tele.end();
+    b.stalkers.length = 0;
     b.pos.y = 0;
+  }
+
+  /** 場の仕掛けを出して、参加者にも同じものを出させる */
+  function hazard(name, d) {
+    b.playFx(name, d);
+    game.raid?.bossFx(name, d);
+  }
+
+  /** 追尾する赤円：follow 秒間 標的の足元を追い、止まって delay 秒後に噴き上がる */
+  function spawnStalker(p) {
+    const alive = game.players.filter((o) => o.alive);
+    const tgt = alive.length ? alive[Math.floor(Math.random() * alive.length)] : bossTarget(game, b);
+    if (!tgt) return;
+    const dur = p.follow + p.delay;
+    b.stalkers.push({ tgt, x: tgt.pos.x, z: tgt.pos.z, t: 0, follow: p.follow, delay: p.delay, r: p.radius, color: p.color,
+      tele: game.fx.telegraph('circle', { x: tgt.pos.x, z: tgt.pos.z, r: p.radius, dur }) });
+    game.sound.se('windup');
+  }
+  function updateStalkers(dt) {
+    for (let i = b.stalkers.length - 1; i >= 0; i--) {
+      const st = b.stalkers[i];
+      st.t += dt;
+      if (st.t < st.follow) {
+        // 少し遅れて追いかける（走れば振り切れる）
+        const k = Math.min(1, dt * 2.6);
+        st.x += (st.tgt.pos.x - st.x) * k;
+        st.z += (st.tgt.pos.z - st.z) * k;
+        st.tele.follow(st.x, st.z, 0);
+      } else if (st.t >= st.follow + st.delay) {
+        st.tele.end();
+        b.stalkers.splice(i, 1);
+        hitAll(inCircle(st.x, st.z, st.r), meleeHit, st.x, st.z);
+        game.fx.burst(st.x, 0.5, st.z, st.color, 30, { speed: 5, up: 11, life: 0.7, size: 0.24 });
+        game.sound.se('slam');
+      }
+    }
   }
 
   function breakDown() {
@@ -337,7 +379,22 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
         }
         break;
       }
-      default: // ring / spiral / nova：自分の周り
+      case 'whirl':
+      case 'pull':
+        b.tele = game.fx.telegraph('circle', { x: b.pos.x, z: b.pos.z, r: p.radius, dur: dur + (kindOf(name) === 'pull' ? p.dur : 0) });
+        break;
+      case 'donut':
+        // 外側が危険・ボスの懐（rIn の内側）が安全
+        hazard('donut', { x: +b.pos.x.toFixed(2), z: +b.pos.z.toFixed(2), rIn: p.rIn, rOut: p.rOut, dur });
+        b.donutAt = { x: b.pos.x, z: b.pos.z };
+        break;
+      case 'wall': {
+        // すき間が1か所ある壁を、標的の方へ走らせる
+        const gapC = rand(-p.gapRange, p.gapRange);
+        hazard('wall', { x: +b.pos.x.toFixed(2), z: +b.pos.z.toFixed(2), yaw: +b.yaw.toFixed(3), wait: dur, speed: p.speed, max: p.max, thick: p.thick, gapC: +gapC.toFixed(2), gapW: p.gapW, frac: meleeHit, color: p.color });
+        break;
+      }
+      default: // ring / spiral / nova / stalker：自分の周り
         b.tele = game.fx.telegraph('circle', { x: b.pos.x, z: b.pos.z, r: kindOf(name) === 'nova' ? b.radius + 1.5 : 3, dur });
         break;
     }
@@ -463,7 +520,41 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
         b.t = 0;
         game.sound.se('swing');
         return;
-      default: // rain・erupt は予兆の時点で配置済み
+      case 'whirl':
+        b.state = 'whirl';
+        b.t = 0;
+        b.whirlTick = 0;
+        game.sound.se('spin');
+        return;
+      case 'pull':
+        hazard('pull', { x: +b.pos.x.toFixed(2), z: +b.pos.z.toFixed(2), strength: p.strength, t: p.dur, color: p.color });
+        game.sound.se('roar');
+        emit(p.dur, 1, 1, () => {
+          hitAll(inCircle(b.pos.x, b.pos.z, p.radius), meleeHit, b.pos.x, b.pos.z);
+          game.fx.burst(b.pos.x, 0.8, b.pos.z, p.color, 70, { speed: 12, up: 6, life: 0.8, size: 0.3 });
+          game.fx.shake(1);
+          game.sound.se('slam');
+        });
+        break;
+      case 'donut': {
+        const c = b.donutAt || b.pos;
+        hitAll((x, z, pr) => {
+          const d = Math.hypot(x - c.x, z - c.z);
+          return d > p.rIn - pr * 0.5 && d < p.rOut + pr;
+        }, meleeHit, c.x, c.z);
+        for (let i = 0; i < 28; i++) {
+          const a = (i / 28) * Math.PI * 2;
+          const r = (p.rIn + p.rOut) / 2;
+          game.fx.burst(c.x + Math.sin(a) * r, 0.4, c.z + Math.cos(a) * r, p.color, 2, { speed: 3, up: 7, life: 0.6 });
+        }
+        game.fx.shake(0.7);
+        game.sound.se('slam');
+        break;
+      }
+      case 'stalker':
+        emit(0, p.gap, Math.round(rv(p, 'count', 3)), () => spawnStalker(p));
+        break;
+      default: // rain・erupt・wall は予兆の時点で配置済み
         break;
     }
     b.state = 'act';
@@ -507,7 +598,10 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
     }
     const tgt = bossTarget(game, b);
     let walking = false;
-    if (b.alive) updateEmitters(dt);
+    if (b.alive) {
+      updateEmitters(dt);
+      updateStalkers(dt);
+    }
     updateNovas(dt);
     // ブレイク値は殴られていないと少しずつ減る
     if (b.state !== 'stun') b.brk = Math.max(0, b.brk - b.brkMax * 0.03 * dt);
@@ -639,6 +733,34 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
         }
         break;
       }
+      case 'whirl': {
+        // 回転しながら標的へ寄ってくる。tick ごとに周りを斬る
+        const p = P[b.pattern];
+        if (tgt) {
+          b.yaw = lerpAngle(b.yaw, yawTo(b.pos.x, b.pos.z, tgt.pos.x, tgt.pos.z), Math.min(1, dt * 2));
+          b.pos.x += Math.sin(b.yaw) * p.speed * sm() * dt;
+          b.pos.z += Math.cos(b.yaw) * p.speed * sm() * dt;
+        }
+        m.root.rotation.y += dt * 18;
+        m.armL.rotation.set(-Math.PI / 2, 0, 0.6);
+        m.armR.rotation.set(-Math.PI / 2, 0, -0.6);
+        b.whirlTick -= dt;
+        if (b.whirlTick <= 0) {
+          b.whirlTick = p.tick;
+          hitAll(inCircle(b.pos.x, b.pos.z, p.radius), meleeHit, b.pos.x, b.pos.z);
+          for (let i = 0; i < 10; i++) {
+            const a = (i / 10) * Math.PI * 2 + b.t * 7;
+            game.fx.burst(b.pos.x + Math.sin(a) * p.radius, 1, b.pos.z + Math.cos(a) * p.radius, p.color, 1, { speed: 2, up: 1, life: 0.3 });
+          }
+          game.sound.se('swing');
+        }
+        if (b.t >= rv(p, 'dur', 2)) {
+          m.root.rotation.y = 0;
+          b.state = 'act';
+          b.t = 0;
+        }
+        break;
+      }
       case 'charge': {
         const p = P[b.pattern];
         const dsh = b.dash;
@@ -750,6 +872,11 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
         m.root.rotation.y = -0.3;
         break;
       case 'charge': m.root.rotation.x = 0.35; break;
+      case 'whirl':
+        m.root.rotation.y += dt * 18;
+        m.armL.rotation.set(-Math.PI / 2, 0, 0.6);
+        m.armR.rotation.set(-Math.PI / 2, 0, -0.6);
+        break;
       case 'dead': poseDead(); break;
       default: poseWalk(n ? Math.hypot(n.x - b.pos.x, n.z - b.pos.z) > 0.05 : false);
     }
