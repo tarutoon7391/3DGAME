@@ -1,5 +1,5 @@
 // エリア定義（大きさ・つながり・配置）。形状の組み立ては src/world/*.js
-// 座標は XZ 平面（Y が上）。北が -Z。ステージ1→2→3 の一方通行で、ゲートをくぐると次のエリアへ
+// 座標は XZ 平面（Y が上）。北が -Z。ステージ1→2→3→4 の一方通行で、ゲートをくぐると次のエリアへ
 //
 // 迷路（maze）：cols×rows マスの完全迷路をシードから生成する（同じシードなら毎回同じ形）。
 //   入口は南端の entryCol、出口は北端の exitCol。正解ルート上に「結界」を置き、
@@ -73,14 +73,44 @@ export const AREAS = {
       ['skeleton', -6, 24], ['skeleton', 8, 22], ['wraith', 0, 12], ['golem', -14, 8], ['skeleton', 15, 4],
       ['wraith', -16, -4], ['golem', 10, -6], ['skeleton', -4, -6], ['wraith', 16, 26],
     ],
-    boss: { x: 0, z: -34, triggerZ: -18 },
+    // ボス（bosses の順に戦う）。triggerZ より奥へ入ると戦闘開始、door はそのとき閉まる扉の番号
+    bosses: [{ key: 'galdra', x: 0, z: -34, triggerZ: -18, door: 0 }],
+    next: 'castle', // ガルドラを倒すとステージ4へ
     signs: [{ x: 3.5, z: 34, key: 'dungeon' }],
+  },
+
+  // ステージ4：入口通路 → 中ボス1の間 → 中ボス2の間 → 冥王の間 と一直線。各部屋は扉で区切る
+  // 部屋に入ると後ろの扉が閉まり、ボスを倒すと次の扉が開く。やられたら「いま戦っているボスの部屋の前」から
+  castle: {
+    name: 'ステージ4　冥王の城', stage: 4, bgm: 'castle', dark: true, wallH: 7, castle: true,
+    bounds: { minX: -20, maxX: 20, minZ: -84, maxZ: 50 },
+    sky: 0x0b0614, fog: [12, 60], ground: 0x2a2233,
+    sun: { color: 0xb388ff, intensity: 0.45, hemi: 0.35 },
+    spawn: { x: 0, z: 44 },
+    gates: [],
+    solids: [
+      { minX: -20, maxX: -5, minZ: 30, maxZ: 50 },
+      { minX: 5, maxX: 20, minZ: 30, maxZ: 50 },
+    ],
+    // 扉（z の位置と、開口部の半分の幅）。0 は最初から開いている
+    doors: [{ z: 30, gap: 3 }, { z: -2, gap: 3 }, { z: -36, gap: 3.5 }],
+    pillars: [[-15, 24], [15, 24], [-15, 4], [15, 4], [-15, -8], [15, -8], [-15, -30], [15, -30], [-14, -46], [14, -46], [-14, -76], [14, -76]],
+    torches: [[-4.6, 40], [4.6, 40], [-19.5, 14], [19.5, 14], [-19.5, -19], [19.5, -19], [-19.5, -50], [19.5, -50], [-19.5, -68], [19.5, -68]],
+    // 入口通路の見張り（はじめから入ったときだけ出る）
+    enemies: [['skeleton', -3, 38], ['skeleton', 3, 36], ['wraith', 0, 33]],
+    bosses: [
+      { key: 'ignis', x: 0, z: 12, triggerZ: 25, door: 0, respawn: { x: 0, z: 44 }, circle: 0xff6d00 },
+      { key: 'frosga', x: 0, z: -22, triggerZ: -7, door: 1, respawn: { x: 0, z: 3 }, circle: 0x00b8d4 },
+      { key: 'zarvan', x: 0, z: -62, triggerZ: -41, door: 2, respawn: { x: 0, z: -31 }, circle: 0xaa00ff },
+    ],
+    midHeal: 0.5, // 中ボスを倒したときに回復する割合（最大 HP に対して）
+    signs: [{ x: 3.5, z: 42, key: 'castle' }],
   },
 };
 
 
 /** ステージの順番（つづきから・移行用） */
-export const AREA_ORDER = ['forest', 'canyon', 'dungeon'];
+export const AREA_ORDER = ['forest', 'canyon', 'dungeon', 'castle'];
 
 /** 古いセーブ（version 1）のエリア id → 新しい id */
 export const OLD_AREA_MAP = { village: 'forest', field: 'canyon', dungeon: 'dungeon' };

@@ -2,7 +2,6 @@
 // スキル欄・ミニマップ・ボス HP・調べるの案内・エリア名・暗転（自前 DOM）
 import { hud } from '/shared/ui.js';
 import { SKILLS, STAMINA } from '../data/player.js';
-import { BOSS } from '../data/enemies.js';
 import { nextSeal } from '../area.js';
 import { VIEW } from '../data/view.js';
 import { esc, angleDiff } from '../util.js';
@@ -20,8 +19,9 @@ export function createHudView(game) {
   const prompt = el('rpg-prompt', root);
   const banner = el('rpg-banner', root);
   const bossBar = el('rpg-boss', root);
-  bossBar.innerHTML = `<div class="rpg-boss-name">${esc(BOSS.name)}</div><div class="rpg-boss-track"><div class="rpg-boss-fill"></div></div>`;
+  bossBar.innerHTML = `<div class="rpg-boss-name"></div><div class="rpg-boss-track"><div class="rpg-boss-fill"></div></div>`;
   const bossFill = bossBar.querySelector('.rpg-boss-fill');
+  const bossName = bossBar.querySelector('.rpg-boss-name');
   const hint = el('rpg-hint', root);
   hint.textContent = 'クリックで視点操作（マウスでカメラ）';
   const fade = el('rpg-fade', document.body);
@@ -65,7 +65,14 @@ export function createHudView(game) {
   function goal() {
     const w = game.world;
     if (!w) return '';
-    if (w.def.boss) return game.boss?.active ? `${BOSS.name}を倒せ！` : '最深部のボス部屋へ進め';
+    const list = w.def.bosses;
+    if (list) {
+      const bs = game.boss;
+      if (!bs) return '';
+      const tag = list.length > 1 ? `（${bs.idx + 1}/${list.length}）` : '';
+      if (bs.active) return `${bs.name}を倒せ！${tag}`;
+      return list.length > 1 ? `奥の部屋へ進め${tag}` : '最深部のボス部屋へ進め';
+    }
     const s = nextSeal(game);
     if (!s) return '';
     if (s.done) return '結界はすべて消えた。北の出口へ！';
@@ -223,6 +230,7 @@ export function createHudView(game) {
       const showBoss = bs && bs.active && bs.alive;
       bossBar.style.display = showBoss ? 'block' : 'none';
       if (showBoss) {
+        if (bossName.textContent !== bs.name) bossName.textContent = bs.name;
         bossFill.style.width = `${(bs.hp / bs.maxHp) * 100}%`;
         bossBar.classList.toggle('raged', bs.raged);
       }

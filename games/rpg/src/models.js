@@ -215,24 +215,49 @@ function mage(bm) {
 }
 
 // ---------------- ボス ----------------
-export function makeBossModel(color) {
+/**
+ * ボスの形。look: { scale, horn, eye, weapon: club|sword|staff|scythe, metal }（省略時はガルドラ）
+ * 武器は右腕の先に付く
+ */
+export function makeBossModel(color, look = {}) {
+  const { scale = 2.5, horn: hornColor = 0xf5f0e1, eye = 0xffea00, weapon = 'club', metal = 0x37474f } = look;
   const bodyMat = ownMat(color);
   bodyMat.emissive = new THREE.Color(0x000000);
-  const h = humanoid({ clothMat: bodyMat, skinMat: bodyMat, pants: 0x2b1b17, eye: 0xffea00 });
-  h.group.scale.setScalar(2.5);
-  const horn = mat(0xf5f0e1);
+  const h = humanoid({ clothMat: bodyMat, skinMat: bodyMat, pants: 0x2b1b17, eye });
+  h.group.scale.setScalar(scale);
+  const horn = mat(hornColor);
   const hl = part(cone(0.1, 0.5, 5), horn, -0.22, 2.25, 0, h.root);
   hl.rotation.z = 0.5;
   const hr = part(cone(0.1, 0.5, 5), horn, 0.22, 2.25, 0, h.root);
   hr.rotation.z = -0.5;
-  part(box(0.9, 0.2, 0.55), mat(0x37474f), 0, 1.58, 0, h.root); // 肩鎧
-  part(box(0.74, 0.18, 0.46), mat(0x37474f), 0, 0.88, 0, h.root); // 腰帯
-  // 金棒（右手）
-  const club = new THREE.Group();
-  club.position.set(0, -0.7, 0);
-  h.armR.add(club);
-  part(cyl(0.05, 0.05, 0.4, 6), mat(0x4e342e), 0, -0.1, 0, club);
-  part(cyl(0.16, 0.1, 1.0, 6), mat(0x455a64), 0, -0.75, 0, club);
+  part(box(0.9, 0.2, 0.55), mat(metal), 0, 1.58, 0, h.root); // 肩鎧
+  part(box(0.74, 0.18, 0.46), mat(metal), 0, 0.88, 0, h.root); // 腰帯
+  if (weapon === 'scythe') {
+    // 冥王：角を1本増やしてマント
+    const c = part(cone(0.08, 0.6, 5), horn, 0, 2.35, 0.05, h.root);
+    c.rotation.x = -0.2;
+    part(box(0.95, 1.3, 0.06), mat(0x1a0026), 0, 1.0, -0.28, h.root);
+  }
+  // 武器（右手）
+  const wpn = new THREE.Group();
+  wpn.position.set(0, -0.7, 0);
+  h.armR.add(wpn);
+  const glow = (c) => mat(c, { emissive: c, emissiveIntensity: 1.2 });
+  if (weapon === 'sword') {
+    part(box(0.3, 0.08, 0.12), mat(0x5d4037), 0, -0.05, 0, wpn);
+    part(box(0.12, 1.5, 0.06), glow(0xff7043), 0, -0.85, 0, wpn);
+  } else if (weapon === 'staff') {
+    part(cyl(0.04, 0.04, 1.6, 6), mat(0x5d4037), 0, -0.3, 0, wpn);
+    part(sphere(0.18, 8, 6), glow(0x80deea), 0, -1.15, 0, wpn);
+  } else if (weapon === 'scythe') {
+    part(cyl(0.04, 0.04, 1.8, 6), mat(0x212121), 0, -0.4, 0, wpn);
+    const blade = part(box(0.9, 0.12, 0.05), glow(0xea80fc), 0.4, -1.25, 0, wpn);
+    blade.rotation.z = -0.35;
+  } else {
+    // 金棒
+    part(cyl(0.05, 0.05, 0.4, 6), mat(0x4e342e), 0, -0.1, 0, wpn);
+    part(cyl(0.16, 0.1, 1.0, 6), mat(0x455a64), 0, -0.75, 0, wpn);
+  }
   h.armR.rotation.x = -0.4;
-  return { ...h, bodyMat, club };
+  return { ...h, bodyMat, club: wpn };
 }
