@@ -770,7 +770,8 @@ const GENERIC = {
     let yaw = d.yaw;
     if (sk.aim && d.bx !== undefined) yaw = Math.atan2(d.bx - d.x, d.bz - d.z);
     const fire = (i) => {
-      const a = yaw + (i - (n - 1) / 2) * (sk.spread || 0) + (sk.jitter ? (Math.random() - 0.5) * sk.jitter : 0);
+      const base = sk.follow ? p.yaw : yaw; // follow：撃つたびに今向いている方向へ（ガトリング）
+      const a = base + (i - (n - 1) / 2) * (sk.spread || 0) + (sk.jitter ? (Math.random() - 0.5) * sk.jitter : 0);
       game.skillFx?.muzzle?.(p); // 拳銃：銃口が光る
       const o = { pop: sk.pop, speed: sk.speed || 22, mult: sk.mult, color: sk.colors ? sk.colors[i % sk.colors.length] : sk.color, size: sk.size || 0.3, range: sk.range || 24, pierce: sk.pierce, explode: sk.explode, dot: sk.dot, split: sk.split, boomerang: sk.boomerang, local, gauge: sk.gaugeSelf ?? GAUGE.gainSkill, zap: !!sk.chain };
       if (sk.debuff) o.onHit = (t) => { if (t && game.bosses.includes(t)) game.bossCommand({ type: 'debuff', ...sk.debuff, sub: t.sub }); };
