@@ -25,11 +25,15 @@ export function forEachTarget(game, fn) {
 export function strike(game, pl, target, mult, opts = {}) {
   const { knock = 1, color = 0xffffff, melee = false, crit: forceCrit = false, clone = false } = opts;
   const J = pl.job;
-  const crit = forceCrit || Math.random() < PLAYER.critRate + (J.critBonus || 0);
+  let critRate = PLAYER.critRate + (J.critBonus || 0);
+  for (const b of Object.values(pl.buffs)) if (b.critAdd) critRate += b.critAdd;
+  const crit = forceCrit || Math.random() < critRate;
+  // 道化師：たまにダメージ2倍
+  if (J.luckyChance && Math.random() < J.luckyChance) mult *= 2;
   // 職業の特性による倍率：腐食中のボス（錬金術師）・瀕死のボス（処刑人）
   if (J.vulnBonus && target.debuffs?.vuln) mult *= J.vulnBonus;
   if (J.executeBonus && target.maxHp && target.hp / target.maxHp <= J.executeAt) mult *= J.executeBonus;
-  const dmg = calcDamage(pl.atkNow(), mult * (crit ? PLAYER.critMul : 1), target.defense);
+  const dmg = calcDamage(pl.atkNow(), mult * (crit ? PLAYER.critMul + (J.critDmgBonus || 0) : 1), target.defense);
   const dx = target.pos.x - pl.pos.x;
   const dz = target.pos.z - pl.pos.z;
   const len = Math.hypot(dx, dz) || 1;
@@ -47,6 +51,17 @@ export function strike(game, pl, target, mult, opts = {}) {
   game.fx.burst(target.pos.x, 1, target.pos.z, color, crit ? 14 : 8, { speed: 5, up: 3, life: 0.4 });
   game.sound.se(crit ? 'crit' : 'hit');
   if (melee) game.fx.hitstop(crit ? 0.07 : 0.04);
+  // 魔剣士の魔力付与：近接が当たると小さな爆発（爆発そのものは付与を起こさない）
+  const ench = pl.buffs.enchant;
+  if (ench && melee && !opts.enchanted) {
+    game.fx.burst(target.pos.x, 1.2, target.pos.z, ench.color || 0x7c4dff, 10, { speed: 5, up: 3, life: 0.35 });
+    radiusHit(game, pl, ench.mult, ench.radius, { enchanted: true, gauge: 0, color: ench.color || 0x7c4dff, knock: 0.5 }, target.pos.x, target.pos.z);
+  }
+  // 鞭使い：当てるたびに足が速くなる（最大 +30%・2秒）
+  if (J.whipSpeed && melee && !pl.remote) {
+    const st = Math.min(J.whipSpeed.max, (pl.buffs.whipspeed?.stacks || 0) + 1);
+    pl.buff('whipspeed', 2, { stacks: st, speedMul: 1 + st * J.whipSpeed.per });
+  }
   // 忍者の影分身：少し遅れて分身が同じ相手を斬る
   if (pl.buffs.clone && melee && !clone) {
     const cm = pl.buffs.clone.cloneMult;
@@ -94,9 +109,40 @@ export function hurtPlayer(game, pl, frac, fromX, fromZ) {
     return true;
   }
   if (pl.invuln > 0) return false;
+  // 侍の見切り：構え中に攻撃を受けたら無傷で反撃
+  if (pl.buffs.counter) {
+    const c = pl.buffs.counter;
+    delete pl.buffs.counter;
+    pl.invuln = Math.max(pl.invuln, 0.6);
+    game.fx.burst(pl.pos.x, 1.4, pl.pos.z, 0xffffff, 30, { speed: 7, up: 3, life: 0.4 });
+    game.sound.se('crit');
+    game.toastOnce('見切った！ 反撃！', 1000);
+    let best = null;
+    let bd = Infinity;
+    forEachTarget(game, (e) => {
+      const d = Math.hypot(e.pos.x - pl.pos.x, e.pos.z - pl.pos.z) - e.radius;
+      if (d < bd) { bd = d; best = e; }
+    });
+    if (best && bd < c.range) strike(game, pl, best, c.mult, { melee: true, crit: true, gauge: 15, knock: 2 });
+    return false;
+  }
   // 重騎士の守護結界の中にいれば被ダメ半減
   if (game.inAegis?.(pl.pos.x, pl.pos.z)) pl.buff('aegis', 0.2);
-  const dmg = Math.max(1, Math.ceil(pl.maxHp * frac * pl.dmgTakenMul()));
+  let dmg = Math.max(1, Math.ceil(pl.maxHp * frac * pl.dmgTakenMul()));
+  // 結界師のバリア：先にバリアが受け止める
+  const bar = pl.buffs.barrier;
+  if (bar && bar.hp > 0) {
+    const used = Math.min(bar.hp, dmg);
+    bar.hp -= used;
+    dmg -= used;
+    game.fx.burst(pl.pos.x, 1.2, pl.pos.z, 0x80d8ff, 10, { speed: 3, up: 2, life: 0.4 });
+    if (bar.hp <= 0) delete pl.buffs.barrier;
+    if (dmg <= 0) {
+      pl.invuln = Math.max(pl.invuln, 0.3);
+      game.sound.se('hit');
+      return true;
+    }
+  }
   pl.hp = Math.max(0, pl.hp - dmg);
   const dx = pl.pos.x - fromX;
   const dz = pl.pos.z - fromZ;

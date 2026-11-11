@@ -501,11 +501,49 @@ function startAction(p, action, dur) {
 function skillData(game, p, intent, dist = 0) {
   const yaw = intent.aimYaw;
   const [ox, oz] = fwd(yaw, dist);
-  return { x: p.pos.x, z: p.pos.z, yaw, tx: p.pos.x + ox, tz: p.pos.z + oz, still: p.still > 0.3 };
+  const d = { x: p.pos.x, z: p.pos.z, yaw, tx: p.pos.x + ox, tz: p.pos.z + oz, still: p.still > 0.3 };
+  // 一番近い戦闘中のボス（鎖で飛びつく・自動で狙う技用）
+  let best = null;
+  let bd = Infinity;
+  for (const b of game.bosses) {
+    if (!b.active || !b.alive) continue;
+    const dd = Math.hypot(b.pos.x - p.pos.x, b.pos.z - p.pos.z);
+    if (dd < bd) { bd = dd; best = b; }
+  }
+  if (best) Object.assign(d, { bx: +best.pos.x.toFixed(2), bz: +best.pos.z.toFixed(2), br: best.radius });
+  return d;
+}
+
+/** 職業データからスキル定義を探す（汎用の型で動かす技用） */
+function findSkill(p, id) {
+  const J = p.job;
+  for (const k of ['q', 'e', 'r']) if (J[k]?.id === id) return J[k];
+  return null;
+}
+
+/** 技を実行する。専用の処理（SKILLS）が無ければ、データの kind に応じた汎用処理（GENERIC） */
+function run(game, p, id, d, local) {
+  if (SKILLS[id]) return SKILLS[id](game, p, d, local);
+  const sk = findSkill(p, id);
+  if (sk && GENERIC[sk.kind]) GENERIC[sk.kind](game, p, d, local, sk);
 }
 
 function cast(game, p, id, d) {
-  SKILLS[id](game, p, d, true);
+  const sk = findSkill(p, id);
+  // 暗黒騎士：HP を払って撃つ技（足りなければ撃てない）
+  if (sk?.hpCost) {
+    const cost = p.maxHp * sk.hpCost;
+    if (p.hp <= cost + 1) {
+      game.toastOnce('HP が足りない', 1000);
+      return false;
+    }
+    p.hp -= cost;
+    if (p.job.hpCostGauge) p.addGauge(sk.hpCost * 100 * p.job.hpCostGauge);
+    game.fx.burst(p.pos.x, 1.2, p.pos.z, 0x880e4f, 14, { speed: 3, up: 3, life: 0.5 });
+  }
+  run(game, p, id, d, true);
+  // 魔剣士：スキルを使うたびに必殺ゲージ
+  if (p.job.gaugeOnSkill && sk && sk !== p.job.r) p.addGauge(p.job.gaugeOnSkill);
   game.raid?.sendSkill(p, id, d);
   return true;
 }
@@ -531,7 +569,182 @@ export function castR(game, p, intent) {
 
 /** 他の人のスキルを見た目だけ再生する */
 export function playRemoteSkill(game, p, id, d) {
-  if (SKILLS[id]) SKILLS[id](game, p, d, false);
+  run(game, p, id, d, false);
+}
+
+/**
+ * 汎用の技の型（データの kind で選ぶ）。新しい職業はほとんどこれの組み合わせで作っている
+ *   dash 前方へ突進して通り道を斬る（toBoss でボスへ飛びつく） / burst 自分の周りに範囲攻撃（ticks で連続）
+ *   cone 前方の扇に攻撃 / shots 飛び道具（count・spread・explode・pierce・dot・debuff・chain）
+ *   leap 跳んで着地点に範囲攻撃 / zone 地面に置く効果（field 継続ダメージ・strike 時間差の一撃・totem 味方強化・trap 罠）
+ *   teambuff 味方を強化（vals.shield ならバリア） / selfbuff 自分を強化 / teamheal 範囲回復 / teamgauge 必殺ゲージを配る
+ *   debuff ボスを弱体化 / counter 見切りの構え / random 候補からランダムに1つ（道化師）
+ */
+const GENERIC = {
+  dash(game, p, d, local, sk) {
+    let dd = d;
+    if (sk.toBoss && d.bx !== undefined) {
+      // 鎖でボスへ飛びつく：ボスの手前まで
+      const dist = Math.max(1.5, Math.hypot(d.bx - d.x, d.bz - d.z) - (d.br || 1.5) - 0.8);
+      dd = { ...d, yaw: Math.atan2(d.bx - d.x, d.bz - d.z) };
+      sk = { ...sk, dist: Math.min(sk.dist, dist) };
+      for (let k = 0; k < 1; k += 0.1) game.fx.burst(d.x + (d.bx - d.x) * k, 1.2, d.z + (d.bz - d.z) * k, 0x9e9e9e, 1, { speed: 0.5, up: 0.5, life: 0.3, grav: 0 });
+    }
+    dashStrike(game, p, dd, local, sk, sk.color ?? 0xffffff, { brkMul: sk.brkMul, knock: sk.knock });
+  },
+  burst(game, p, d, local, sk) {
+    const ticks = sk.ticks || 1;
+    startAction(p, sk.anim || 'spin', ticks > 1 ? ticks * sk.every + 0.15 : 0.45);
+    let n = 0;
+    let tick = 0;
+    game.sound.se('spin');
+    p.skillTick = (dt) => {
+      tick -= dt;
+      if (n >= ticks || tick > 0) return;
+      tick = sk.every || 0.2;
+      n++;
+      game.fx.burst(p.pos.x, 1, p.pos.z, sk.color, 24, { speed: 8, up: 1.5, life: 0.4, size: 0.15, grav: 2 });
+      if (local) radiusHit(game, p, sk.mult, sk.radius, { melee: sk.melee !== false, gauge: GAUGE.gainSkill, color: sk.color, brkMul: sk.brkMul, knock: sk.knock ?? 1.2 });
+    };
+    if (!local) game.fx.burst(p.pos.x, 1, p.pos.z, sk.color, 24, { speed: 8, up: 1.5, life: 0.4, size: 0.15, grav: 2 });
+  },
+  cone(game, p, d, local, sk) {
+    startAction(p, 'cast', 0.3);
+    game.sound.se(sk.sound || 'swing');
+    for (let i = 0; i < 16; i++) {
+      const a = d.yaw + (Math.random() - 0.5) * sk.arc;
+      const r = Math.random() * sk.range;
+      game.fx.burst(p.pos.x + Math.sin(a) * r, 1.1, p.pos.z + Math.cos(a) * r, sk.color, 2, { speed: 2.5, up: 1, life: 0.35, grav: 0 });
+    }
+    if (local) {
+      meleeArc(game, p, d.yaw, sk.mult, sk.range, sk.arc, { melee: sk.melee !== false, gauge: sk.gaugeSelf ?? GAUGE.gainSkill, brkMul: sk.brkMul, knock: sk.knock ?? 1.2, color: sk.color, crit: sk.crit, lifesteal: sk.lifesteal });
+      if (sk.dot) forEachTarget(game, (e) => {
+        if (Math.hypot(e.pos.x - p.pos.x, e.pos.z - p.pos.z) <= sk.range + e.radius) addDot(game, p, e, sk.dot);
+      });
+    }
+  },
+  shots(game, p, d, local, sk) {
+    startAction(p, 'cast', 0.25);
+    p.waveT = 0.25;
+    const n = sk.count || 1;
+    // aim：一番近いボスへ自動で狙う（拳銃使いの必殺技）
+    let yaw = d.yaw;
+    if (sk.aim && d.bx !== undefined) yaw = Math.atan2(d.bx - d.x, d.bz - d.z);
+    const fire = (i) => {
+      const a = yaw + (i - (n - 1) / 2) * (sk.spread || 0) + (sk.jitter ? (Math.random() - 0.5) * sk.jitter : 0);
+      const o = { speed: sk.speed || 22, mult: sk.mult, color: sk.color, size: sk.size || 0.3, range: sk.range || 24, pierce: sk.pierce, explode: sk.explode, dot: sk.dot, local, gauge: sk.gaugeSelf ?? GAUGE.gainSkill };
+      if (sk.debuff) o.onHit = (t) => { if (t && game.bosses.includes(t)) game.bossCommand({ type: 'debuff', ...sk.debuff, sub: t.sub }); };
+      if (sk.chain) o.onHit = chainHit(game, p, sk.chain, sk.color);
+      game.projectiles.playerShot(p, p.pos.x, p.pos.z, a, o);
+    };
+    if (sk.every) {
+      // 連射：少しずつ間をあけて撃つ
+      for (let i = 0; i < n; i++) p.pending.push({ t: i * sk.every, fn: () => { fire(i); game.sound.se('shoot'); } });
+    } else {
+      for (let i = 0; i < n; i++) fire(i);
+      game.sound.se(sk.sound || 'shoot');
+    }
+  },
+  leap(game, p, d, local, sk) {
+    startAction(p, 'dash', sk.time);
+    const dx = d.tx - p.pos.x;
+    const dz = d.tz - p.pos.z;
+    const len = Math.hypot(dx, dz) || 1;
+    p.dodgeX = dx / len;
+    p.dodgeZ = dz / len;
+    p.yaw = d.yaw;
+    p.dashSpeed = len / sk.time;
+    if (local) p.invuln = Math.max(p.invuln, sk.time + 0.2);
+    game.sound.se('dodge');
+    p.skillTick = () => {
+      p.model.root.position.y = Math.sin(Math.min(1, p.actT / sk.time) * Math.PI) * (sk.height || 3.5);
+      if (p.didSkill || p.actT < sk.time * 0.9) return;
+      p.didSkill = true;
+      p.model.root.position.y = 0;
+      game.fx.burst(p.pos.x, 0.5, p.pos.z, sk.color, 45, { speed: 10, up: 6, life: 0.7, size: 0.25 });
+      game.fx.shake(0.7);
+      game.sound.se('slam');
+      if (local) radiusHit(game, p, sk.mult, sk.radius, { melee: true, gauge: GAUGE.gainSkill, knock: 2, color: sk.color, brkMul: sk.brkMul });
+    };
+  },
+  zone(game, p, d, local, sk) {
+    startAction(p, 'cast', 0.35);
+    game.sound.se(sk.zone === 'trap' ? 'windup' : 'seal');
+    const at = sk.at === 'aim' ? { x: d.tx, z: d.tz } : { x: d.x, z: d.z };
+    const count = sk.count || 1;
+    for (let i = 0; i < count; i++) {
+      // 複数置くときは輪の形にばらす（罠の大地など）
+      const a = (i / count) * Math.PI * 2;
+      const off = count > 1 ? sk.scatter || 4 : 0;
+      addZone(game, {
+        kind: sk.zone, x: at.x + Math.sin(a) * off, z: at.z + Math.cos(a) * off, r: sk.radius, t: sk.dur, delay: sk.delay,
+        every: sk.every, tick: sk.every || 0, mult: (sk.mult || 0) * (sk.zone === 'trap' ? p.job.trapBonus || 1 : 1), color: sk.color,
+        trigger: sk.trigger, buff: sk.buff, debuff: sk.debuff, heal: sk.heal, owner: p.id, local, p,
+      });
+    }
+  },
+  teambuff(game, p, d, local, sk) {
+    startAction(p, 'cast', 0.4);
+    game.sound.se('seal');
+    ringFx(game, d.x, d.z, sk.radius || 3, sk.color);
+    if (local) game.teamEffect({ kind: 'buff', name: sk.buff, dur: sk.dur, vals: sk.vals, x: d.x, z: d.z, r: sk.radius || 0, msg: sk.msg });
+  },
+  selfbuff(game, p, d, local, sk) {
+    startAction(p, 'cast', 0.35);
+    game.sound.se(sk.sound || 'seal');
+    game.fx.burst(p.pos.x, 1.4, p.pos.z, sk.color, 36, { speed: 5, up: 4, life: 0.7 });
+    if (local) {
+      p.buff(sk.buff, sk.dur, { ...sk.vals });
+      if (sk.invuln) p.invuln = Math.max(p.invuln, sk.invuln);
+      if (sk.msg) game.toastOnce(sk.msg, 1600);
+    }
+  },
+  teamheal(game, p, d, local, sk) {
+    startAction(p, 'cast', 0.4);
+    game.sound.se('seal');
+    ringFx(game, d.x, d.z, sk.radius, sk.color);
+    if (local) game.teamEffect({ kind: 'heal', x: d.x, z: d.z, r: sk.radius, amount: sk.amount });
+  },
+  teamgauge(game, p, d, local, sk) {
+    startAction(p, 'cast', 0.4);
+    game.sound.se('seal');
+    game.fx.burst(p.pos.x, 2, p.pos.z, sk.color, 50, { speed: 7, up: 5, life: 0.9 });
+    if (local) {
+      game.teamEffect({ kind: 'gauge', amount: sk.amount, x: d.x, z: d.z, r: sk.radius || 0, from: p.id });
+      if (sk.self) p.addGauge(sk.self);
+    }
+  },
+  debuff(game, p, d, local, sk) {
+    startAction(p, 'cast', 0.4);
+    game.sound.se('gate');
+    for (const b of game.bosses) if (b.alive) ringFx(game, b.pos.x, b.pos.z, b.radius + 2, sk.color);
+    if (local) for (const db of sk.debuffs) game.bossCommand({ type: 'debuff', ...db });
+  },
+  counter(game, p, d, local, sk) {
+    startAction(p, 'cast', sk.dur);
+    game.sound.se('windup');
+    game.fx.burst(p.pos.x, 1.2, p.pos.z, 0xffffff, 16, { speed: 2, up: 1, life: 0.5 });
+    if (local) p.buff('counter', sk.dur, { mult: sk.mult, range: sk.range });
+  },
+  random(game, p, d, local, sk) {
+    // 道化師：候補のうち1つ（何が出たかは d.pick で他の人にも同じものを見せる）
+    if (d.pick === undefined) d.pick = Math.floor(Math.random() * sk.pool.length);
+    const one = sk.pool[d.pick];
+    game.toastOnce(`${sk.name}：${one.name}！`, 1400);
+    GENERIC[one.kind](game, p, d, local, one);
+  },
+};
+
+/** 雷の連鎖：当たった相手の近くの別の敵にも 60% で飛ぶ */
+function chainHit(game, p, ch, color) {
+  return (t) => {
+    if (!t) return;
+    forEachTarget(game, (e) => {
+      if (e === t || Math.hypot(e.pos.x - t.pos.x, e.pos.z - t.pos.z) > ch.range) return;
+      for (let k = 0; k < 1; k += 0.2) game.fx.burst(t.pos.x + (e.pos.x - t.pos.x) * k, 1.6, t.pos.z + (e.pos.z - t.pos.z) * k, color, 1, { speed: 0.5, up: 0.5, life: 0.25, grav: 0 });
+      strike(game, p, e, ch.mult, { gauge: 1, knock: 0, color });
+    });
+  };
 }
 
 /** 通常攻撃（飛び道具） */
@@ -569,6 +782,7 @@ function frontTarget(game, p, range, halfArc) {
 
 /** まっすぐ駆け抜けて通り道を斬る（忍者の瞬影斬・槍兵の突進突き） */
 function dashStrike(game, p, d, local, q, color, extra = {}) {
+  extra = Object.fromEntries(Object.entries(extra).filter(([, v]) => v !== undefined));
   startAction(p, 'dash', q.time);
   p.dodgeX = Math.sin(d.yaw);
   p.dodgeZ = Math.cos(d.yaw);
@@ -630,7 +844,25 @@ function addZone(game, z) {
     game.scene.add(zoneGroup);
   }
   z.age = 0;
-  if (z.kind === 'mine') {
+  if (z.kind === 'field' || z.kind === 'strike' || z.kind === 'totem') {
+    geoCache.ring ||= new THREE.RingGeometry(0.92, 1, 40).rotateX(-Math.PI / 2);
+    z.mat = new THREE.MeshBasicMaterial({ color: z.color, transparent: true, opacity: 0.7, depthWrite: false });
+    z.mesh = new THREE.Mesh(geoCache.ring, z.mat);
+    z.mesh.scale.setScalar(z.r);
+    z.mesh.position.y = 0.06;
+    if (z.kind === 'totem') {
+      geoCache.totem ||= new THREE.CylinderGeometry(0.25, 0.35, 2.2, 6);
+      z.rockMat = new THREE.MeshBasicMaterial({ color: z.color });
+      z.rock = new THREE.Mesh(geoCache.totem, z.rockMat);
+      z.rock.position.set(z.x, 1.1, z.z);
+      zoneGroup.add(z.rock);
+    }
+  } else if (z.kind === 'trap') {
+    geoCache.trap ||= new THREE.CylinderGeometry(0.6, 0.6, 0.12, 8);
+    z.mat = new THREE.MeshBasicMaterial({ color: z.color });
+    z.mesh = new THREE.Mesh(geoCache.trap, z.mat);
+    z.mesh.position.y = 0.07;
+  } else if (z.kind === 'mine') {
     geoCache.mine ||= new THREE.CylinderGeometry(0.45, 0.55, 0.25, 10);
     z.mat = new THREE.MeshBasicMaterial({ color: 0xff6f00 });
     z.mesh = new THREE.Mesh(geoCache.mine, z.mat);
@@ -701,6 +933,57 @@ export function updateJobZones(game, dt) {
         if (z.local) radiusHit(game, z.p, z.mult, z.r, { color: 0xc5e1a5, knock: 0.2, gauge: 1 }, z.x, z.z);
       }
       if (z.t <= 0) removeZone(i);
+    } else if (z.kind === 'field') {
+      // 継続ダメージ（と、heal があれば中の味方の回復）
+      z.mat.opacity = 0.45 + 0.25 * Math.sin(z.age * 6);
+      if (Math.random() < 0.5) {
+        const a = Math.random() * Math.PI * 2;
+        const r = Math.random() * z.r;
+        game.fx.burst(z.x + Math.sin(a) * r, 0.3, z.z + Math.cos(a) * r, z.color, 1, { speed: 1, up: 2, life: 0.4 });
+      }
+      z.tick -= dt;
+      if (z.tick <= 0) {
+        z.tick = z.every;
+        if (z.local && z.mult) radiusHit(game, z.p, z.mult, z.r, { gauge: 1, knock: 0.2, color: z.color }, z.x, z.z);
+        if (z.heal) {
+          const me = game.me();
+          if (me?.alive && Math.hypot(me.pos.x - z.x, me.pos.z - z.z) <= z.r) me.hp = Math.min(me.maxHp, me.hp + me.maxHp * z.heal);
+        }
+      }
+      if (z.t <= 0) removeZone(i);
+    } else if (z.kind === 'strike') {
+      // 時間差の一撃（落雷・流星など）
+      z.mat.opacity = 0.4 + 0.4 * Math.sin(z.age * 20);
+      if (z.t <= 0) {
+        game.fx.burst(z.x, 0.6, z.z, z.color, 50, { speed: 10, up: 9, life: 0.7, size: 0.26 });
+        game.fx.shake(0.6);
+        game.sound.se('slam');
+        if (z.local) radiusHit(game, z.p, z.mult, z.r, { color: z.color, knock: 1.5, gauge: GAUGE.gainSkill }, z.x, z.z);
+        removeZone(i);
+      }
+    } else if (z.kind === 'totem') {
+      // トーテム：近くにいる自分を強化し続ける（各自のブラウザで自分に）
+      z.mat.opacity = 0.35 + 0.2 * Math.sin(z.age * 3);
+      z.rock.rotation.y += dt;
+      const me = game.me();
+      if (me?.alive && Math.hypot(me.pos.x - z.x, me.pos.z - z.z) <= z.r && z.buff) me.buff(z.buff.name, 0.6, { ...z.buff.vals });
+      if (z.t <= 0) removeZone(i);
+    } else if (z.kind === 'trap') {
+      // 罠：ボスが踏むと発動（ダメージ＋弱体化）。当たり判定は置いた本人だけ
+      z.mat.color.setHex(Math.floor(z.age * 2) % 2 ? z.color : 0x212121);
+      let hit = null;
+      for (const b of game.bosses) if (b.active && b.alive && Math.hypot(b.pos.x - z.x, b.pos.z - z.z) < z.trigger + b.radius) hit = b;
+      if (hit || z.t <= 0) {
+        if (hit) {
+          game.fx.burst(z.x, 0.5, z.z, z.color, 40, { speed: 8, up: 6, life: 0.6, size: 0.24 });
+          game.sound.se('slam');
+          if (z.local) {
+            radiusHit(game, z.p, z.mult, z.r, { color: z.color, knock: 0.5, gauge: GAUGE.gainSkill, brkMul: 2 }, z.x, z.z);
+            if (z.debuff) game.bossCommand({ type: 'debuff', ...z.debuff, sub: hit.sub });
+          }
+        }
+        removeZone(i);
+      }
     } else if (z.kind === 'mine') {
       z.mat.color.setHex(Math.floor(z.age * 4) % 2 ? 0xff6f00 : 0xffd180);
       // ボスが近づくか、時間が来たら爆発（当たり判定は置いた本人だけ）
