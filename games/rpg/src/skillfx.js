@@ -14,6 +14,7 @@ import { createSkillFxB } from './skillfx_b.js';
 import { createSkillFxC } from './skillfx_c.js';
 import { createSkillFxD } from './skillfx_d.js';
 import { createSkillFxE } from './skillfx_e.js';
+import { createSkillFxF } from './skillfx_f.js';
 
 /** 矢の雨：上へ放った矢が落ちてくるまでの間（秒）。この間は矢を降らせない（見た目だけ） */
 const RAIN_DELAY = 0.4;
@@ -341,30 +342,45 @@ export function createSkillFx(game) {
   const Cx = createSkillFxC({ game, root, add, mesh, column, slash, streak });
   const D = createSkillFxD({ game, root, add, mesh });
   const E = createSkillFxE({ game, root, add, mesh, slash, streak, column });
+  const F = createSkillFxF({ game, root, add, mesh });
 
   return {
     ...B,
     ...Cx,
     ...D,
     ...E,
+    ...F,
     /** 自分強化の技ごとの見た目。true を返すと、いつもの光の柱は出さない */
     selfBuffFx(p, sk) {
       if (sk.id === 'enchant') E.enchantFx(p);
+      if (sk.id === 'dragonform') {
+        F.dragonFormFx(p, sk); // 空から雷 → 赤い竜に変身
+        return true;
+      }
       return D.selfBuffFx(p, sk);
+    },
+    /** 扇の技（竜の息吹は前へ吐き出す炎） */
+    coneFx(p, yaw, sk) {
+      if (sk.id === 'breath') F.breath(p, sk);
+      else Cx.coneFx(p, yaw, sk);
     },
     /** 周囲攻撃の始まり（結界の衝撃はバリアを張る） */
     burstStart(p, sk) {
       if (sk.id === 'wardburst') D.wardStart(p, sk);
+      else if (sk.id === 'firewhirl') F.fireWhirl(p, (sk.ticks || 1) * (sk.every || 0.2) + 0.8); // 炎の竜巻
+      else if (sk.id === 'bigbang') return;
       else Cx.burstStart(p, sk);
     },
     /** 周囲攻撃の1回ごと（結界の衝撃はバリアが砕ける） */
     burstTick(p, sk, n, ticks) {
       if (sk.id === 'wardburst') D.wardShatter(p, sk);
+      else if (sk.id === 'bigbang') F.bigBang(p, sk); // 手品の大爆発（派手に）
       else Cx.burstTick(p, sk, n, ticks);
     },
     teamBuffFx(p, sk) {
       Cx.teamBuffFx(p, sk);
       D.teamBuffD(p, sk);
+      if (sk.id === 'ovation') B.songRing(p.pos.x, p.pos.z, 12, 0xf48fb1, 'hype'); // 大道芸の全員強化は吟遊詩人の楽譜の輪
     },
     slash(x, z, yaw, range, arc, color, o) {
       slash(x, z, yaw, range, arc, color, o);
@@ -506,6 +522,7 @@ export function createSkillFx(game) {
       updateBuffRings(dt);
       updateCloneFrame(dt);
       D.updateD(dt);
+      F.updateF(dt);
     },
 
     clear() {
@@ -515,6 +532,7 @@ export function createSkillFx(game) {
       }
       fxs.length = 0;
       hits.length = 0;
+      F.dragonForm.clear(); // 竜化を解く
     },
   };
 }

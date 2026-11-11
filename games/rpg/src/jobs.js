@@ -705,6 +705,7 @@ const GENERIC = {
     if (!local) {
       game.fx.burst(p.pos.x, 1, p.pos.z, sk.color, 24, { speed: 8, up: 1.5, life: 0.4, size: 0.15, grav: 2 });
       if (sk.id === 'wardburst') setTimeout(() => game.skillFx?.wardShatter?.(p, sk), windup * 1000); // 結界の衝撃：張ったバリアが砕ける
+      else if (sk.id === 'bigbang') game.skillFx?.bigBang?.(p, sk);
       else game.skillFx?.spin(p.pos.x, p.pos.z, sk.radius, sk.color);
     }
   },
@@ -746,9 +747,10 @@ const GENERIC = {
     if (sk.aim && d.bx !== undefined) yaw = Math.atan2(d.bx - d.x, d.bz - d.z);
     const fire = (i) => {
       const a = yaw + (i - (n - 1) / 2) * (sk.spread || 0) + (sk.jitter ? (Math.random() - 0.5) * sk.jitter : 0);
-      const o = { speed: sk.speed || 22, mult: sk.mult, color: sk.color, size: sk.size || 0.3, range: sk.range || 24, pierce: sk.pierce, explode: sk.explode, dot: sk.dot, split: sk.split, boomerang: sk.boomerang, local, gauge: sk.gaugeSelf ?? GAUGE.gainSkill, zap: !!sk.chain };
+      const o = { speed: sk.speed || 22, mult: sk.mult, color: sk.colors ? sk.colors[i % sk.colors.length] : sk.color, size: sk.size || 0.3, range: sk.range || 24, pierce: sk.pierce, explode: sk.explode, dot: sk.dot, split: sk.split, boomerang: sk.boomerang, local, gauge: sk.gaugeSelf ?? GAUGE.gainSkill, zap: !!sk.chain };
       if (sk.debuff) o.onHit = (t) => { if (t && game.bosses.includes(t)) game.bossCommand({ type: 'debuff', ...sk.debuff, sub: t.sub }); };
       if (sk.chain) o.onHit = chainHit(game, p, sk.chain, sk.color);
+      if (sk.orbit) o.orbit = { ...sk.orbit, phase: (i / n) * Math.PI * 2 }; // ジャグリング爆弾：3つが輪になって回る
       game.projectiles.playerShot(p, p.pos.x, p.pos.z, a, o);
     };
     if (wind) {
@@ -756,6 +758,14 @@ const GENERIC = {
       const go = () => { for (let i = 0; i < n; i++) fire(i); game.sound.se(sk.sound || 'shoot'); };
       if (local) p.pending.push({ t: wind + 0.08, fn: go });
       else setTimeout(go, (wind + 0.08) * 1000); // ほかの人の画面（pending は自分のだけ進む）
+    } else if (sk.waves) {
+      // ハトの群れ：count 方向へ同時に、waves 回続けて
+      const go = () => { for (let i = 0; i < n; i++) fire(i); game.sound.se('shoot'); };
+      go();
+      for (let w = 1; w < sk.waves; w++) {
+        if (local) p.pending.push({ t: w * sk.every, fn: go });
+        else setTimeout(go, w * sk.every * 1000);
+      }
     } else if (sk.every) {
       // 連射：少しずつ間をあけて撃つ
       for (let i = 0; i < n; i++) p.pending.push({ t: i * sk.every, fn: () => { fire(i); game.sound.se('shoot'); } });
@@ -772,16 +782,28 @@ const GENERIC = {
     p.dodgeX = dx / len;
     p.dodgeZ = dz / len;
     p.yaw = d.yaw;
-    p.dashSpeed = len / sk.time;
+    // rise：翼撃。その場でゆっくり舞い上がってから（rise 秒）、狙った場所へ斜めに急降下する
+    const rise = sk.rise || 0;
+    p.dashSpeed = rise ? 0 : len / sk.time;
     if (local) p.invuln = Math.max(p.invuln, sk.time + 0.2);
     game.sound.se('dodge');
+    game.skillFx?.leapFx?.(p, sk); // 翼撃：竜の翼が生えて2回羽ばたく
     p.skillTick = () => {
-      p.model.root.position.y = Math.sin(Math.min(1, p.actT / sk.time) * Math.PI) * (sk.height || 3.5);
+      const H = sk.height || 3.5;
+      if (rise) {
+        const t = p.actT;
+        if (t < rise) p.model.root.position.y = H * (1 - (1 - t / rise) ** 2);
+        else {
+          p.dashSpeed = len / Math.max(0.05, sk.time - rise);
+          p.model.root.position.y = H * Math.max(0, 1 - (t - rise) / (sk.time - rise));
+        }
+      } else p.model.root.position.y = Math.sin(Math.min(1, p.actT / sk.time) * Math.PI) * H;
       if (p.didSkill || p.actT < sk.time * 0.9) return;
       p.didSkill = true;
       p.model.root.position.y = 0;
       game.fx.burst(p.pos.x, 0.5, p.pos.z, sk.color, 45, { speed: 10, up: 6, life: 0.7, size: 0.25 });
       game.skillFx?.slam(p.pos.x, p.pos.z, sk.radius, sk.color);
+      game.skillFx?.leapLand?.(p, sk); // 竜の姿なら炎の輪
       game.fx.shake(0.7);
       game.sound.se('slam');
       if (local) radiusHit(game, p, sk.mult, sk.radius, { melee: true, gauge: GAUGE.gainSkill, knock: 2, color: sk.color, brkMul: sk.brkMul });
@@ -830,6 +852,8 @@ const GENERIC = {
     game.sound.se(sk.sound || 'seal');
     game.fx.burst(p.pos.x, 1.4, p.pos.z, sk.color, 36, { speed: 5, up: 4, life: 0.7 });
     if (!game.skillFx?.selfBuffFx?.(p, sk)) game.skillFx?.powerUp(p, sk.color); // 煙玉は地面へ叩きつけて煙
+    // 竜化：空から雷が降って周りを打つ（雷の光の中で竜に変わる）
+    if (sk.strike && local) radiusHit(game, p, sk.strike.mult, sk.strike.radius, { gauge: GAUGE.gainSkill, knock: 1.5, color: 0xfff176 });
     if (local) {
       p.buff(sk.buff, sk.dur, { ...sk.vals });
       if (sk.invuln) p.invuln = Math.max(p.invuln, sk.invuln);
@@ -841,6 +865,7 @@ const GENERIC = {
     startAction(p, 'cast', 0.4);
     game.sound.se('seal');
     ringFx(game, d.x, d.z, sk.radius, sk.color);
+    game.skillFx?.teamHealFx?.(p, sk); // くす玉：赤十字の緑の帯が広がる
     if (local) game.teamEffect({ kind: 'heal', x: d.x, z: d.z, r: sk.radius, amount: sk.amount });
   },
   teamgauge(game, p, d, local, sk) {
@@ -1090,6 +1115,7 @@ const GENERIC = {
     const one = sk.pool[d.pick];
     game.toastOnce(`${sk.name}：${one.name}！`, 1400);
     if (sk.id === 'card') game.skillFx?.cardFx?.(p, one); // 星のカード：出たマークを画面に散らす
+    game.skillFx?.randomFx?.(p, sk, one); // 手品：帽子から取り出す／大道芸：両手を上げて紙吹雪
     GENERIC[one.kind](game, p, d, local, one);
   },
 };

@@ -8,7 +8,7 @@ import { PLAYER } from './data/player.js';
 import { VIEW } from './data/view.js';
 import { DEFAULT_JOB } from './data/jobs.js';
 import { buildWeapon, HOLD_ROT, HOLD_POS } from './weaponmodel.js';
-import { animateSpecial } from './vmanim.js';
+import { animateSpecial, vertical } from './vmanim.js';
 import { createBladeAura } from './vmaura.js';
 
 const ORDER = 10000; // 透明物よりも後に描く
@@ -69,7 +69,7 @@ export function createViewModel(renderer, camera) {
     hand.add(holder);
     const twist = new THREE.Group();
     holder.add(twist);
-    return { off, pivot, handMesh, holder, twist, base: [baseX, baseY, baseZ], weapon: null };
+    return { off, pivot, hand, handMesh, holder, twist, base: [baseX, baseY, baseZ], weapon: null };
   }
   const R = makeArm(armorMat, skinMat, 0, 0, 0);
   const L = makeArm(armorMat, skinMat, LEFT_X, 0, 0);
@@ -77,6 +77,48 @@ export function createViewModel(renderer, camera) {
   L.off.visible = false;
   Gh.off.visible = false;
   const aura = createBladeAura(R, ORDER); // 魔力付与の紫のオーラ
+  // 竜化中の手：赤いうろこの腕と白い爪（武器は持たない）
+  const clawMat = vmMat(0xfff3e0);
+  mats.push(clawMat);
+  const claws = [R, L].map((A) => {
+    const g = new THREE.Group();
+    for (let i = 0; i < 3; i++) {
+      const c = add(new THREE.ConeGeometry(0.045, 0.32, 5), clawMat, (i - 1) * 0.045, 0.05, -0.16, g);
+      c.rotation.x = -Math.PI / 2 - 0.4;
+    }
+    g.visible = false;
+    A.hand.add(g);
+    return g;
+  });
+  let dragonOn = false;
+  function setDragon(on) {
+    if (on === dragonOn) return;
+    dragonOn = on;
+    for (const g of claws) g.visible = on;
+    if (R.weapon) R.weapon.group.visible = !on;
+    if (L.weapon) L.weapon.group.visible = !on;
+    armorMat.color.setHex(on ? 0x8e1b1b : armorBase);
+    skinMat.color.setHex(on ? 0xc62828 : 0xf1c27d);
+    R.handMesh.visible = on || R.weapon?.hold !== 'fist';
+  }
+  let armorBase = look.armorColor;
+  // 手品の帽子（左手の前に、口を上にして持つ）
+  const hat = new THREE.Group();
+  hat.position.set(-0.24, -0.17, -0.5);
+  hat.rotation.set(0.22, 0, 0.15);
+  root.add(hat);
+  const hatMat = vmMat(0x37474f);
+  const hatBand = vmMat(0xff1744);
+  mats.push(hatMat, hatBand);
+  add(new THREE.CylinderGeometry(0.11, 0.11, 0.2, 14, 1, true), hatMat, 0, 0, 0, hat).material.side = THREE.DoubleSide;
+  add(new THREE.CylinderGeometry(0.115, 0.115, 0.04, 14), hatBand, 0, 0.05, 0, hat);
+  add(new THREE.CylinderGeometry(0.19, 0.19, 0.015, 16), hatMat, 0, 0.1, 0, hat);
+  const hatIn = vmMat(0x050505);
+  mats.push(hatIn);
+  add(new THREE.CylinderGeometry(0.11, 0.11, 0.01, 14), hatIn, 0, -0.095, 0, hat);
+  hat.traverse((o) => { o.renderOrder = ORDER + 1; o.frustumCulled = false; });
+  hat.visible = false;
+  let hatK = 0;
 
   let weapon = null; // 右手の武器 { group, style, dual, flashMats, mats }
   let flashMats = [];
@@ -193,6 +235,10 @@ export function createViewModel(renderer, camera) {
         P.x -= 0.04;
         thrust(P, p.actT, c.hit, c.dur, last ? 0.55 : 0.4);
         if (last) setFlash(p.actT < c.hit * 1.5 ? 0x5a3a10 : 0x000000);
+      } else if (last && weapon?.lastV) {
+        // 竜人の3段目：真上へ振りかぶって、まっすぐ縦に振り下ろす
+        vertical(Rp, Math.min(1, p.actT / (c.hit * 0.6)), Math.max(0, Math.min(1, (p.actT - c.hit * 0.6) / (c.hit * 0.5))));
+        if (p.actT < c.hit * 1.4) setFlash(0x5a2a10);
       } else if (last) {
         // 最後の段：振りかぶって真上から振り下ろし（斧は刃を縦に、鎌も縦に）
         Rp.rx = 0.7 - e * 1.6;
@@ -248,6 +294,7 @@ export function createViewModel(renderer, camera) {
     if (V) {
       V.t += dt;
       const r = animateSpecial(V, clamp01(V.t / V.dur), Rp, Lp, setFlash);
+      hatK = r?.hat || 0;
       if (r?.spin) spinVis = 1;
       if (V.t >= V.dur) p.vmAnim = null;
     }
@@ -284,6 +331,8 @@ export function createViewModel(renderer, camera) {
       }
       const ench = p.buffs?.enchant?.t > 0;
       setFlash(spinVis > 0 ? 0x1f4f6f : ench ? (Math.sin(performance.now() / 120) > 0 ? 0x3a1470 : 0x24104a) : 0x000000); // 光らせる動きは animate の中で上書き
+      hatK = 0;
+      if (p.dragon) for (const P of [Rp, Lp]) { P.y += 0.12; P.rx += 0.4; P.x -= 0.04; } // 竜の手は爪を見せて構える
       animate(p, dt, Rp, Lp);
       // 矢の雨など：真上へ向けて放つ（p.aimUpT 秒）
       if (p.aimUpT > 0) {
@@ -301,7 +350,10 @@ export function createViewModel(renderer, camera) {
       if (Rp.aim) R.holder.rotation.set(AIM_ROT[0], AIM_ROT[1], AIM_ROT[2]);
       else if (R.baseRot) R.holder.rotation.copy(R.baseRot);
       // 左手（両手の拳の職業だけ。大盤振る舞いの両手の振り上げでも出す）。左右反転して置く
-      L.off.visible = !!weapon?.dual || p.vmAnim?.kind === 'cheer';
+      setDragon(!!p.dragon); // 竜化中は赤い腕と爪
+      hat.visible = hatK > 0;
+      if (hatK > 0) hat.scale.setScalar(Math.min(1, hatK * 3));
+      L.off.visible = !!weapon?.dual || p.vmAnim?.kind === 'cheer' || !!p.dragon;
       if (L.off.visible) {
         L.off.position.set(LEFT_X - Lp.x, Lp.y, Lp.z);
         L.pivot.rotation.set(Lp.rx, -Lp.ry, -Lp.rz, 'YXZ');
@@ -325,7 +377,8 @@ export function createViewModel(renderer, camera) {
     },
     /** 職業の見た目に替える（防具の色と、手に持つ武器） */
     setLook(lk, jobId = DEFAULT_JOB, color = '#ffd54f') {
-      armorMat.color.setHex(lk.armorColor);
+      armorBase = lk.armorColor;
+      if (!dragonOn) armorMat.color.setHex(lk.armorColor);
       if (jobId !== weaponId) equip(jobId, lk, parseInt(String(color).replace('#', ''), 16));
     },
     dispose() {
