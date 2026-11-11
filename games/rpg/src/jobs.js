@@ -184,11 +184,22 @@ const SKILLS = {
     p.dodgeX = dx / len;
     p.dodgeZ = dz / len;
     p.yaw = d.yaw;
-    p.dashSpeed = len / e.time;
+    p.dashSpeed = 0;
     if (local) p.invuln = Math.max(p.invuln, e.time + 0.2);
     game.sound.se('dodge');
+    game.skillFx?.mark(d.tx, d.tz, e.radius, 0x69f0ae, e.time); // 着地点の緑の印
+    p.vmAnim = { kind: 'dive', t: 0, dur: e.time };
     p.skillTick = () => {
-      p.model.root.position.y = Math.sin(Math.min(1, p.actT / e.time) * Math.PI) * 4;
+      // 前半 40%：その場で真上へ浮く／40〜90%：着地点へ一直線に急降下
+      const k = Math.min(1, p.actT / e.time);
+      if (k < 0.4) {
+        const u = k / 0.4;
+        p.model.root.position.y = 5 * (1 - (1 - u) * (1 - u));
+        p.dashSpeed = 0;
+      } else {
+        p.model.root.position.y = Math.max(0, 5 * (1 - (k - 0.4) / 0.5));
+        p.dashSpeed = k < 0.9 ? len / (e.time * 0.5) : 0;
+      }
       if (p.didSkill || p.actT < e.time * 0.9) return;
       p.didSkill = true;
       p.model.root.position.y = 0;
@@ -202,7 +213,8 @@ const SKILLS = {
   // ---- 格闘家 ----
   kiblast(game, p, d, local) {
     const q = JOBS.monk.q;
-    game.skillFx?.slash(p.pos.x, p.pos.z, d.yaw, q.range, q.arc, 0xffcc80);
+    p.vmAnim = { kind: 'kiblast', t: 0, dur: 0.4 };
+    game.skillFx?.hadouken(p, d.yaw, q.range, q.arc, 0xffcc80); // 両手から気の玉（波動拳）
     startAction(p, 'cast', 0.3);
     game.sound.se('wave');
     for (let i = 0; i < 18; i++) {
@@ -216,6 +228,7 @@ const SKILLS = {
     const e = JOBS.monk.r;
     startAction(p, 'cast', e.dur + 0.3);
     p.yaw = d.yaw;
+    p.vmAnim = { kind: 'barrage', t: 0, dur: e.dur };
     let tick = 0;
     let finished = false;
     game.sound.se('roar');
@@ -225,11 +238,13 @@ const SKILLS = {
         tick = e.every;
         const a = p.yaw + (Math.random() - 0.5) * 0.8;
         game.fx.burst(p.pos.x + Math.sin(a) * 1.6, 1.2, p.pos.z + Math.cos(a) * 1.6, 0xffcc80, 3, { speed: 3, up: 1, life: 0.2, grav: 0 });
-        game.skillFx?.slash(p.pos.x, p.pos.z, a, 2.4, 1.0, 0xffcc80, { dur: 0.15, roll: Math.random() - 0.5 });
+        game.skillFx?.fistShot(p, a, e.range + 1, 0xffcc80); // 拳の残像
+        game.skillFx?.fistShot(p, p.yaw + (Math.random() - 0.5) * 0.6, e.range + 1, 0xffcc80);
         if (local) meleeArc(game, p, p.yaw, e.mult, e.range, 2, { gauge: 0 });
       } else if (p.actT >= e.dur && !finished) {
         finished = true;
         game.fx.shake(0.6);
+        game.skillFx?.fistShot(p, p.yaw, e.range + 2, 0xffd740, true); // 最後の大きな一撃
         if (local) meleeArc(game, p, p.yaw, e.finish, e.range + 0.5, 2, { gauge: 0, knock: 3, crit: true });
       }
     };
@@ -239,13 +254,16 @@ const SKILLS = {
     const q = JOBS.alchemist.q;
     startAction(p, 'cast', 0.3);
     game.projectiles.playerShot(p, d.x, d.z, d.yaw, { speed: q.speed, mult: 0.8, color: 0x76ff03, size: 0.4, range: 22, local, gauge: GAUGE.gainSkill,
-      onHit: (t) => { if (t && game.bosses.includes(t)) game.bossCommand({ type: 'debuff', name: 'vuln', dur: q.dur, mul: q.mul, sub: t.sub }); } });
+      onHit: (t) => {
+        if (t) game.skillFx?.skullPop(t, 0x76ff03); // 腐食したところにドクロ
+        if (t && game.bosses.includes(t)) game.bossCommand({ type: 'debuff', name: 'vuln', dur: q.dur, mul: q.mul, sub: t.sub });
+      } });
     game.sound.se('shoot');
   },
   bigflask(game, p, d, local) {
     const e = JOBS.alchemist.r;
     startAction(p, 'cast', 0.4);
-    game.projectiles.playerShot(p, d.x, d.z, d.yaw, { speed: e.speed, mult: e.mult, color: 0x76ff03, size: 0.8, range: 22, explode: e.radius, local,
+    game.projectiles.playerShot(p, d.x, d.z, d.yaw, { speed: e.speed, mult: e.mult, color: 0xffd740, size: 0.8, range: 22, explode: e.radius, local, // 大爆発フラスコ：黄色く光る巨大な瓶
       onHit: (t, s) => {
         for (const b of game.bosses) {
           if (b.active && b.alive && Math.hypot(b.pos.x - s.x, b.pos.z - s.z) <= e.radius + b.radius) game.bossCommand({ type: 'debuff', name: 'vuln', dur: e.dur, mul: e.mul, sub: b.sub });
@@ -287,7 +305,7 @@ const SKILLS = {
     const q = JOBS.chrono.q;
     startAction(p, 'cast', 0.4);
     game.sound.se('gate');
-    for (const b of game.bosses) if (b.alive) { ringFx(game, b.pos.x, b.pos.z, b.radius + 2, 0xb388ff); game.skillFx?.curse(b, 0xb388ff); }
+    for (const b of game.bosses) if (b.alive) { ringFx(game, b.pos.x, b.pos.z, b.radius + 2, 0xb388ff); game.skillFx?.clock(b, q.dur, 'reverse'); } // 針が逆に回る時計
     if (local) game.bossCommand({ type: 'debuff', name: 'slow', dur: q.dur, mul: q.mul });
   },
   timestop(game, p, d, local) {
@@ -295,7 +313,7 @@ const SKILLS = {
     startAction(p, 'cast', 0.5);
     game.sound.se('gate');
     game.fx.burst(p.pos.x, 2, p.pos.z, 0xb388ff, 50, { speed: 8, up: 4, life: 0.9 });
-    for (const b of game.bosses) if (b.alive) game.skillFx?.curse(b, 0xb388ff);
+    game.skillFx?.timeStop(e.dur); // 画面が一瞬モノクロ・止まっている間ボスはモノクロ＋止まった時計
     if (local) game.bossCommand({ type: 'freeze', dur: e.dur, immune: e.immune });
   },
   // ---- 砲術士 ----
@@ -338,7 +356,7 @@ const SKILLS = {
       if (!t) return;
       // 命を吸う線
       for (let k = 0.15; k < 1; k += 0.17) game.fx.burst(t.pos.x + (p.pos.x - t.pos.x) * k, 1.4, t.pos.z + (p.pos.z - t.pos.z) * k, 0xce93d8, 1, { speed: 0.5, up: 0.3, life: 0.3, grav: 0 });
-      game.skillFx?.beam(p.pos.x, p.pos.z, Math.atan2(t.pos.x - p.pos.x, t.pos.z - p.pos.z), Math.hypot(t.pos.x - p.pos.x, t.pos.z - p.pos.z), 0.7, 0xce93d8);
+      game.skillFx?.drainWind(p, t, 0xce93d8); // 相手から命を吸い込む紫の風
       if (local) {
         strike(game, p, t, e.mult, { gauge: 0, knock: 0, color: 0xce93d8 });
         game.teamEffect({ kind: 'heal', x: +p.pos.x.toFixed(1), z: +p.pos.z.toFixed(1), r: e.healRadius, amount: e.heal, quiet: true });
@@ -349,6 +367,7 @@ const SKILLS = {
   soulreap(game, p, d, local) {
     const q = JOBS.reaper.q;
     startAction(p, 'spin', 0.45);
+    p.vmAnim = { kind: 'spinflip', t: 0, dur: 0.45 };
     game.sound.se('spin');
     game.fx.burst(p.pos.x, 1, p.pos.z, 0xb0bec5, 30, { speed: 9, up: 1, life: 0.4, size: 0.14, grav: 2 });
     game.skillFx?.slash(p.pos.x, p.pos.z, d.yaw, q.range, q.arc, 0xb0bec5);
@@ -357,6 +376,7 @@ const SKILLS = {
   verdict(game, p, d, local) {
     const e = JOBS.reaper.r;
     startAction(p, 'cast', 0.5);
+    p.vmAnim = { kind: 'frenzy', t: 0, dur: 0.45 };
     game.sound.se('roar');
     const t = frontTarget(game, p, e.range, 0.9);
     if (!t) {
@@ -365,6 +385,7 @@ const SKILLS = {
     }
     game.fx.burst(t.pos.x, (t.hpY || 2) * 0.6, t.pos.z, 0x000000, 50, { speed: 7, up: 6, life: 0.8, size: 0.3 });
     game.skillFx?.execute(p, t, 0xb0bec5);
+    game.skillFx?.frenzy(p, t, 0xb0bec5); // 左右に高速で斬る軌跡
     game.fx.shake(0.9);
     if (local) {
       const missing = t.maxHp ? 1 - t.hp / t.maxHp : 0;
@@ -447,10 +468,11 @@ const SKILLS = {
   uppercut(game, p, d, local) {
     const e = JOBS.monk.e;
     startAction(p, 'cast', e.time);
+    p.vmAnim = { kind: 'uppercut', t: 0, dur: e.time };
     if (local) p.invuln = Math.max(p.invuln, e.time + 0.1);
     game.sound.se('swing');
     p.skillTick = () => {
-      p.model.root.position.y = Math.sin(Math.min(1, p.actT / e.time) * Math.PI) * 1.6;
+      p.model.root.position.y = Math.sin(Math.min(1, p.actT / e.time) * Math.PI) * 2.6;
       if (p.didSkill || p.actT < e.time * 0.3) return;
       p.didSkill = true;
       game.fx.burst(p.pos.x, 1.5, p.pos.z, 0xffcc80, 30, { speed: 4, up: 9, life: 0.6 });
@@ -463,13 +485,15 @@ const SKILLS = {
     startAction(p, 'cast', 0.3);
     for (let i = 0; i < e.count; i++) {
       const a = d.yaw + (i - (e.count - 1) / 2) * e.spread;
-      game.projectiles.playerShot(p, d.x, d.z, a, { speed: e.speed, mult: e.mult, color: 0xaed581, size: 0.32, range: 16, explode: e.radius, local });
+      game.projectiles.playerShot(p, d.x, d.z, a, { speed: e.speed, mult: e.mult, color: 0xff5252, size: 0.32, range: 16, explode: e.radius, local }); // 赤く光る瓶
     }
     game.sound.se('shoot');
   },
   earthsplit(game, p, d, local) {
     const e = JOBS.berserker.e;
     startAction(p, 'cast', e.count * e.every + 0.2);
+    p.vmAnim = { kind: 'bigchop', t: 0, dur: 0.4 };
+    game.skillFx?.slam(d.x + Math.sin(d.yaw) * 1.4, d.z + Math.cos(d.yaw) * 1.4, 3, 0xa1887f, 0.18); // 振り下ろした地面の地ならし
     let n = 0;
     let tick = 0;
     game.sound.se('slam');
@@ -492,6 +516,7 @@ const SKILLS = {
     game.sound.se('gate');
     game.fx.burst(p.pos.x, 1.4, p.pos.z, 0xb388ff, 30, { speed: 3, up: 3, life: 0.7 });
     game.skillFx?.powerUp(p, 0xb388ff);
+    if (local) game.skillFx?.rewindScreen(); // 画面の縁に逆回りの時計
     if (!local) return;
     // 3秒前の HP（記録が無ければ今の HP）
     const past = p.hpAgo?.(e.back) ?? p.hp;
@@ -519,7 +544,7 @@ const SKILLS = {
       o.left += e.extend;
       strike(game, p, o.target, e.mult, { gauge: GAUGE.gainSkill, color: 0x7b1fa2 });
       game.fx.burst(o.target.pos.x, (o.target.hpY || 2) * 0.6, o.target.pos.z, 0x7b1fa2, 30, { speed: 5, up: 4, life: 0.6 });
-      game.skillFx?.curse(o.target, 0x7b1fa2);
+      game.skillFx?.skullSwarm(o.target, 0x7b1fa2); // 体のまわりをドクロがもやのように飛ぶ
     }
     if (!hit.size) game.toastOnce('呪いのかかった敵がいない（通常攻撃や Q で呪ってから）', 1400);
   },

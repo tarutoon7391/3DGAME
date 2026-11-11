@@ -5,6 +5,8 @@
 //   hold 'up'  … 握りが原点、武器は +Y へ伸びる（剣・杖・槍など。手で立てて持つ）
 //   hold 'aim' … 握りが原点、銃口・先端は -Z（前）へ向く（銃・弓・投げ物など）
 //   hold 'fist'… 手（原点）にかぶせる籠手・爪など
+// style（一人称の振り方）：'swing' 剣など（既定）／'thrust' 槍の突き／'fist2' 両手の拳（dual：左手にも同じ武器）
+//   'axe' 振り下ろすときに刃を縦に向ける／'scythe' 段ごとに鎌の向きを切り替える（1段目は反転、3段目は縦）
 // 色の指定：'m' 職業の武器色（look.swordColor）／'a' 職業の色（job.color）／'r' 防具色（look.armorColor）
 //   'g' 握り革／'w' 木／'W' 濃い木／'d' 黒鉄／'s' 鋼／'au' 金／'wh' 白／'k' 黒／'red' 赤
 //   数値はそのままの色。G(色) は光る部品（宝石・刃の魔力など）
@@ -95,5 +97,5 @@ export function buildWeapon(id, colors, makeMat) {
     group.add(mesh);
   }
   if (spec.scale) group.scale.setScalar(spec.scale);
-  return { group, hold: spec.hold || 'up', rot: spec.rot, pos: spec.pos, flashMats, mats };
+  return { group, hold: spec.hold || 'up', rot: spec.rot, pos: spec.pos, style: spec.style || 'swing', dual: !!spec.dual, flashMats, mats };
 }

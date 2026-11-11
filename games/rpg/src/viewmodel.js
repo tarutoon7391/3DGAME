@@ -1,5 +1,8 @@
-// 一人称のビューモデル（画面右下の腕と剣）。カメラの子として置き、
+// 一人称のビューモデル（画面右下の腕と武器）。カメラの子として置き、
 // 最後に描く（深度を消してから描く）ので、壁に近づいても欠けたりめり込んだりしない
+//
+// 腕は「右手」「左手（両手の拳の職業だけ）」「影分身の薄い左手」の3本。どれも 位置のずれ（off）→ 肩（pivot）→ 手 → 持ち方（holder）→ ひねり（twist）→ 武器
+// 振り方は武器の style（src/weaponmodel.js）で変わる。技ごとの特別な動きは p.vmAnim = { kind, t, dur }（jobs.js から）
 import * as THREE from 'three';
 import { PLAYER } from './data/player.js';
 import { VIEW } from './data/view.js';
@@ -7,18 +10,30 @@ import { DEFAULT_JOB } from './data/jobs.js';
 import { buildWeapon, HOLD_ROT, HOLD_POS } from './weaponmodel.js';
 
 const ORDER = 10000; // 透明物よりも後に描く
+const LEFT_X = -0.72; // 左手の肩（右手の肩から見た位置）
+const GHOST_DELAY = 0.12; // 分身の追い打ち（combat.js）と同じ遅れ
 
 function vmMat(color, extra = {}) {
   // transparent にして描画順を最後へ回す（不透明度は 1 のまま、深度は書く）
   return new THREE.MeshStandardMaterial({ color, roughness: 0.6, flatShading: true, transparent: true, opacity: 1, depthWrite: true, ...extra });
 }
+const ghostMat = (color) => new THREE.MeshBasicMaterial({
+  color: new THREE.Color(color).lerp(new THREE.Color(0xb388ff), 0.65), transparent: true, opacity: 0.38,
+  depthWrite: false, blending: THREE.AdditiveBlending,
+});
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
+const ease = (k) => 1 - (1 - k) * (1 - k);
+const smooth = (a, b, v) => {
+  const k = clamp01((v - a) / (b - a));
+  return k * k * (3 - 2 * k);
+};
+/** 動きの1つ分（腕ごと）。x は負で画面の中央寄り */
+const pose = () => ({ x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0, twist: 0, aim: false }); // aim：武器を前へ向けて構える（槍）
+const AIM_ROT = [-1.5, 0.12, 0]; // 槍を前へ向けたときの持ち方
 
 export function createViewModel(renderer, camera) {
   const root = new THREE.Group(); // カメラ基準の位置
-  const pivot = new THREE.Group(); // 振りの回転の中心（肩）
-  root.add(pivot);
   camera.add(root);
-
   const mats = [];
   const geos = [];
   const add = (geo, mat, x, y, z, parent) => {
@@ -33,82 +48,71 @@ export function createViewModel(renderer, camera) {
   const look = PLAYER.look;
   const armorMat = vmMat(look.armorColor);
   const skinMat = vmMat(0xf1c27d);
-  mats.push(armorMat, skinMat);
+  const ghostArmMat = ghostMat(0x7e57c2);
+  mats.push(armorMat, skinMat, ghostArmMat);
 
-  // 腕（肩から前へ）と手。武器は職業ごとに src/weaponmodel.js で組み立てて手に持たせる
-  // pivot は肩。腕は肩から前へ 0.42m、その先に手
-  add(new THREE.BoxGeometry(0.11, 0.11, 0.42), armorMat, 0, 0, -0.19, pivot);
-  const hand = new THREE.Group();
-  hand.position.set(0, 0, -0.42);
-  pivot.add(hand);
-  const handMesh = add(new THREE.BoxGeometry(0.1, 0.1, 0.1), skinMat, 0, 0, 0, hand);
-  const holder = new THREE.Group(); // 武器の向き（持ち方で変わる）
-  hand.add(holder);
-  let weapon = null; // { group, flashMats, mats }
+  /** 腕を1本作る（肩から前へ 0.42m、その先に手） */
+  function makeArm(armMat, handMat, baseX, baseY, baseZ) {
+    const off = new THREE.Group();
+    off.position.set(baseX, baseY, baseZ);
+    root.add(off);
+    const pivot = new THREE.Group();
+    off.add(pivot);
+    add(new THREE.BoxGeometry(0.11, 0.11, 0.42), armMat, 0, 0, -0.19, pivot);
+    const hand = new THREE.Group();
+    hand.position.set(0, 0, -0.42);
+    pivot.add(hand);
+    const handMesh = add(new THREE.BoxGeometry(0.1, 0.1, 0.1), handMat, 0, 0, 0, hand);
+    const holder = new THREE.Group();
+    hand.add(holder);
+    const twist = new THREE.Group();
+    holder.add(twist);
+    return { off, pivot, handMesh, holder, twist, base: [baseX, baseY, baseZ], weapon: null };
+  }
+  const R = makeArm(armorMat, skinMat, 0, 0, 0);
+  const L = makeArm(armorMat, skinMat, LEFT_X, 0, 0);
+  const Gh = makeArm(ghostArmMat, ghostArmMat, -0.3, 0.03, 0.05); // 影分身の薄い左手
+  L.off.visible = false;
+  Gh.off.visible = false;
+
+  let weapon = null; // 右手の武器 { group, style, dual, flashMats, mats }
   let flashMats = [];
   let weaponId = '';
   const setFlash = (hex) => {
     for (const m of flashMats) m.emissive.setHex(hex);
   };
+
+  /** 腕に武器を持たせる。mirror：左手（左右反転の持ち方） */
+  function arm(A, jobId, colors, makeMat, mirror) {
+    if (A.weapon) {
+      A.twist.remove(A.weapon.group);
+      A.weapon.mats.forEach((m) => m.dispose()); // 形（geometry）は weaponmodel.js で使い回すので消さない
+    }
+    A.weapon = buildWeapon(jobId, colors, makeMat);
+    A.weapon.group.traverse((o) => {
+      if (!o.isMesh) return;
+      o.renderOrder = ORDER + 1;
+      o.frustumCulled = false;
+    });
+    if (mirror) A.weapon.group.scale.x *= -1;
+    A.twist.add(A.weapon.group);
+    const r = A.weapon.rot || HOLD_ROT[A.weapon.hold] || HOLD_ROT.up;
+    const hp = A.weapon.pos || HOLD_POS[A.weapon.hold] || HOLD_POS.up;
+    A.holder.rotation.set(r[0], mirror ? -r[1] : r[1], mirror ? -r[2] : r[2]);
+    A.baseRot = A.holder.rotation.clone();
+    A.holder.position.set(mirror ? -hp[0] : hp[0], hp[1], hp[2]);
+    A.handMesh.visible = A.weapon.hold !== 'fist'; // 籠手・爪は手にかぶせる
+    return A.weapon;
+  }
   function equip(jobId, lk, accent) {
-    if (weapon) {
-      holder.remove(weapon.group);
-      weapon.mats.forEach((m) => m.dispose()); // 形（geometry）は weaponmodel.js で使い回すので消さない
-    }
-    weapon = buildWeapon(jobId, { metal: lk.swordColor, accent, armor: lk.armorColor }, vmMat);
-    weapon.group.traverse((o) => {
-      if (!o.isMesh) return;
-      o.renderOrder = ORDER + 1;
-      o.frustumCulled = false;
-    });
-    holder.add(weapon.group);
-    const r = weapon.rot || HOLD_ROT[weapon.hold] || HOLD_ROT.up;
-    holder.rotation.set(r[0], r[1], r[2]);
-    const hp = weapon.pos || HOLD_POS[weapon.hold] || HOLD_POS.up;
-    holder.position.set(hp[0], hp[1], hp[2]);
-    handMesh.visible = weapon.hold !== 'fist'; // 籠手・爪は手にかぶせる
-    if (ghostWeapon) {
-      ghostHolder.remove(ghostWeapon.group);
-      ghostWeapon.mats.forEach((m) => m.dispose());
-    }
-    ghostWeapon = buildWeapon(jobId, { metal: lk.swordColor, accent, armor: lk.armorColor }, (c) => ghostMat(c));
-    ghostWeapon.group.traverse((o) => {
-      if (!o.isMesh) return;
-      o.renderOrder = ORDER + 1;
-      o.frustumCulled = false;
-    });
-    ghostHolder.add(ghostWeapon.group);
-    ghostHolder.rotation.set(r[0], -r[1], -r[2]); // 左手なので左右反転
-    ghostHolder.position.set(-hp[0], hp[1], hp[2]);
-    ghostHandMesh.visible = handMesh.visible;
+    const colors = { metal: lk.swordColor, accent, armor: lk.armorColor };
+    weapon = arm(R, jobId, colors, vmMat, false);
+    if (weapon.dual) arm(L, jobId, colors, vmMat, true);
+    L.off.visible = weapon.dual;
+    arm(Gh, jobId, colors, (c) => ghostMat(c), true);
     flashMats = weapon.flashMats;
     weaponId = jobId;
   }
-  // ---- 影分身中だけ出る、左側の薄い手（本体より少し遅れて同じ動きをする＝2回攻撃） ----
-  const ghostRoot = new THREE.Group();
-  ghostRoot.position.set(-0.3, 0.03, 0.05);
-  ghostRoot.visible = false;
-  root.add(ghostRoot);
-  const ghostPivot = new THREE.Group();
-  ghostRoot.add(ghostPivot);
-  const ghostMat = (color) => new THREE.MeshBasicMaterial({
-    color: new THREE.Color(color).lerp(new THREE.Color(0xb388ff), 0.65), transparent: true, opacity: 0.38,
-    depthWrite: false, blending: THREE.AdditiveBlending,
-  });
-  const ghostArmMat = ghostMat(0x7e57c2);
-  mats.push(ghostArmMat);
-  add(new THREE.BoxGeometry(0.11, 0.11, 0.42), ghostArmMat, 0, 0, -0.19, ghostPivot);
-  const ghostHand = new THREE.Group();
-  ghostHand.position.set(0, 0, -0.42);
-  ghostPivot.add(ghostHand);
-  const ghostHandMesh = add(new THREE.BoxGeometry(0.1, 0.1, 0.1), ghostArmMat, 0, 0, 0, ghostHand);
-  const ghostHolder = new THREE.Group();
-  ghostHand.add(ghostHolder);
-  let ghostWeapon = null;
-  const history = []; // 本体の腕の向きの記録 [{ t, rx, ry, rz }]
-  let clock = 0;
-  const GHOST_DELAY = 0.12; // 分身の追い打ち（combat.js）と同じ遅れ
-
   equip(DEFAULT_JOB, look, 0xffd54f);
 
   // 深度を消すための見えない板（ビューモデルより先に描かれる）
@@ -124,6 +128,202 @@ export function createViewModel(renderer, camera) {
   let swayX = 0;
   let swayY = 0;
   let spinVis = 0;
+  const history = []; // 右手の動きの記録（影分身の手が少し遅れてまねる）
+  let clock = 0;
+
+  /** 突き（槍・拳）：構えて引き → 一気に前へ → 戻す。actT は今の段の経過、hit は当たる瞬間 */
+  function thrust(P, actT, hit, dur, reach) {
+    if (actT < hit) {
+      const k = actT / hit;
+      P.z += 0.08 * ease(clamp01(k / 0.6)) - (0.08 + reach) * smooth(0.6, 1, k);
+    } else {
+      const r = clamp01((actT - hit) / Math.max(0.05, dur - hit));
+      P.z += -reach * (1 - ease(r) * 0.85);
+    }
+  }
+  const guard = (P) => {
+    // 両手の拳の構え（胸の前に上げる）
+    P.x -= 0.1;
+    P.y += 0.14;
+    P.z += 0.1;
+    P.rx += 0.35;
+  };
+
+  /** 右手・左手の動きを決める */
+  function animate(p, dt, Rp, Lp) {
+    const style = weapon?.style || 'swing';
+    const a = p.action;
+    const combo = p.job?.basic.combo;
+    if (style === 'fist2') {
+      guard(Rp);
+      guard(Lp);
+    }
+    if (a === 'attack' && combo) {
+      const c = combo[p.combo] || combo[0];
+      const last = p.combo === combo.length - 1;
+      const k = Math.min(1, p.actT / (c.hit * 1.8)); // 当たりの少し後まで振り切る
+      const e = ease(k);
+      if (p.waveT > 0) {
+        // 衝撃波：前へ突き出して振り下ろす
+        const w = 1 - p.waveT / 0.4;
+        Rp.z -= Math.sin(w * Math.PI) * 0.15;
+        Rp.rx = 0.5 - w * 1.4;
+        setFlash(0x2a6f8f);
+      } else if (style === 'thrust') {
+        // 槍：前へまっすぐ突く。3段目は深く突き込み、槍をひねって光らせる
+        Rp.aim = true;
+        Rp.rx = 0.08;
+        Rp.ry = 0.12;
+        Rp.x -= 0.06;
+        Rp.y += 0.02;
+        thrust(Rp, p.actT, c.hit, c.dur, last ? 0.5 : 0.32);
+        if (last) {
+          Rp.twist = e * Math.PI * 2;
+          Rp.rz = Math.sin(e * Math.PI) * 0.25;
+          setFlash(p.actT < c.hit * 1.6 ? 0x5a4a20 : 0x000000);
+        }
+      } else if (style === 'fist2') {
+        // 格闘家：右・左・右・左・右と交互に突く（5段目は強く）
+        const P = p.combo % 2 === 0 ? Rp : Lp;
+        P.rx -= 0.35;
+        P.x -= 0.04;
+        thrust(P, p.actT, c.hit, c.dur, last ? 0.55 : 0.4);
+        if (last) setFlash(p.actT < c.hit * 1.5 ? 0x5a3a10 : 0x000000);
+      } else if (last) {
+        // 最後の段：振りかぶって真上から振り下ろし（斧は刃を縦に、鎌も縦に）
+        Rp.rx = 0.7 - e * 1.6;
+        Rp.x -= 0.1 * e;
+        if (style === 'axe' || style === 'scythe') Rp.twist = Math.PI / 2;
+      } else {
+        // 横に薙ぐ（1段目は右→左、2段目は左→右）。鎌は1段目だけ刃を反転
+        const dir = p.combo % 2 === 0 ? 1 : -1;
+        Rp.ry = -dir * (0.6 - e * 1.4);
+        Rp.rx = -1.05;
+        Rp.rz = dir * 0.5;
+        Rp.y += 0.24;
+        Rp.x -= 0.16;
+        if (style === 'scythe' && p.combo === 0) Rp.twist = Math.PI;
+      }
+    } else if ((a === 'shoot' || a === 'cast' || (a !== 'attack' && p.waveT > 0)) && !p.vmAnim) {
+      // 飛び道具・詠唱：武器を前へ突き出す
+      const w = a === 'cast' ? Math.min(1, p.actT / (p.actDur || 0.4)) : 1 - Math.max(0, p.waveT) / 0.25;
+      Rp.z -= Math.sin(Math.min(1, w) * Math.PI) * 0.12;
+      Rp.rx += a === 'cast' ? 0.6 - w * 0.4 : -0.3;
+      setFlash(0x2a3f6f);
+    } else if (a === 'dash') {
+      // 突進：低く構えて突き抜ける（槍は前へ構える）
+      Rp.rx = style === 'thrust' ? 0.05 : -1.2;
+      Rp.y -= 0.08;
+      if (style === 'thrust') {
+        Rp.aim = true;
+        Rp.z -= 0.2;
+      }
+      spinVis = 1;
+    } else if (a === 'spin') {
+      // 回転斬り：真右から真左まで 180 度、画面を大きく横切って薙ぐ
+      const k = ease(Math.min(1, p.actT / (p.actDur || 0.5)));
+      Rp.ry = -Math.PI / 2 + k * Math.PI;
+      Rp.rx = -1.15;
+      Rp.rz = 0.45;
+      Rp.y += 0.2;
+      Rp.x -= 0.3;
+      if (p.vmAnim?.kind === 'spinflip') Rp.twist = Math.PI; // 魂刈り：鎌を反転させて振る
+      spinVis = 1;
+    } else if (a === 'dodge') {
+      // 回避：腕を引いて沈む
+      const k = Math.sin(Math.min(1, p.actT / PLAYER.dodgeTime) * Math.PI);
+      for (const P of [Rp, Lp]) {
+        P.y -= 0.12 * k;
+        P.x += 0.06 * k;
+        P.rz -= 0.5 * k;
+      }
+    }
+
+    // ---- 技ごとの特別な動き ----
+    const V = p.vmAnim;
+    if (V) {
+      V.t += dt;
+      const k = clamp01(V.t / V.dur);
+      if (V.kind === 'kiblast') {
+        // 気功波：両手をそろえて前へ突き出す（波動拳）
+        for (const P of [Rp, Lp]) {
+          P.x = -0.24;
+          P.y = 0.06;
+          P.z = 0.08 - 0.32 * Math.sin(Math.min(1, k * 1.6) * Math.PI * 0.5) * (1 - smooth(0.75, 1, k));
+          P.rx = 0.15;
+          P.ry = 0;
+          P.rz = 0;
+        }
+        setFlash(k < 0.7 ? 0x6a4a10 : 0x000000);
+      } else if (V.kind === 'uppercut') {
+        // 昇竜拳：右腕を真上へ突き上げる
+        Rp.rx = 1.45 * smooth(0, 0.3, k);
+        Rp.x = -0.22;
+        Rp.y = 0.0;
+        Rp.z = -0.12;
+        Rp.ry = 0;
+        Rp.rz = 0;
+      } else if (V.kind === 'barrage') {
+        // 百裂拳：左右の拳を目にもとまらぬ速さで交互に突き出す
+        const step = 0.07;
+        const i = Math.floor(V.t / step);
+        const f = (V.t % step) / step;
+        const P = i % 2 ? Lp : Rp;
+        P.z -= 0.45 * Math.sin(f * Math.PI);
+        P.rx -= 0.3;
+        P.y += (i % 3 - 1) * 0.04;
+      } else if (V.kind === 'bigchop') {
+        // 大地割り：斧を思い切り振り上げ、刃を縦にして一気に振り下ろす
+        Rp.twist = Math.PI / 2;
+        Rp.ry = 0;
+        Rp.rz = 0;
+        if (k < 0.4) {
+          const u = ease(k / 0.4);
+          Rp.rx = 0.85 * u;
+          Rp.y = 0.3 * u;
+          Rp.z = -0.08 * u;
+        } else {
+          const u = smooth(0.4, 0.55, k);
+          Rp.rx = 0.85 - 2.45 * u;
+          Rp.y = 0.3 - 0.37 * u;
+          Rp.z = -0.08 - 0.17 * u;
+          if (k < 0.7) setFlash(0x5a2a10);
+        }
+        Rp.x = -0.15;
+      } else if (V.kind === 'frenzy') {
+        // 死の宣告：一瞬で左右に何度も斬る（左へは鎌を反転、右へは戻す）
+        const n = 4;
+        const f = k * n;
+        const i = Math.min(n - 1, Math.floor(f));
+        const u = ease(f - i);
+        const toLeft = i % 2 === 0;
+        Rp.ry = toLeft ? -1.3 + u * 2.6 : 1.3 - u * 2.6;
+        Rp.rx = -1.05;
+        Rp.rz = toLeft ? 0.45 : -0.45;
+        Rp.x = -0.22;
+        Rp.y = 0.22;
+        Rp.twist = toLeft ? Math.PI : 0;
+        spinVis = 1;
+      } else if (V.kind === 'dive') {
+        // 天穿ち：空中で槍を振りかぶり、着地点へ槍を前に構えて急降下
+        if (k < 0.45) {
+          const u = ease(k / 0.45);
+          Rp.rx = 0.9 * u;
+          Rp.y = 0.15 * u;
+          Rp.z = 0.1 * u;
+        } else {
+          Rp.aim = true;
+          Rp.rx = -0.1;
+          Rp.ry = 0.12;
+          Rp.x = -0.1;
+          Rp.y = 0.1;
+          Rp.z = -0.12;
+          setFlash(0x2a5a3a);
+        }
+      }
+      if (V.t >= V.dur) p.vmAnim = null;
+    }
+  }
 
   const vm = {
     visible: true,
@@ -142,92 +342,54 @@ export function createViewModel(renderer, camera) {
       const bobOn = VIEW.bob > 0 ? 1 : 0;
       const walk = p.walking ? (p.dashing ? 1.8 : p.tired ? 0.6 : 1) : 0;
       const ph = p.walkPhase;
-      let x = V.x + swayX + Math.cos(ph) * V.sway * walk * bobOn;
-      let y = V.y + swayY - Math.abs(Math.sin(ph)) * V.sway * walk * bobOn;
-      let z = V.z;
-      let rx = 0;
-      let ry = 0;
-      let rz = 0;
-      if (p.dashing) { y -= 0.06; rx = -0.35; rz = -0.15; } // ダッシュ：剣を下げて構える
-      if (p.tired) { y -= 0.1; rx -= 0.25; } // バテ：腕が下がる
-      if (p.hurtT > 0) { const k = p.hurtT / 0.3; y -= 0.05 * k; rx += 0.4 * k; }
-
-      // 行動ごとの振り
-      const a = p.action;
-      const combo = p.job?.basic.combo;
-      if (a === 'attack' && combo) {
-        const c = combo[p.combo] || combo[0];
-        const k = Math.min(1, p.actT / (c.hit * 1.8)); // 当たりの少し後まで振り切る
-        const e = 1 - (1 - k) * (1 - k);
-        if (p.waveT > 0) {
-          // 衝撃波：前へ突き出して振り下ろす
-          const w = 1 - p.waveT / 0.4;
-          z -= Math.sin(w * Math.PI) * 0.15;
-          rx = 0.5 - w * 1.4;
-          setFlash(0x2a6f8f);
-        } else if (p.combo === combo.length - 1) {
-          // 3段目：振りかぶって真上から振り下ろし
-          rx = 0.7 - e * 1.6;
-          x -= 0.1 * e;
-        } else {
-          // 1・2段目：剣先を前へ向けて横に薙ぐ（1段目は右→左、2段目は左→右）
-          const dir = p.combo % 2 === 0 ? 1 : -1;
-          ry = -dir * (0.6 - e * 1.4);
-          rx = -1.05;
-          rz = dir * 0.5;
-          y += 0.24;
-          x -= 0.16;
-        }
-      } else if (a === 'shoot' || a === 'cast' || (a !== 'attack' && p.waveT > 0)) {
-        // 飛び道具・詠唱：武器を前へ突き出す
-        const w = a === 'cast' ? Math.min(1, p.actT / (p.actDur || 0.4)) : 1 - Math.max(0, p.waveT) / 0.25;
-        z -= Math.sin(Math.min(1, w) * Math.PI) * 0.12;
-        rx = a === 'cast' ? 0.6 - w * 0.4 : -0.3;
-        setFlash(0x2a3f6f);
-      } else if (a === 'dash') {
-        // 瞬影斬：低く構えて突き抜ける
-        rx = -1.2;
-        y -= 0.08;
-        spinVis = 1;
-      } else if (a === 'spin') {
-        // 回転斬り：画面を大きく横切って薙ぐ（カメラ自体は回さない）
-        const k = Math.min(1, p.actT / (p.actDur || 0.5));
-        ry = -1.0 + k * 3.0;
-        rx = -1.1;
-        rz = 0.6;
-        y += 0.22;
-        x -= 0.16;
-        spinVis = 1;
-      } else if (a === 'dodge') {
-        // 回避：腕を引いて沈む
-        const k = Math.sin(Math.min(1, p.actT / PLAYER.dodgeTime) * Math.PI);
-        y -= 0.12 * k;
-        x += 0.06 * k;
-        rz -= 0.5 * k;
+      root.position.set(
+        V.x + swayX + Math.cos(ph) * V.sway * walk * bobOn,
+        V.y + swayY - Math.abs(Math.sin(ph)) * V.sway * walk * bobOn,
+        V.z,
+      );
+      const Rp = pose();
+      const Lp = pose();
+      for (const P of [Rp, Lp]) {
+        if (p.dashing) { P.y -= 0.06; P.rx = -0.35; P.rz = -0.15; } // ダッシュ：武器を下げて構える
+        if (p.tired) { P.y -= 0.1; P.rx -= 0.25; } // バテ：腕が下がる
+        if (p.hurtT > 0) { const k = p.hurtT / 0.3; P.y -= 0.05 * k; P.rx += 0.4 * k; }
       }
+      setFlash(spinVis > 0 ? 0x1f4f6f : 0x000000); // 光らせる動きは animate の中で上書き
+      animate(p, dt, Rp, Lp);
       // 矢の雨など：真上へ向けて放つ（p.aimUpT 秒）
       if (p.aimUpT > 0) {
         const k = Math.sin(Math.min(1, 1 - p.aimUpT / 0.45) * Math.PI);
-        rx += 1.15 * k;
-        y += 0.1 * k;
+        Rp.rx += 1.15 * k;
+        Rp.y += 0.1 * k;
         p.aimUpT -= dt;
       }
-      if (p.waveT <= 0 && a !== 'cast') setFlash(spinVis > 0 ? 0x1f4f6f : 0x000000);
       spinVis = Math.max(0, spinVis - dt * 4);
-      root.position.set(x, y, z);
-      pivot.rotation.set(rx, ry, rz, 'YXZ');
-      // 影分身：左の薄い手が少し遅れて同じ動きをする
+      // 右手
+      R.off.position.set(Rp.x, Rp.y, Rp.z);
+      R.pivot.rotation.set(Rp.rx, Rp.ry, Rp.rz, 'YXZ');
+      R.twist.rotation.y = Rp.twist;
+      if (Rp.aim) R.holder.rotation.set(AIM_ROT[0], AIM_ROT[1], AIM_ROT[2]);
+      else if (R.baseRot) R.holder.rotation.copy(R.baseRot);
+      // 左手（両手の拳の職業だけ）。左右反転して置く
+      if (L.off.visible) {
+        L.off.position.set(LEFT_X - Lp.x, Lp.y, Lp.z);
+        L.pivot.rotation.set(Lp.rx, -Lp.ry, -Lp.rz, 'YXZ');
+        L.twist.rotation.y = -Lp.twist;
+      }
+      // 影分身：左の薄い手が少し遅れて、右手と左右反転の同じ動きをする
       clock += dt;
-      history.push({ t: clock, rx, ry, rz });
+      history.push({ t: clock, ...Rp });
       while (history.length > 2 && history[1].t <= clock - GHOST_DELAY) history.shift();
       const clone = p.buffs?.clone;
-      ghostRoot.visible = !!(clone && clone.t > 0);
-      if (ghostRoot.visible) {
+      Gh.off.visible = !!(clone && clone.t > 0);
+      if (Gh.off.visible) {
         const h = history[0];
-        ghostPivot.rotation.set(h.rx, -h.ry, -h.rz, 'YXZ'); // 左右反転した動き
+        Gh.off.position.set(-0.3 - h.x, 0.03 + h.y, 0.05 + h.z);
+        Gh.pivot.rotation.set(h.rx, -h.ry, -h.rz, 'YXZ');
+        Gh.twist.rotation.y = -h.twist;
         const o = 0.3 + 0.12 * Math.sin(clock * 6);
         ghostArmMat.opacity = o;
-        ghostWeapon?.mats.forEach((m) => (m.opacity = o));
+        Gh.weapon?.mats.forEach((m) => (m.opacity = o));
       }
     },
     /** 職業の見た目に替える（防具の色と、手に持つ武器） */
@@ -239,8 +401,7 @@ export function createViewModel(renderer, camera) {
       camera.remove(root);
       geos.forEach((g) => g.dispose());
       mats.forEach((m) => m.dispose());
-      weapon?.mats.forEach((m) => m.dispose());
-      ghostWeapon?.mats.forEach((m) => m.dispose());
+      for (const A of [R, L, Gh]) A.weapon?.mats.forEach((m) => m.dispose());
     },
   };
   return vm;
