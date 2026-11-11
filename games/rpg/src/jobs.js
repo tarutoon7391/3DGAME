@@ -2,7 +2,7 @@
 // 使った本人のブラウザでは当たり判定込みで実行し（local = true）、他の人のブラウザでは見た目だけ再生する（local = false）
 // 味方への回復・強化は game.teamEffect（全員に配って各自が自分に適用）、ボスへの挑発・召喚は game.bossCommand（ホストが処理）
 import * as THREE from 'three';
-import { JOBS, GAUGE } from './data/jobs.js';
+import { JOBS, JOB_ORDER, GAUGE } from './data/jobs.js';
 import { radiusHit, strike, forEachTarget, meleeArc } from './combat.js';
 import { angleDiff, yawTo } from './util.js';
 
@@ -510,7 +510,7 @@ function skillData(game, p, intent, dist = 0) {
     const dd = Math.hypot(b.pos.x - p.pos.x, b.pos.z - p.pos.z);
     if (dd < bd) { bd = dd; best = b; }
   }
-  if (best) Object.assign(d, { bx: +best.pos.x.toFixed(2), bz: +best.pos.z.toFixed(2), br: best.radius });
+  if (best) Object.assign(d, { bx: +best.pos.x.toFixed(2), bz: +best.pos.z.toFixed(2), br: best.radius, byaw: +best.yaw.toFixed(3) });
   return d;
 }
 
@@ -680,6 +680,12 @@ const GENERIC = {
     // 重力術師：その場所へボスを引き寄せる
     if (sk.pullBoss && local) game.bossCommand({ type: 'pull', x: at.x, z: at.z, dist: sk.pullBoss, r: sk.pullRange || 30 });
     const count = sk.count || 1;
+    if (sk.zone === 'talisman') {
+      addZone(game, { kind: 'talisman', x: at.x, z: at.z, r: sk.radius, t: sk.dur, mult: sk.mult, color: sk.color, owner: p.id, local, p, need: sk.need || 3 });
+      const mine = zones.filter((z) => z.kind === 'talisman' && z.owner === p.id);
+      if (mine.length >= (sk.need || 3)) detonateTalismans(game, p.id);
+      return;
+    }
     for (let i = 0; i < count; i++) {
       // 複数置くときは輪の形にばらす（罠の大地など）
       const a = (i / count) * Math.PI * 2;
@@ -688,6 +694,7 @@ const GENERIC = {
         kind: sk.zone, x: at.x + Math.sin(a) * off, z: at.z + Math.cos(a) * off, r: sk.radius, t: sk.dur, delay: sk.delay,
         every: sk.every, tick: sk.every || 0, mult: (sk.mult || 0) * (sk.zone === 'trap' ? p.job.trapBonus || 1 : 1), color: sk.color,
         trigger: sk.trigger, buff: sk.buff, debuff: sk.debuff, heal: sk.heal, owner: p.id, local, p,
+        range: sk.range, explode: sk.explode,
       });
     }
   },
@@ -777,6 +784,80 @@ const GENERIC = {
       if (sk.team) game.teamEffect({ kind: 'buff', name: sk.team.name, dur: sk.team.dur, vals: sk.team.vals, x: p.pos.x, z: p.pos.z, r: sk.radius, msg: sk.team.msg });
     }
   },
+  mimic(game, p, d, local, sk) {
+    // ものまね師：ランダムな職業の Q を借りて使う（何を借りたかは d.pick で他の人にも同じものを見せる）
+    if (d.pick === undefined) {
+      const pool = JOB_ORDER.filter((j) => j !== p.jobId && JOBS[j].q.kind !== 'mimic');
+      d.pick = pool[Math.floor(Math.random() * pool.length)];
+    }
+    const src = JOBS[d.pick];
+    if (!src) return;
+    game.toastOnce(`ものまね：${src.name}の「${src.q.name}」`, 1400);
+    if (SKILLS[src.q.id]) SKILLS[src.q.id](game, p, d, local);
+    else if (GENERIC[src.q.kind]) GENERIC[src.q.kind](game, p, d, local, src.q);
+  },
+  cycle(game, p, d, local, sk) {
+    // 精霊術士：使うたびに順番に属性が変わる（炎→氷→雷→…）
+    if (d.pick === undefined) {
+      p.cycleIdx = ((p.cycleIdx ?? -1) + 1) % sk.pool.length;
+      d.pick = p.cycleIdx;
+    }
+    const one = sk.pool[d.pick];
+    game.toastOnce(`${sk.name}：${one.name}`, 1200);
+    GENERIC[one.kind](game, p, d, local, one);
+  },
+  blink(game, p, d, local, sk) {
+    // 次元術士：狙った場所へ一瞬で移動（壁は越えない）。着いた場所で周りを打つ
+    startAction(p, 'cast', 0.2);
+    game.fx.burst(d.x, 1.2, d.z, sk.color, 30, { speed: 5, up: 3, life: 0.5 });
+    game.sound.se('gate');
+    if (!local) return;
+    p.pos.x = d.tx;
+    p.pos.z = d.tz;
+    game.world.collide(p.pos, p.radius);
+    p.invuln = Math.max(p.invuln, 0.5);
+    game.fx.burst(p.pos.x, 1.2, p.pos.z, sk.color, 30, { speed: 5, up: 3, life: 0.5 });
+    if (sk.mult) radiusHit(game, p, sk.mult, sk.radius, { gauge: GAUGE.gainSkill, color: sk.color, melee: false });
+  },
+  blinkbehind(game, p, d, local, sk) {
+    // 暗殺者：一番近いボスの背後へ回り込む（いなければ前へ跳ぶ）
+    startAction(p, 'cast', 0.25);
+    game.sound.se('gate');
+    game.fx.burst(d.x, 1.2, d.z, 0x424242, 30, { speed: 4, up: 3, life: 0.5 });
+    if (!local) return;
+    if (d.bx !== undefined) {
+      const back = (d.byaw || 0) + Math.PI;
+      p.pos.x = d.bx + Math.sin(back) * ((d.br || 1.5) + 1.4);
+      p.pos.z = d.bz + Math.cos(back) * ((d.br || 1.5) + 1.4);
+      p.yaw = Math.atan2(d.bx - p.pos.x, d.bz - p.pos.z);
+    } else {
+      p.pos.x = d.tx;
+      p.pos.z = d.tz;
+    }
+    game.world.collide(p.pos, p.radius);
+    p.invuln = Math.max(p.invuln, 0.6);
+    if (sk.mult) meleeArc(game, p, p.yaw, sk.mult, 3.2, 1.6, { gauge: GAUGE.gainSkill, crit: sk.crit, color: 0x424242 });
+  },
+  mark(game, p, d, local, sk) {
+    // 狩人の印：一番近いボスに印。sk.dur 秒間、自分の攻撃が強くなる
+    startAction(p, 'cast', 0.25);
+    game.sound.se('windup');
+    if (!local) return;
+    let best = null;
+    let bd = Infinity;
+    for (const b of game.bosses) {
+      if (!b.active || !b.alive) continue;
+      const dd = Math.hypot(b.pos.x - p.pos.x, b.pos.z - p.pos.z);
+      if (dd < bd) { bd = dd; best = b; }
+    }
+    if (!best) {
+      game.toastOnce('印を付ける相手がいない', 1000);
+      return;
+    }
+    p.mark = { target: best, t: sk.dur };
+    game.fx.burst(best.pos.x, best.hpY, best.pos.z, 0xff1744, 30, { speed: 3, up: 2, life: 0.8 });
+    game.toastOnce(`${best.name}に印を付けた（${sk.dur}秒）`, 1400);
+  },
   selfhurt(game, p, d, local, sk) {
     // ギャンブラーの外れ：自分が痛い
     startAction(p, 'cast', 0.3);
@@ -831,6 +912,9 @@ function shoot(game, p, d, local) {
   }
   game.sound.se('shoot');
 }
+SKILLS._dodgeblast = (game, p, d) => {
+  game.fx.burst(d.x, 0.8, d.z, 0xffd54f, 24, { speed: 6, up: 4, life: 0.5 });
+};
 SKILLS._shot = (game, p, d, local) => {
   p.waveT = 0.25;
   shoot(game, p, d, local);
@@ -915,7 +999,14 @@ function addZone(game, z) {
     game.scene.add(zoneGroup);
   }
   z.age = 0;
-  if (z.kind === 'field' || z.kind === 'strike' || z.kind === 'totem') {
+  if (z.kind === 'turret' || z.kind === 'talisman') {
+    geoCache.turret ||= new THREE.CylinderGeometry(0.35, 0.5, 1.2, 8);
+    geoCache.talisman ||= new THREE.BoxGeometry(0.5, 0.8, 0.06);
+    z.mat = new THREE.MeshBasicMaterial({ color: z.color });
+    z.mesh = new THREE.Mesh(z.kind === 'turret' ? geoCache.turret : geoCache.talisman, z.mat);
+    z.mesh.position.y = z.kind === 'turret' ? 0.6 : 1.2;
+    z.cd = 0;
+  } else if (z.kind === 'field' || z.kind === 'strike' || z.kind === 'totem') {
     geoCache.ring ||= new THREE.RingGeometry(0.92, 1, 40).rotateX(-Math.PI / 2);
     z.mat = new THREE.MeshBasicMaterial({ color: z.color, transparent: true, opacity: 0.7, depthWrite: false });
     z.mesh = new THREE.Mesh(geoCache.ring, z.mat);
@@ -1055,6 +1146,25 @@ export function updateJobZones(game, dt) {
         }
         removeZone(i);
       }
+    } else if (z.kind === 'turret') {
+      // 機工士のタレット：一番近い敵へ自動で撃つ（当たり判定は置いた本人だけ）
+      z.mesh.rotation.y += dt * 2;
+      z.cd -= dt;
+      if (z.cd <= 0) {
+        z.cd = z.every;
+        let best = null;
+        let bd = z.range || 22;
+        forEachTarget(game, (e) => {
+          const dd = Math.hypot(e.pos.x - z.x, e.pos.z - z.z);
+          if (dd < bd) { bd = dd; best = e; }
+        });
+        if (best) game.projectiles.playerShot(z.p, z.x, z.z, Math.atan2(best.pos.x - z.x, best.pos.z - z.z), { speed: 30, mult: z.mult, color: z.color, size: 0.22, range: 26, explode: z.explode, local: z.local, gauge: 0 });
+      }
+      if (z.t <= 0) removeZone(i);
+    } else if (z.kind === 'talisman') {
+      z.mesh.rotation.y += dt * 1.5;
+      z.mesh.position.y = 1.2 + Math.sin(z.age * 3) * 0.15;
+      if (z.t <= 0) removeZone(i);
     } else if (z.kind === 'mine') {
       z.mat.color.setHex(Math.floor(z.age * 4) % 2 ? 0xff6f00 : 0xffd180);
       // ボスが近づくか、時間が来たら爆発（当たり判定は置いた本人だけ）
@@ -1072,6 +1182,20 @@ export function updateJobZones(game, dt) {
       if (z.t <= 0) removeZone(i);
     }
   }
+}
+
+/** 陰陽師：その人の札をすべて爆発させる（札の数だけ大爆発） */
+function detonateTalismans(game, owner) {
+  for (let i = zones.length - 1; i >= 0; i--) {
+    const z = zones[i];
+    if (z.kind !== 'talisman' || z.owner !== owner) continue;
+    game.fx.burst(z.x, 1, z.z, z.color, 50, { speed: 9, up: 8, life: 0.8, size: 0.28 });
+    if (z.local) radiusHit(game, z.p, z.mult, z.r, { color: z.color, knock: 1.5, gauge: GAUGE.gainSkill, brkMul: 1.5 }, z.x, z.z);
+    removeZone(i);
+  }
+  game.fx.shake(0.8);
+  game.sound.se('slam');
+  game.toastOnce('札がそろった！ 一斉に爆発！', 1200);
 }
 
 /** (x,z) が重騎士の守護結界の中か（敵弾を消す・被ダメ半減） */
