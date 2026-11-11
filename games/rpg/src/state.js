@@ -5,10 +5,10 @@ import { AREAS, AREA_ORDER, OLD_AREA_MAP } from './data/areas.js';
 export const PROGRESS_VERSION = 2;
 
 /** ニューゲームの進行データ */
-export function newProgress() {
+export function newProgress(area = AREA_ORDER[0]) {
   return {
     version: PROGRESS_VERSION,
-    area: AREA_ORDER[0],
+    area: AREAS[area] ? area : AREA_ORDER[0],
     bossStep: 0, // ボスが複数いるステージで、倒したボスの数（やられたらその次のボスの部屋から）
     stats: { kills: 0, deaths: 0, time: 0 },
   };

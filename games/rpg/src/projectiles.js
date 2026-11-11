@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { SKILLS } from './data/player.js';
 import { hurtPlayer, forEachTarget, strike } from './combat.js';
 
-const MAX_SHOTS = 360; // ステージ4の弾幕に足りる数
+const MAX_SHOTS = 360; // ステージ2の弾幕に足りる数
 
 export function createProjectiles(game) {
   const shotGeo = new THREE.IcosahedronGeometry(0.28, 0);

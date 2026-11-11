@@ -1,4 +1,4 @@
-// 魔窟（ステージ3）：入口通路・大広間・ボス部屋。構造は旧仕様のまま（レバー・宝箱は撤去）
+// 魔窟（1-3）：入口通路・大広間・ボス部屋。構造は旧仕様のまま（レバー・宝箱は撤去）
 import * as THREE from 'three';
 
 const WALL = 0x4a4452;
@@ -51,7 +51,7 @@ export function buildDungeon(ctx) {
     if (instant) doorT = doorTarget;
     doorCol.off = open;
   };
-  extra.doors = [extra.setDoor]; // ステージ4と同じ形（ボスの door 番号で開け閉め）
+  extra.doors = [extra.setDoor]; // ステージ2と同じ形（ボスの door 番号で開け閉め）
   ctx.updaters.push((dt) => {
     doorT += Math.sign(doorTarget - doorT) * Math.min(Math.abs(doorTarget - doorT), dt * 0.8);
     door.position.y = 2.3 - doorT * 4.5;

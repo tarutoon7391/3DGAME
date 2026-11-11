@@ -4,7 +4,7 @@
 // 速度・予備動作・攻撃間隔は旧仕様から 速さ×1.3、予備動作×0.8、硬直×0.7、攻撃間隔×0.65 程度にした
 
 export const ENEMIES = {
-  // ---- ステージ1・2 ----
+  // ---- 1-1・1-2 ----
   slime: {
     name: 'スライム', ai: 'melee', model: 'slime', color: 0x66bb6a,
     hp: 30, def: 1, speed: 3.4, radius: 0.6, aggro: 11, hpY: 1.3,
@@ -68,7 +68,7 @@ export const AI = {
  * look：見た目（models.js の makeBossModel）
  */
 export const BOSSES = {
-  // ---- ステージ3 の主（強さ・動きは旧仕様のまま） ----
+  // ---- 1-3 の主（強さ・動きは旧仕様のまま） ----
   galdra: {
     name: '魔窟の主ガルドラ', color: 0x8e2b2b,
     hp: 1400, def: 8, speed: 3.2, radius: 1.7, hpY: 6,
@@ -95,7 +95,7 @@ export const BOSSES = {
     look: {},
   },
 
-  // ---- ステージ4 中ボス1：突進と扇弾で攻めてくる騎士 ----
+  // ---- ステージ2 中ボス1：突進と扇弾で攻めてくる騎士 ----
   ignis: {
     name: '業火の騎士イグニス', color: 0xd84315,
     hp: 950, def: 6, speed: 4.4, radius: 1.4, hpY: 5,
@@ -114,7 +114,7 @@ export const BOSSES = {
     look: { scale: 2.1, horn: 0xffcc80, eye: 0xffffff, weapon: 'sword', metal: 0x5d4037 },
   },
 
-  // ---- ステージ4 中ボス2：距離を取って弾幕を張る魔導士 ----
+  // ---- ステージ2 中ボス2：距離を取って弾幕を張る魔導士 ----
   frosga: {
     name: '氷霧の魔導士フロスガ', color: 0x4fc3f7,
     hp: 820, def: 4, speed: 3.0, radius: 1.3, hpY: 5, keep: 9,
@@ -134,7 +134,7 @@ export const BOSSES = {
     look: { scale: 2.0, horn: 0xe1f5fe, eye: 0x00e5ff, weapon: 'staff', metal: 0x1a237e },
   },
 
-  // ---- ステージ4 ボス：全種類の弾幕＋手下召喚 ----
+  // ---- ステージ2 ボス：全種類の弾幕＋手下召喚 ----
   zarvan: {
     name: '冥王ザルヴァーン', color: 0x6a1b9a,
     hp: 2300, def: 8, speed: 3.6, radius: 1.9, hpY: 7,
@@ -160,5 +160,5 @@ export const BOSSES = {
   },
 };
 
-/** ステージ3のボス（旧コードとの互換用） */
+/** 1-3のボス（旧コードとの互換用） */
 export const BOSS = BOSSES.galdra;
