@@ -438,7 +438,7 @@ const SKILLS = {
   },
   dissonance(game, p, d, local) {
     const e = JOBS.bard.e;
-    game.skillFx?.slash(p.pos.x, p.pos.z, d.yaw, e.range, e.arc, 0xf48fb1);
+    game.skillFx?.dissonance(p, d.yaw, e.range, e.arc); // 歪んだ暗い旋律を飛ばす
     startAction(p, 'cast', 0.3);
     game.sound.se('wave');
     for (let i = 0; i < 16; i++) {
@@ -681,17 +681,20 @@ const GENERIC = {
   },
   burst(game, p, d, local, sk) {
     const ticks = sk.ticks || 1;
-    startAction(p, sk.anim || 'spin', ticks > 1 ? ticks * sk.every + 0.15 : 0.45);
+    const windup = sk.windup || 0; // 斬り始める前の溜め（燕返し）
+    const lastGap = sk.lastGap || 0; // 最後の一撃の前の溜め
+    startAction(p, sk.anim || 'spin', windup + (ticks > 1 ? ticks * sk.every + lastGap + 0.15 : 0.45));
     let n = 0;
-    let tick = 0;
+    let tick = windup;
     game.sound.se('spin');
+    game.skillFx?.burstStart(p, sk); // 技ごとの演出（src/skillfx.js）
     p.skillTick = (dt) => {
       tick -= dt;
       if (n >= ticks || tick > 0) return;
-      tick = sk.every || 0.2;
+      tick = (sk.every || 0.2) + (n === ticks - 2 ? lastGap : 0);
       n++;
       game.fx.burst(p.pos.x, 1, p.pos.z, sk.color, 24, { speed: 8, up: 1.5, life: 0.4, size: 0.15, grav: 2 });
-      game.skillFx?.spin(p.pos.x, p.pos.z, sk.radius, sk.color);
+      game.skillFx?.burstTick(p, sk, n, ticks);
       if (local) radiusHit(game, p, sk.mult, sk.radius, { melee: sk.melee !== false, gauge: GAUGE.gainSkill, color: sk.color, brkMul: sk.brkMul, knock: sk.knock ?? 1.2 });
       // 爆弾魔の自爆：撃ち終わったら自分の HP が残りわずかになる
       if (local && sk.selfHpTo && n >= ticks) {
@@ -707,7 +710,7 @@ const GENERIC = {
   cone(game, p, d, local, sk) {
     startAction(p, 'cast', 0.3);
     game.sound.se(sk.sound || 'swing');
-    game.skillFx?.slash(p.pos.x, p.pos.z, d.yaw, sk.range, sk.arc, sk.color);
+    game.skillFx?.coneFx(p, d.yaw, sk); // 扇の斬撃（居合は縦斬り）
     for (let i = 0; i < 16; i++) {
       const a = d.yaw + (Math.random() - 0.5) * sk.arc;
       const r = Math.random() * sk.range;
@@ -779,11 +782,16 @@ const GENERIC = {
       if (mine.length >= (sk.need || 3)) detonateTalismans(game, p.id);
       return;
     }
+    const toss = count > 1 && sk.zone === 'trap'; // 罠の大地：腕を4回振り上げてばらまく（見た目）
+    if (toss) p.vmAnim = { kind: 'toss4', t: 0, dur: 1.2 };
     for (let i = 0; i < count; i++) {
       // 複数置くときは輪の形にばらす（罠の大地など）
       const a = (i / count) * Math.PI * 2;
       const off = count > 1 ? sk.scatter || 4 : 0;
+      const appear = toss ? 0.15 + Math.floor((i * 4) / count) * 0.28 + 0.4 : 0; // 投げた罠が地面に落ちるまで
+      if (toss) game.skillFx?.toss(p, at.x + Math.sin(a) * off, at.z + Math.cos(a) * off, appear - 0.4, sk.color);
       addZone(game, {
+        appear,
         kind: sk.zone, x: at.x + Math.sin(a) * off, z: at.z + Math.cos(a) * off, r: sk.radius, t: sk.dur, delay: sk.delay,
         every: sk.every, tick: sk.every || 0, mult: (sk.mult || 0) * (sk.zone === 'trap' ? p.job.trapBonus || 1 : 1), color: sk.color,
         trigger: sk.trigger, buff: sk.buff, debuff: sk.debuff, heal: sk.heal, owner: p.id, local, p,
@@ -795,6 +803,7 @@ const GENERIC = {
     startAction(p, 'cast', 0.4);
     game.sound.se('seal');
     ringFx(game, d.x, d.z, sk.radius || 3, sk.color);
+    game.skillFx?.teamBuffFx(p, sk); // 技ごとの演出（情熱のサンバ：踊って音符のオーラ）
     if (local) game.teamEffect({ kind: 'buff', name: sk.buff, dur: sk.dur, vals: sk.vals, x: d.x, z: d.z, r: sk.radius || 0, msg: sk.msg });
   },
   selfbuff(game, p, d, local, sk) {
@@ -1053,7 +1062,7 @@ const GENERIC = {
     startAction(p, 'cast', sk.dur);
     game.sound.se('windup');
     game.fx.burst(p.pos.x, 1.2, p.pos.z, 0xffffff, 16, { speed: 2, up: 1, life: 0.5 });
-    game.skillFx?.powerUp(p, 0xffffff);
+    game.skillFx?.counterFx(p, sk); // 見切り：刀を鞘に納めて構える
     if (local) p.buff('counter', sk.dur, { mult: sk.mult, range: sk.range });
   },
   random(game, p, d, local, sk) {

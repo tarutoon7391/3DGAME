@@ -11,6 +11,7 @@ import { WEAPONS } from './weaponmodel.js';
 import { wallTexture, fillTexture } from './auratex.js';
 import { geo, sectorGeo, discGeo, columnGeo, beamGeo, ribbonGeo, ringGeo, glow, arrowGeo, hotOf, ease } from './fxkit.js';
 import { createSkillFxB } from './skillfx_b.js';
+import { createSkillFxC } from './skillfx_c.js';
 
 /** 矢の雨：上へ放った矢が落ちてくるまでの間（秒）。この間は矢を降らせない（見た目だけ） */
 const RAIN_DELAY = 0.4;
@@ -335,9 +336,11 @@ export function createSkillFx(game) {
   }
 
   const B = createSkillFxB({ game, root, add, mesh, column, sigil, streak, slash, slam });
+  const Cx = createSkillFxC({ game, root, add, mesh, column, slash, streak });
 
   return {
     ...B,
+    ...Cx,
     slash(x, z, yaw, range, arc, color, o) {
       slash(x, z, yaw, range, arc, color, o);
     },
@@ -454,6 +457,7 @@ export function createSkillFx(game) {
     /** メテオ・矢の雨・落雷（auras.js の zoneAdded から回ってくる） */
     zoneAdded(z) {
       if (z.kind === 'meteor' || z.kind === 'arrowrain' || z.kind === 'strike') zoneFx(z);
+      else if (z.kind === 'trap') Cx.trapFx(z); // トラバサミ・地雷
     },
 
     update(dt) {
@@ -471,6 +475,7 @@ export function createSkillFx(game) {
         }
       }
       for (const z of zoneSet) z.tick(dt);
+      Cx.updateTraps(dt);
       updateBuffRings(dt);
       updateCloneFrame(dt);
     },

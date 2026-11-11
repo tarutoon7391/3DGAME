@@ -15,7 +15,7 @@ export const JOB_SHOTS = {
   gunner: { basic: 'shell', skill: { 0xffd180: 'bullet', 0xff6f00: 'cannonball' } },
   warlock: { basic: 'skull', skill: { 0x7b1fa2: 'hexskull' } },
   reaper: { skill: { 0xb0bec5: 'scythe' } },
-  trapper: { basic: 'dart' },
+  trapper: { basic: 'bolt' },
   storm: { basic: 'lightning' },
   barrier: { basic: 'hex' },
   astrologer: { basic: 'star' },
