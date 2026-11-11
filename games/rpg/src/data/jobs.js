@@ -15,6 +15,13 @@ export const GAUGE = {
   gainMelee: 9, // 近接の通常攻撃1ヒット
   gainShot: 4, // 飛び道具の通常攻撃1ヒット
   gainSkill: 3, // Q・E スキル1ヒット
+  // 通常攻撃は「1ヒットいくつ」ではなく「休まず当て続けたら毎秒いくつ」で職業ごとに揃える
+  // （手数の多い職だけ一瞬で溜まらないように。1ヒットの量は下の basicGauge で職業ごとに決まる）
+  basicPerSecMelee: 15, // 近接：当て続けて約7秒で満タン（近づく危険がある分 多め）
+  basicPerSecShot: 8, // 飛び道具：約12.5秒で満タン
+  // 技・継続ダメージ・設置物の小さなヒット（1ヒット 3 以下）は 2秒あたり合計 12 まで（多段・連射の技で一気に溜まらないように）
+  skillCap: 12,
+  skillCapWindow: 2,
   breakShot: 0.3, // 飛び道具・魔法のブレイク値は近接のこの倍率
 };
 
@@ -981,9 +988,9 @@ export const JOBS = {
     name: '吸収術士', role: '敵弾を吸ってゲージに', color: '#80cbc4',
     stats: { hp: 110, atk: 13, speed: 6.6 },
     basic: { type: 'shot', cd: 0.45, speed: 24, mult: 0.8, color: 0x80cbc4, size: 0.26, range: 22 },
-    q: { id: 'devour', kind: 'absorb', name: '弾喰らい', desc: '周り5mの敵弾を吸い込む。1発ごとに必殺ゲージ +4・HP 1% 回復', cd: 7, radius: 5, gaugePer: 4, healPer: 0.01, color: 0x80cbc4 },
+    q: { id: 'devour', kind: 'absorb', name: '弾喰らい', desc: '周り5mの敵弾を吸い込む。1発ごとに必殺ゲージ +4（最大 +24）・HP 1% 回復', cd: 7, radius: 5, gaugePer: 4, gaugeMax: 24, healPer: 0.01, color: 0x80cbc4 },
     e: { id: 'releasebolt', kind: 'shots', name: '放出弾', desc: '吸った力を3発の大きな弾にして撃ち出す（貫通）', cd: 6, count: 3, spread: 0.15, speed: 26, mult: 1.4, size: 0.4, range: 24, pierce: true, color: 0x4db6ac },
-    r: { id: 'blackmaw', kind: 'absorb', name: '大口', desc: '周り12mの敵弾をすべて吸い込む。1発ごとに必殺ゲージ +2・HP 1% 回復', radius: 12, gaugePer: 2, healPer: 0.01, color: 0x26a69a },
+    r: { id: 'blackmaw', kind: 'absorb', name: '大口', desc: '周り12mの敵弾をすべて吸い込む。1発ごとに必殺ゲージ +2（最大 +30）・HP 1% 回復', radius: 12, gaugePer: 2, gaugeMax: 30, healPer: 0.01, color: 0x26a69a },
     trait: '弾を吸うたびに強くなる（吸った弾でゲージが溜まる）',
     breakMul: 1,
     look: { armorColor: 0x00695c, swordColor: 0x80cbc4, swordLen: 0.9, cape: 0x004d40, weapon: 'staff', hat: 0x004d40 },
@@ -1181,6 +1188,21 @@ for (const id of JOB_ORDER) {
   J.stats.atk = Math.round(J.stats.atk * MELEE_BUFF.atk);
   J.dmgTaken = (J.dmgTaken ?? 1) * MELEE_BUFF.dmgTaken;
   J.staminaBonus = MELEE_BUFF.stamina; // スタミナの最大値に足す
+}
+/**
+ * 必殺ゲージ：通常攻撃1ヒットの上がり幅（basicGauge）を職業ごとに決める
+ * 毎秒のヒット数（近接＝コンボ1周のヒット数÷時間、飛び道具＝1回の弾数÷間隔）で割り、毎秒の上がり方を揃える。
+ * 例：マシンガンナー 0.6／双剣士 2.9／剣士 6.0／ロケット兵 8.0。ブーメランは行き帰りで2回当たるので半分。
+ * 職業の特色の「溜まりやすさ」（gaugeMul：盗賊・双剣士・ガンブレード）はこの上に掛かる。データに basicGauge を書けばそちらを優先
+ */
+for (const id of JOB_ORDER) {
+  const J = JOBS[id];
+  const b = J.basic;
+  if (J.basicGauge !== undefined) continue;
+  const hps = b.type === 'melee' ? b.combo.length / b.combo.reduce((a, c) => a + c.dur, 0) : (b.count || 1) / b.cd;
+  let g = (b.type === 'melee' ? GAUGE.basicPerSecMelee : GAUGE.basicPerSecShot) / hps;
+  if (b.boomerang) g *= 0.5;
+  J.basicGauge = Math.round(Math.min(12, Math.max(0.3, g)) * 10) / 10;
 }
 export const DEFAULT_JOB = 'swordsman';
 

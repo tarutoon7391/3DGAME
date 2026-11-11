@@ -809,7 +809,7 @@ const GENERIC = {
     const n = game.projectiles.clearShotsNear(p.pos.x, p.pos.z, sk.radius);
     ringFx(game, p.pos.x, p.pos.z, sk.radius, sk.color);
     if (local && n) {
-      p.addGauge(n * sk.gaugePer);
+      p.addGauge(Math.min(sk.gaugeMax ?? Infinity, n * sk.gaugePer));
       p.hp = Math.min(p.maxHp, p.hp + p.maxHp * sk.healPer * n);
       game.toastOnce(`敵弾を ${n} 個 吸収！`, 1200);
     }
@@ -996,7 +996,7 @@ function shoot(game, p, d, local) {
   const mult = b.mult * (d.still && p.job.stillBonus ? p.job.stillBonus : 1);
   // 双子：通常攻撃が2発（count・spread）
   const n = b.count || 1;
-  const o = { ...b, mult, local };
+  const o = { ...b, mult, local, gauge: p.job.basicGauge, basic: true }; // 通常攻撃：ゲージは職業ごとの basicGauge
   if (b.debuff) o.onHit = (t) => { if (t && game.bosses.includes(t)) game.bossCommand({ type: 'debuff', ...b.debuff, sub: t.sub }); };
   for (let i = 0; i < n; i++) {
     const jit = b.jitter ? (Math.random() - 0.5) * b.jitter : 0; // マシンガン：少しばらける
