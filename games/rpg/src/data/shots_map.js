@@ -34,7 +34,7 @@ export const JOB_SHOTS = {
   ghost: { basic: 'ghost' },
   twins: { basic: 'heart', skill: { 0xff1744: 'orb', 0x2979ff: 'orb' } }, // ふたりの嵐：赤と青の光の玉
   machinegunner: { basic: 'bullet' },
-  flamer: { basic: 'flame' },
+  flamer: { basic: 'flame', skill: { 0xff5722: 'fireball' } }, // ナパームは大きな火の玉
   rocketeer: { basic: 'rocket' },
   medic: { basic: 'syringe' },
   shielder: { basic: 'shield' },
