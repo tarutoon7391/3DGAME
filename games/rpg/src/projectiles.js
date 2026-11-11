@@ -10,6 +10,7 @@ import { createShotRenderer } from './shotmodel.js';
 import { ENEMY_SHOTS } from './data/enemyshots.js';
 import { ENEMY_SHOT_SIZE } from './data/enemyfx.js';
 import { pickShotLook } from './data/shots_map.js';
+import { slashTexture } from './fxtex.js';
 
 const MAX_SHOTS = 360; // ステージ2の弾幕に足りる数
 const MAX_PSHOTS = 120;
@@ -150,14 +151,21 @@ export function createProjectiles(game) {
   }
 
   // ---------------- 斬撃の波（剣士の E） ----------------
-  const waveGeo = new THREE.TorusGeometry(1.1, 0.16, 4, 12, Math.PI);
-  waveGeo.rotateX(Math.PI / 2); // 弧が +Z（進行方向）に膨らむ向き
+  // 三日月の刃（外側の縁ほど明るい扇）。水平と縦の2枚を十字に重ね、一人称でも横から見ても見える
+  const waveGeo = new THREE.CircleGeometry(1.4, 40, -Math.PI / 2 - 1.2, 2.4).rotateX(-Math.PI / 2).translate(0, 0, -0.7);
   const waves = [];
 
   /** o: { mult, range, radius, scale, color, local, melee } */
   function playerWave(pl, yaw, o) {
-    const mat = new THREE.MeshBasicMaterial({ color: o.color ?? 0x80d8ff, transparent: true, opacity: 0.85 });
-    const mesh = new THREE.Mesh(waveGeo, mat);
+    const mat = new THREE.MeshBasicMaterial({
+      color: o.color ?? 0x80d8ff, map: slashTexture(), transparent: true, opacity: 1, depthWrite: false,
+      side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
+    });
+    const mesh = new THREE.Group();
+    const flat = new THREE.Mesh(waveGeo, mat);
+    const upright = new THREE.Mesh(waveGeo, mat);
+    upright.rotation.z = Math.PI / 2;
+    mesh.add(flat, upright);
     mesh.scale.setScalar(o.scale || 1);
     mesh.rotation.y = yaw;
     game.scene.add(mesh);

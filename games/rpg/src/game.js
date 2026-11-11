@@ -12,6 +12,7 @@ import { createEnemies } from './enemies.js';
 import { createProjectiles } from './projectiles.js';
 import { createAuras } from './auras.js';
 import { createEnemyFx } from './enemyfx.js';
+import { createSkillFx } from './skillfx.js';
 import { createAllies } from './allies.js';
 import { createHazards } from './hazards.js';
 import { createEffects } from './effects.js';
@@ -100,6 +101,7 @@ export function createGame() {
   game.projectiles = createProjectiles(game);
   game.auras = createAuras(game); // 回復・強化のオーラとエリアの見た目
   game.enemyFx = createEnemyFx(game); // 敵の攻撃の見た目（弾の形・衝撃波・壁）
+  game.skillFx = createSkillFx(game); // 味方の技エフェクト（斬撃・突進・光線・強化など）
   game.allies = createAllies(game);
   game.hazards = createHazards(game);
   game.hudView = createHudView(game);
@@ -880,6 +882,7 @@ export function createGame() {
     game.projectiles.update(dt);
     game.auras.update(dt);
     game.enemyFx.update(dt);
+    game.skillFx.update(dt);
     game.hazards.update(dt);
     updateJobZones(game, dt);
     if (game.raid) {

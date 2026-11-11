@@ -111,7 +111,10 @@ export function createAuras(game) {
   return {
     /** 設置エリアを登録（jobs.js の addZone から）。z.aura.remove() で消える */
     zoneAdded(z) {
-      if (z.kind !== 'field' && z.kind !== 'totem' && z.kind !== 'aegis') return;
+      if (z.kind !== 'field' && z.kind !== 'totem' && z.kind !== 'aegis') {
+        game.skillFx?.zoneAdded(z); // メテオ・矢の雨・落雷は src/skillfx.js
+        return;
+      }
       const type = zoneType(z);
       const color = z.kind === 'aegis' ? 0x90caf9 : z.color ?? 0xffffff;
       const area = makeArea(root, { type, color, r: z.r, emblem: type !== 'hazard' });

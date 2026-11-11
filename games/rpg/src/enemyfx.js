@@ -184,9 +184,9 @@ export function createEnemyFx(game) {
       return h;
     },
 
-    /** 着地・地割れ・火柱・爆発の衝撃：半径 r まで一気に広がって消える（見た目だけ） */
-    impact(x, z, r, color) {
-      const w = makeWave(x, z, color, themeOf(color));
+    /** 着地・地割れ・火柱・爆発の衝撃：半径 r まで一気に広がって消える（見た目だけ）。theme を渡すとそのテーマ（味方の技は 'default'） */
+    impact(x, z, r, color, theme = null) {
+      const w = makeWave(x, z, color, theme || themeOf(color));
       const width = Math.max(0.3, r * 0.1);
       let t = 0;
       const h = {

@@ -45,6 +45,7 @@ const SKILLS = {
       p.didSkill = true;
       if (local) radiusHit(game, p, q.mult, q.radius, { melee: true, gauge: GAUGE.gainSkill });
       game.fx.burst(p.pos.x, 1, p.pos.z, 0x80d8ff, 30, { speed: 9, up: 1.5, life: 0.45, size: 0.14, grav: 2 });
+      game.skillFx?.spin(p.pos.x, p.pos.z, q.radius, 0x80d8ff); // 技エフェクト（src/skillfx.js）
       game.fx.shake(0.25);
     };
   },
@@ -61,6 +62,7 @@ const SKILLS = {
     startAction(p, 'cast', 0.45);
     game.sound.se('roar');
     game.fx.burst(p.pos.x, 2, p.pos.z, 0xff7043, 30, { speed: 7, up: 3, life: 0.6 });
+    game.skillFx?.powerUp(p, 0xff7043);
     if (local) {
       p.buff('taunt', q.dur);
       game.bossCommand({ type: 'taunt', id: p.id, dur: q.dur });
@@ -100,6 +102,7 @@ const SKILLS = {
     startAction(p, 'cast', 0.6);
     game.sound.se('seal');
     game.fx.burst(p.pos.x, 3, p.pos.z, 0xfff59d, 60, { speed: 8, up: 8, life: 1.2 });
+    game.skillFx?.pillar(p.pos.x, p.pos.z, 0xfff59d, 3);
     if (local) game.teamEffect({ kind: 'prayer', invuln: e.invuln });
   },
   // ---- 弓使い ----
@@ -127,6 +130,7 @@ const SKILLS = {
     const e = JOBS.ninja.r;
     game.sound.se('seal');
     game.fx.burst(p.pos.x, 1.2, p.pos.z, 0x7e57c2, 40, { speed: 5, up: 3, life: 0.7 });
+    game.skillFx?.powerUp(p, 0x7e57c2);
     if (local) {
       p.buff('clone', e.dur, { cloneMult: e.cloneMult, speedMul: e.speedMul });
       game.toastOnce('影分身！ 攻撃のたびに分身が追い打ち', 1600);
@@ -145,6 +149,7 @@ const SKILLS = {
     startAction(p, 'cast', 0.5);
     game.sound.se('seal');
     game.fx.burst(p.pos.x, 2, p.pos.z, 0xf48fb1, 50, { speed: 8, up: 4, life: 1 });
+    game.skillFx?.powerUp(p, 0xf48fb1, true);
     if (local) game.teamEffect({ kind: 'buff', name: 'gale', dur: e.dur, vals: { speedMul: e.speedMul, regen: e.regen }, msg: '疾風の旋律：スタミナ無限・足が速くなる！' });
   },
   // ---- 召喚士 ----
@@ -152,12 +157,14 @@ const SKILLS = {
     startAction(p, 'cast', 0.35);
     game.sound.se('seal');
     game.fx.burst(d.x, 1, d.z, 0x80cbc4, 20, { speed: 4, up: 4, life: 0.6 });
+    game.skillFx?.summon(d.x, d.z, 0x80cbc4);
     if (local) game.bossCommand({ type: 'summon', kind: 'spirit', x: d.x, z: d.z, owner: p.id });
   },
   golem(game, p, d, local) {
     startAction(p, 'cast', 0.6);
     game.sound.se('slam');
     game.fx.burst(d.x, 1, d.z, 0xa1887f, 40, { speed: 6, up: 5, life: 0.8 });
+    game.skillFx?.summon(d.x, d.z, 0xa1887f);
     if (local) game.bossCommand({ type: 'summon', kind: 'golem', x: d.x, z: d.z, owner: p.id });
   },
 
@@ -183,6 +190,7 @@ const SKILLS = {
       p.didSkill = true;
       p.model.root.position.y = 0;
       game.fx.burst(p.pos.x, 0.5, p.pos.z, 0xffab91, 50, { speed: 10, up: 6, life: 0.7, size: 0.25 });
+      game.skillFx?.slam(p.pos.x, p.pos.z, e.radius, 0xffab91);
       game.fx.shake(0.9);
       game.sound.se('slam');
       if (local) radiusHit(game, p, e.mult, e.radius, { melee: true, gauge: 0, knock: 2, color: 0xffab91 });
@@ -191,6 +199,7 @@ const SKILLS = {
   // ---- 格闘家 ----
   kiblast(game, p, d, local) {
     const q = JOBS.monk.q;
+    game.skillFx?.slash(p.pos.x, p.pos.z, d.yaw, q.range, q.arc, 0xffcc80);
     startAction(p, 'cast', 0.3);
     game.sound.se('wave');
     for (let i = 0; i < 18; i++) {
@@ -213,6 +222,7 @@ const SKILLS = {
         tick = e.every;
         const a = p.yaw + (Math.random() - 0.5) * 0.8;
         game.fx.burst(p.pos.x + Math.sin(a) * 1.6, 1.2, p.pos.z + Math.cos(a) * 1.6, 0xffcc80, 3, { speed: 3, up: 1, life: 0.2, grav: 0 });
+        game.skillFx?.slash(p.pos.x, p.pos.z, a, 2.4, 1.0, 0xffcc80, { dur: 0.15, roll: Math.random() - 0.5 });
         if (local) meleeArc(game, p, p.yaw, e.mult, e.range, 2, { gauge: 0 });
       } else if (p.actT >= e.dur && !finished) {
         finished = true;
@@ -246,6 +256,7 @@ const SKILLS = {
     startAction(p, 'cast', 0.45);
     game.sound.se('roar');
     game.fx.burst(p.pos.x, 1.6, p.pos.z, 0xff1744, 40, { speed: 6, up: 4, life: 0.7 });
+    game.skillFx?.powerUp(p, 0xff1744);
     if (local) {
       p.buff('warcry', q.dur, { atkMul: q.atkMul, dmgMul: q.dmgMul });
       game.toastOnce('怒号！ 攻撃力アップ（被ダメージも増える）', 1600);
@@ -263,6 +274,7 @@ const SKILLS = {
         tick = e.every;
         n++;
         game.fx.burst(p.pos.x, 1, p.pos.z, 0xb71c1c, 25, { speed: 8, up: 1.5, life: 0.4, size: 0.16, grav: 2 });
+        game.skillFx?.spin(p.pos.x, p.pos.z, e.radius, 0xb71c1c);
         if (local) radiusHit(game, p, e.mult, e.radius, { melee: true, gauge: 0, lifesteal: e.lifesteal, color: 0xb71c1c });
       }
     };
@@ -272,7 +284,7 @@ const SKILLS = {
     const q = JOBS.chrono.q;
     startAction(p, 'cast', 0.4);
     game.sound.se('gate');
-    for (const b of game.bosses) if (b.alive) ringFx(game, b.pos.x, b.pos.z, b.radius + 2, 0xb388ff);
+    for (const b of game.bosses) if (b.alive) { ringFx(game, b.pos.x, b.pos.z, b.radius + 2, 0xb388ff); game.skillFx?.curse(b, 0xb388ff); }
     if (local) game.bossCommand({ type: 'debuff', name: 'slow', dur: q.dur, mul: q.mul });
   },
   timestop(game, p, d, local) {
@@ -280,6 +292,7 @@ const SKILLS = {
     startAction(p, 'cast', 0.5);
     game.sound.se('gate');
     game.fx.burst(p.pos.x, 2, p.pos.z, 0xb388ff, 50, { speed: 8, up: 4, life: 0.9 });
+    for (const b of game.bosses) if (b.alive) game.skillFx?.curse(b, 0xb388ff);
     if (local) game.bossCommand({ type: 'freeze', dur: e.dur, immune: e.immune });
   },
   // ---- 砲術士 ----
@@ -322,6 +335,7 @@ const SKILLS = {
       if (!t) return;
       // 命を吸う線
       for (let k = 0.15; k < 1; k += 0.17) game.fx.burst(t.pos.x + (p.pos.x - t.pos.x) * k, 1.4, t.pos.z + (p.pos.z - t.pos.z) * k, 0xce93d8, 1, { speed: 0.5, up: 0.3, life: 0.3, grav: 0 });
+      game.skillFx?.beam(p.pos.x, p.pos.z, Math.atan2(t.pos.x - p.pos.x, t.pos.z - p.pos.z), Math.hypot(t.pos.x - p.pos.x, t.pos.z - p.pos.z), 0.7, 0xce93d8);
       if (local) {
         strike(game, p, t, e.mult, { gauge: 0, knock: 0, color: 0xce93d8 });
         game.teamEffect({ kind: 'heal', x: +p.pos.x.toFixed(1), z: +p.pos.z.toFixed(1), r: e.healRadius, amount: e.heal, quiet: true });
@@ -334,6 +348,7 @@ const SKILLS = {
     startAction(p, 'spin', 0.45);
     game.sound.se('spin');
     game.fx.burst(p.pos.x, 1, p.pos.z, 0xb0bec5, 30, { speed: 9, up: 1, life: 0.4, size: 0.14, grav: 2 });
+    game.skillFx?.slash(p.pos.x, p.pos.z, d.yaw, q.range, q.arc, 0xb0bec5);
     if (local) meleeArc(game, p, d.yaw, q.mult, q.range, q.arc, { gauge: q.gauge });
   },
   verdict(game, p, d, local) {
@@ -346,6 +361,7 @@ const SKILLS = {
       return;
     }
     game.fx.burst(t.pos.x, (t.hpY || 2) * 0.6, t.pos.z, 0x000000, 50, { speed: 7, up: 6, life: 0.8, size: 0.3 });
+    game.skillFx?.execute(p, t, 0xb0bec5);
     game.fx.shake(0.9);
     if (local) {
       const missing = t.maxHp ? 1 - t.hp / t.maxHp : 0;
@@ -397,6 +413,7 @@ const SKILLS = {
   },
   dissonance(game, p, d, local) {
     const e = JOBS.bard.e;
+    game.skillFx?.slash(p.pos.x, p.pos.z, d.yaw, e.range, e.arc, 0xf48fb1);
     startAction(p, 'cast', 0.3);
     game.sound.se('wave');
     for (let i = 0; i < 16; i++) {
@@ -420,6 +437,7 @@ const SKILLS = {
     startAction(p, 'spin', 0.45);
     game.sound.se('spin');
     game.fx.burst(p.pos.x, 1, p.pos.z, 0xffab91, 26, { speed: 9, up: 1.2, life: 0.4, size: 0.14, grav: 2 });
+    game.skillFx?.spin(p.pos.x, p.pos.z, e.radius, 0xffab91);
     if (local) radiusHit(game, p, e.mult, e.radius, { melee: true, gauge: GAUGE.gainSkill, color: 0xffab91 });
   },
   uppercut(game, p, d, local) {
@@ -432,6 +450,7 @@ const SKILLS = {
       if (p.didSkill || p.actT < e.time * 0.3) return;
       p.didSkill = true;
       game.fx.burst(p.pos.x, 1.5, p.pos.z, 0xffcc80, 30, { speed: 4, up: 9, life: 0.6 });
+      game.skillFx?.slash(p.pos.x, p.pos.z, p.yaw, e.radius + 0.5, 2.6, 0xffcc80, { roll: Math.PI / 2, dur: 0.35 });
       if (local) radiusHit(game, p, e.mult, e.radius, { melee: true, gauge: GAUGE.gainSkill, knock: 1.5, color: 0xffcc80 });
     };
   },
@@ -458,6 +477,7 @@ const SKILLS = {
       const x = d.x + Math.sin(d.yaw) * (1 + n * e.step);
       const z = d.z + Math.cos(d.yaw) * (1 + n * e.step);
       game.fx.burst(x, 0.4, z, 0x8d6e63, 18, { speed: 5, up: 7, life: 0.5, size: 0.22 });
+      game.skillFx?.slam(x, z, e.radius, 0x8d6e63);
       game.fx.shake(0.2);
       if (local) radiusHit(game, p, e.mult, e.radius, { melee: true, gauge: GAUGE.gainSkill, color: 0x8d6e63 }, x, z);
     };
@@ -467,6 +487,7 @@ const SKILLS = {
     startAction(p, 'cast', 0.35);
     game.sound.se('gate');
     game.fx.burst(p.pos.x, 1.4, p.pos.z, 0xb388ff, 30, { speed: 3, up: 3, life: 0.7 });
+    game.skillFx?.powerUp(p, 0xb388ff);
     if (!local) return;
     // 3秒前の HP（記録が無ければ今の HP）
     const past = p.hpAgo?.(e.back) ?? p.hp;
@@ -494,6 +515,7 @@ const SKILLS = {
       o.left += e.extend;
       strike(game, p, o.target, e.mult, { gauge: GAUGE.gainSkill, color: 0x7b1fa2 });
       game.fx.burst(o.target.pos.x, (o.target.hpY || 2) * 0.6, o.target.pos.z, 0x7b1fa2, 30, { speed: 5, up: 4, life: 0.6 });
+      game.skillFx?.curse(o.target, 0x7b1fa2);
     }
     if (!hit.size) game.toastOnce('呪いのかかった敵がいない（通常攻撃や Q で呪ってから）', 1400);
   },
@@ -640,6 +662,7 @@ const GENERIC = {
       tick = sk.every || 0.2;
       n++;
       game.fx.burst(p.pos.x, 1, p.pos.z, sk.color, 24, { speed: 8, up: 1.5, life: 0.4, size: 0.15, grav: 2 });
+      game.skillFx?.spin(p.pos.x, p.pos.z, sk.radius, sk.color);
       if (local) radiusHit(game, p, sk.mult, sk.radius, { melee: sk.melee !== false, gauge: GAUGE.gainSkill, color: sk.color, brkMul: sk.brkMul, knock: sk.knock ?? 1.2 });
       // 爆弾魔の自爆：撃ち終わったら自分の HP が残りわずかになる
       if (local && sk.selfHpTo && n >= ticks) {
@@ -647,11 +670,15 @@ const GENERIC = {
         game.fx.burst(p.pos.x, 1, p.pos.z, 0x212121, 30, { speed: 5, up: 5, life: 0.8 });
       }
     };
-    if (!local) game.fx.burst(p.pos.x, 1, p.pos.z, sk.color, 24, { speed: 8, up: 1.5, life: 0.4, size: 0.15, grav: 2 });
+    if (!local) {
+      game.fx.burst(p.pos.x, 1, p.pos.z, sk.color, 24, { speed: 8, up: 1.5, life: 0.4, size: 0.15, grav: 2 });
+      game.skillFx?.spin(p.pos.x, p.pos.z, sk.radius, sk.color);
+    }
   },
   cone(game, p, d, local, sk) {
     startAction(p, 'cast', 0.3);
     game.sound.se(sk.sound || 'swing');
+    game.skillFx?.slash(p.pos.x, p.pos.z, d.yaw, sk.range, sk.arc, sk.color);
     for (let i = 0; i < 16; i++) {
       const a = d.yaw + (Math.random() - 0.5) * sk.arc;
       const r = Math.random() * sk.range;
@@ -703,6 +730,7 @@ const GENERIC = {
       p.didSkill = true;
       p.model.root.position.y = 0;
       game.fx.burst(p.pos.x, 0.5, p.pos.z, sk.color, 45, { speed: 10, up: 6, life: 0.7, size: 0.25 });
+      game.skillFx?.slam(p.pos.x, p.pos.z, sk.radius, sk.color);
       game.fx.shake(0.7);
       game.sound.se('slam');
       if (local) radiusHit(game, p, sk.mult, sk.radius, { melee: true, gauge: GAUGE.gainSkill, knock: 2, color: sk.color, brkMul: sk.brkMul });
@@ -744,6 +772,7 @@ const GENERIC = {
     startAction(p, 'cast', 0.35);
     game.sound.se(sk.sound || 'seal');
     game.fx.burst(p.pos.x, 1.4, p.pos.z, sk.color, 36, { speed: 5, up: 4, life: 0.7 });
+    game.skillFx?.powerUp(p, sk.color);
     if (local) {
       p.buff(sk.buff, sk.dur, { ...sk.vals });
       if (sk.invuln) p.invuln = Math.max(p.invuln, sk.invuln);
@@ -761,6 +790,7 @@ const GENERIC = {
     startAction(p, 'cast', 0.4);
     game.sound.se('seal');
     game.fx.burst(p.pos.x, 2, p.pos.z, sk.color, 50, { speed: 7, up: 5, life: 0.9 });
+    game.skillFx?.powerUp(p, sk.color, true);
     if (local) {
       game.teamEffect({ kind: 'gauge', amount: sk.amount, x: d.x, z: d.z, r: sk.radius || 0, from: p.id });
       if (sk.self) p.addGauge(sk.self);
@@ -769,7 +799,7 @@ const GENERIC = {
   debuff(game, p, d, local, sk) {
     startAction(p, 'cast', 0.4);
     game.sound.se('gate');
-    for (const b of game.bosses) if (b.alive) ringFx(game, b.pos.x, b.pos.z, b.radius + 2, sk.color);
+    for (const b of game.bosses) if (b.alive) { ringFx(game, b.pos.x, b.pos.z, b.radius + 2, sk.color); game.skillFx?.curse(b, sk.color); }
     if (local) for (const db of sk.debuffs) game.bossCommand({ type: 'debuff', ...db });
   },
   beam(game, p, d, local, sk) {
@@ -784,6 +814,7 @@ const GENERIC = {
     const fire = () => {
       for (const a of lines) {
         const s0 = Math.sin(a);
+        game.skillFx?.beam(p.pos.x, p.pos.z, a, sk.len, sk.width, sk.color);
         const c0 = Math.cos(a);
         for (let k = 1; k < sk.len; k += 1.2) {
           const x = p.pos.x + s0 * k;
@@ -815,6 +846,7 @@ const GENERIC = {
     game.sound.se('seal');
     ringFx(game, p.pos.x, p.pos.z, 12, sk.color);
     game.fx.burst(p.pos.x, 2.4, p.pos.z, sk.color, 40, { speed: 6, up: 5, life: 0.8 });
+    game.skillFx?.powerUp(p, sk.color, true);
     if (local) game.teamEffect({ kind: 'cdreset' });
   },
   reviveall(game, p, d, local, sk) {
@@ -822,6 +854,7 @@ const GENERIC = {
     startAction(p, 'cast', 0.6);
     game.sound.se('seal');
     game.fx.burst(p.pos.x, 1.5, p.pos.z, sk.color, 60, { speed: 7, up: 6, life: 1 });
+    game.skillFx?.pillar(p.pos.x, p.pos.z, sk.color, 3);
     if (local) {
       p.hp = 1;
       game.teamEffect({ kind: 'reviveall', hp: sk.hp });
@@ -855,6 +888,7 @@ const GENERIC = {
     if (best) {
       const mult = sk.base + Math.min(sk.cap, n) * sk.per;
       for (let k = 0; k < 1; k += 0.15) game.fx.burst(p.pos.x + (best.pos.x - p.pos.x) * k, 1.4, p.pos.z + (best.pos.z - p.pos.z) * k, sk.color, 2, { speed: 1, up: 0.5, life: 0.3, grav: 0 });
+      game.skillFx?.beam(p.pos.x, p.pos.z, Math.atan2(best.pos.x - p.pos.x, best.pos.z - p.pos.z), Math.hypot(best.pos.x - p.pos.x, best.pos.z - p.pos.z), 0.9, sk.color);
       strike(game, p, best, mult, { gauge: GAUGE.gainSkill, color: sk.color, knock: 0.5 });
       if (n) game.toastOnce(`敵弾を ${n} 個 はね返した！`, 1200);
     }
@@ -928,6 +962,7 @@ const GENERIC = {
     // 次元術士：狙った場所へ一瞬で移動（壁は越えない）。着いた場所で周りを打つ
     startAction(p, 'cast', 0.2);
     game.fx.burst(d.x, 1.2, d.z, sk.color, 30, { speed: 5, up: 3, life: 0.5 });
+    game.skillFx?.blink(d.x, d.z, d.tx, d.tz, sk.color);
     game.sound.se('gate');
     if (!local) return;
     p.pos.x = d.tx;
@@ -942,6 +977,7 @@ const GENERIC = {
     startAction(p, 'cast', 0.25);
     game.sound.se('gate');
     game.fx.burst(d.x, 1.2, d.z, 0x424242, 30, { speed: 4, up: 3, life: 0.5 });
+    game.skillFx?.blink(d.x, d.z, d.bx ?? d.tx, d.bz ?? d.tz, 0x7e57c2);
     if (!local) return;
     if (d.bx !== undefined) {
       const back = (d.byaw || 0) + Math.PI;
@@ -974,6 +1010,7 @@ const GENERIC = {
     }
     p.mark = { target: best, t: sk.dur };
     game.fx.burst(best.pos.x, best.hpY, best.pos.z, 0xff1744, 30, { speed: 3, up: 2, life: 0.8 });
+    game.skillFx?.curse(best, 0xff1744);
     game.toastOnce(`${best.name}に印を付けた（${sk.dur}秒）`, 1400);
   },
   selfhurt(game, p, d, local, sk) {
@@ -987,6 +1024,7 @@ const GENERIC = {
     startAction(p, 'cast', sk.dur);
     game.sound.se('windup');
     game.fx.burst(p.pos.x, 1.2, p.pos.z, 0xffffff, 16, { speed: 2, up: 1, life: 0.5 });
+    game.skillFx?.powerUp(p, 0xffffff);
     if (local) p.buff('counter', sk.dur, { mult: sk.mult, range: sk.range });
   },
   random(game, p, d, local, sk) {
@@ -1061,6 +1099,7 @@ function dashStrike(game, p, d, local, q, color, extra = {}) {
   p.dodgeZ = Math.cos(d.yaw);
   p.yaw = d.yaw;
   p.dashSpeed = q.dist / q.time;
+  game.skillFx?.dash(p, d.yaw, q.dist, q.width || 1.4, color); // 技エフェクト（src/skillfx.js）
   if (local) p.invuln = Math.max(p.invuln, q.time + 0.15);
   const hit = new Set();
   game.sound.se('spin');
@@ -1209,6 +1248,7 @@ export function updateJobZones(game, dt) {
       z.mat.opacity = 0.4 + 0.4 * Math.sin(z.age * 20);
       if (z.t <= 0) {
         game.fx.burst(z.x, 0.5, z.z, 0xff7043, 70, { speed: 12, up: 8, life: 0.9, size: 0.3 });
+        game.skillFx?.slam(z.x, z.z, z.r, 0xff7043);
         game.fx.shake(0.8);
         game.sound.se('slam');
         if (z.local) radiusHit(game, z.p, z.mult, z.r, { color: 0xff7043, knock: 2, gauge: 0 }, z.x, z.z);
@@ -1257,6 +1297,7 @@ export function updateJobZones(game, dt) {
       z.mat.opacity = 0.4 + 0.4 * Math.sin(z.age * 20);
       if (z.t <= 0) {
         game.fx.burst(z.x, 0.6, z.z, z.color, 50, { speed: 10, up: 9, life: 0.7, size: 0.26 });
+        game.skillFx?.slam(z.x, z.z, z.r, z.color);
         game.fx.shake(0.6);
         game.sound.se('slam');
         if (z.local) radiusHit(game, z.p, z.mult, z.r, { color: z.color, knock: 1.5, gauge: GAUGE.gainSkill }, z.x, z.z);
@@ -1343,6 +1384,7 @@ function detonateTalismans(game, owner) {
     const z = zones[i];
     if (z.kind !== 'talisman' || z.owner !== owner) continue;
     game.fx.burst(z.x, 1, z.z, z.color, 50, { speed: 9, up: 8, life: 0.8, size: 0.28 });
+    game.skillFx?.slam(z.x, z.z, z.r, z.color);
     if (z.local) radiusHit(game, z.p, z.mult, z.r, { color: z.color, knock: 1.5, gauge: GAUGE.gainSkill, brkMul: 1.5 }, z.x, z.z);
     removeZone(i);
   }
