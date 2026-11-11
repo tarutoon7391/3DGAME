@@ -16,7 +16,7 @@ import { createViewModel } from './viewmodel.js';
 import { VIEW } from './data/view.js';
 import { createHudView } from './ui/hudview.js';
 import { createModalHost, createDialog } from './ui/dialog.js';
-import { createLights, loadArea, updateAreaLogic, checkSeals } from './area.js';
+import { createLights, loadArea, updateAreaLogic, checkSeals, bossDown } from './area.js';
 import { AREAS, AREA_ORDER } from './data/areas.js';
 import { fmtTime } from './util.js';
 
@@ -77,6 +77,7 @@ export function createGame() {
     toast(msg, ms);
   };
   game.onEnemyKilled = () => checkSeals(game);
+  game.onBossDown = (b) => bossDown(game, b);
   game.onPlayerHurt = (p, dirX, dirZ) => {
     if (p === game.me()) game.hudView.hurt(dirX, dirZ);
   };
@@ -173,8 +174,8 @@ export function createGame() {
     game.hudView.show(false);
     showResult({
       title: 'やられてしまった……',
-      lines: [`${AREAS[pr.area].name} の入口からやり直す（HP は全快、魔物は元に戻る）。`, `プレイ時間 ${fmtTime(pr.stats.time)}　やられた回数 ${pr.stats.deaths}`],
-      retryLabel: '入口からやり直す',
+      lines: [pr.bossStep ? `${AREAS[pr.area].name}：倒したボスの次の部屋の前からやり直す（HP は全快）。` : `${AREAS[pr.area].name} の入口からやり直す（HP は全快、魔物は元に戻る）。`, `プレイ時間 ${fmtTime(pr.stats.time)}　やられた回数 ${pr.stats.deaths}`],
+      retryLabel: pr.bossStep ? '部屋の前からやり直す' : '入口からやり直す',
       onRetry: () => {
         game.down = null;
         loadArea(game, pr.area);
@@ -199,7 +200,7 @@ export function createGame() {
     store.save(saveData);
     game.hudView.show(false);
     showResult({
-      title: 'クリア！ 魔窟の主を討ち取った！',
+      title: 'クリア！ 冥王ザルヴァーンを討ち取った！',
       lines: [
         `プレイ時間 ${fmtTime(time)}${best ? '（ベスト更新！）' : `（ベスト ${fmtTime(rec.bestTime)}）`}`,
         `撃破数 ${pr.stats.kills}　やられた回数 ${pr.stats.deaths}`,
@@ -230,7 +231,7 @@ export function createGame() {
     const recLine = rec.clears ? `　クリア ${rec.clears} 回／ベスト ${fmtTime(rec.bestTime)}` : '';
     showTitle({
       title: TITLE,
-      desc: `迷路を進みながら魔物と戦い、魔窟の主を倒せばクリア。育成も収集もない3ステージのアクション。${recLine}`,
+      desc: `迷路を進みながら魔物と戦い、魔窟の主ガルドラを倒し、冥王の城で中ボス2連戦と冥王を倒せばクリア。育成も収集もない4ステージのアクション。${recLine}`,
       controls: CONTROLS,
       onStart: () => begin(newProgress()),
       startLabel: has ? 'はじめから' : 'はじめる',

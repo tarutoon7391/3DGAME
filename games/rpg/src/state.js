@@ -9,6 +9,7 @@ export function newProgress() {
   return {
     version: PROGRESS_VERSION,
     area: AREA_ORDER[0],
+    bossStep: 0, // ボスが複数いるステージで、倒したボスの数（やられたらその次のボスの部屋から）
     stats: { kills: 0, deaths: 0, time: 0 },
   };
 }
@@ -22,6 +23,8 @@ export function migrateProgress(p) {
   const out = newProgress();
   if (p.version === PROGRESS_VERSION) {
     if (AREAS[p.area]) out.area = p.area;
+    const n = AREAS[out.area].bosses?.length || 0;
+    if (Number.isInteger(p.bossStep) && p.bossStep > 0 && p.bossStep < n) out.bossStep = p.bossStep;
   } else if (p.version === 1 || p.version === undefined) {
     out.area = OLD_AREA_MAP[p.area] || AREA_ORDER[0];
   } else {

@@ -22,6 +22,8 @@ const BGM = {
   field: seq('A4:1 C5:1 E5:1 C5:1 D5:1 B4:1 G4:2 A4:1 C5:1 E5:1 G5:1 E5:3 -:1 F5:1 E5:1 D5:1 C5:1 B4:1 C5:1 D5:2 E5:1 C5:1 A4:1 B4:1 A4:3 -:1', 0.2, 'square', 0.035),
   dungeon: seq('A3:2 C4:2 B3:2 E3:2 A3:2 C4:2 D4:2 -:2 F3:2 A3:2 G#3:2 E3:2 A3:4 -:4', 0.32, 'triangle', 0.07),
   boss: seq('A3:1 A3:1 C4:1 A3:1 D#4:1 D4:1 C4:1 A3:1 G3:1 G3:1 Bb3:1 G3:1 D4:1 C#4:1 C4:1 G3:1', 0.14, 'sawtooth', 0.04),
+  castle: seq('D3:2 F3:2 A3:2 C#4:2 D4:2 A3:2 Bb3:2 -:2 G3:2 Bb3:2 A3:2 F3:2 E3:2 C#3:2 D3:4 -:2', 0.3, 'triangle', 0.07),
+  lastboss: seq('D3:1 D4:1 D3:1 C4:1 D3:1 Bb3:1 D3:1 A3:1 G3:1 G4:1 G3:1 F4:1 A3:1 E4:1 C#4:1 A3:1', 0.12, 'sawtooth', 0.045),
   clear: seq('C5:1 E5:1 G5:1 C6:3 G5:1 C6:4', 0.16, 'square', 0.06),
 };
 

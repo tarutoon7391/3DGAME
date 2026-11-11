@@ -1,33 +1,28 @@
-// 弾：敵の魔弾（オブジェクトプール）と、プレイヤーの衝撃波（貫通）
+// 弾：敵の魔弾（InstancedMesh 1つで全部描く。弾幕でも描画は1回）と、プレイヤーの衝撃波（貫通）
 import * as THREE from 'three';
 import { SKILLS } from './data/player.js';
 import { hurtPlayer, forEachTarget, strike } from './combat.js';
 
-const MAX_SHOTS = 120;
+const MAX_SHOTS = 360; // ステージ4の弾幕に足りる数
 
 export function createProjectiles(game) {
   const shotGeo = new THREE.IcosahedronGeometry(0.28, 0);
-  const shotMats = new Map();
+  const shotMesh = new THREE.InstancedMesh(shotGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }), MAX_SHOTS);
+  shotMesh.frustumCulled = false; // 弾は部屋じゅうに散るので個別の判定はしない
+  shotMesh.count = 0;
+  game.scene.add(shotMesh);
+  const tmpColor = new THREE.Color();
+  const tmpObj = new THREE.Object3D();
   const shots = [];
-  for (let i = 0; i < MAX_SHOTS; i++) {
-    const m = new THREE.Mesh(shotGeo, shotMat(0xffa726));
-    m.visible = false;
-    game.scene.add(m);
-    shots.push({ mesh: m, active: false, x: 0, z: 0, vx: 0, vz: 0, life: 0, frac: 0 });
-  }
-  function shotMat(color) {
-    let m = shotMats.get(color);
-    if (!m) {
-      m = new THREE.MeshBasicMaterial({ color });
-      shotMats.set(color, m);
-    }
-    return m;
-  }
+  for (let i = 0; i < MAX_SHOTS; i++) shots.push({ active: false, x: 0, z: 0, vx: 0, vz: 0, life: 0, frac: 0, color: 0, spin: 0 });
+  /** 空き番号の山（find で毎回探さない） */
+  const free = [];
+  for (let i = MAX_SHOTS - 1; i >= 0; i--) free.push(i);
 
   /** 敵の弾（yaw 方向へ直進）。frac は当たったときに削る最大 HP の割合 */
   function enemyShot(x, z, yaw, speed, frac, color = 0xffa726) {
-    const s = shots.find((o) => !o.active);
-    if (!s) return;
+    if (!free.length) return;
+    const s = shots[free.pop()];
     s.active = true;
     s.x = x;
     s.z = z;
@@ -36,9 +31,29 @@ export function createProjectiles(game) {
     s.life = 4;
     s.frac = frac;
     s.color = color;
-    s.mesh.material = shotMat(color);
-    s.mesh.visible = true;
-    s.mesh.position.set(x, 1.1, z);
+    s.spin = Math.random() * 6;
+  }
+
+  /** 生きている弾を詰めて InstancedMesh に書き込む */
+  function drawShots() {
+    let n = 0;
+    for (const s of shots) {
+      if (!s.active) continue;
+      tmpObj.position.set(s.x, 1.1, s.z);
+      tmpObj.rotation.set(0, s.spin, 0);
+      tmpObj.updateMatrix();
+      shotMesh.setMatrixAt(n, tmpObj.matrix);
+      shotMesh.setColorAt(n, tmpColor.setHex(s.color));
+      n++;
+    }
+    shotMesh.count = n;
+    shotMesh.instanceMatrix.needsUpdate = true;
+    if (shotMesh.instanceColor) shotMesh.instanceColor.needsUpdate = true;
+  }
+  /** 弾を消す（i は shots の番号） */
+  function killShot(i) {
+    shots[i].active = false;
+    free.push(i);
   }
 
   // 衝撃波（三日月形の板）
@@ -71,28 +86,30 @@ export function createProjectiles(game) {
   }
 
   function update(dt) {
-    for (const s of shots) {
+    for (let i = 0; i < shots.length; i++) {
+      const s = shots[i];
       if (!s.active) continue;
       s.x += s.vx * dt;
       s.z += s.vz * dt;
       s.life -= dt;
-      s.mesh.position.set(s.x, 1.1, s.z);
-      s.mesh.rotation.y += dt * 8;
+      s.spin += dt * 8;
       let dead = s.life <= 0 || game.world.blocked(s.x, s.z, true);
+      let hit = false;
       if (!dead) {
         for (const p of game.players) {
           if (!p.alive) continue;
           if ((p.pos.x - s.x) ** 2 + (p.pos.z - s.z) ** 2 < (p.radius + 0.3) ** 2) {
-            if (hurtPlayer(game, p, s.frac, s.x - s.vx, s.z - s.vz)) dead = true;
+            if (hurtPlayer(game, p, s.frac, s.x - s.vx, s.z - s.vz)) dead = hit = true;
           }
         }
       }
       if (dead) {
-        s.active = false;
-        s.mesh.visible = false;
-        game.fx.burst(s.x, 1.1, s.z, s.color, 5, { speed: 2, up: 2, life: 0.3 });
+        killShot(i);
+        // 弾幕が壁で一斉に消えるとパーティクルが多すぎるので、壁で消えるときは間引く
+        if (hit || Math.random() < 0.25) game.fx.burst(s.x, 1.1, s.z, s.color, 5, { speed: 2, up: 2, life: 0.3 });
       }
     }
+    drawShots();
     const sk = SKILLS.wave;
     for (const w of waves) {
       if (!w.active) continue;
@@ -116,7 +133,8 @@ export function createProjectiles(game) {
   }
 
   function clear() {
-    shots.forEach((s) => { s.active = false; s.mesh.visible = false; });
+    shots.forEach((s, i) => { if (s.active) killShot(i); });
+    drawShots();
     waves.forEach((w) => { w.active = false; w.mesh.visible = false; });
   }
 

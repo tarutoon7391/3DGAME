@@ -25,7 +25,7 @@ export function buildDungeon(ctx) {
   // 床の模様（ボス部屋の魔法陣）
   const circle = new THREE.Mesh(new THREE.RingGeometry(9, 9.6, 40), ctx.mat(0x6a1b9a, { emissive: 0x4a148c, emissiveIntensity: 0.8 }));
   circle.rotation.x = -Math.PI / 2;
-  circle.position.set(def.boss.x, 0.02, def.boss.z);
+  circle.position.set(def.bosses[0].x, 0.02, def.bosses[0].z);
   group.add(circle);
   const tiles = [];
   for (let x = b.minX + 2; x < b.maxX; x += 4) for (let z = b.minZ + 2; z < b.maxZ; z += 4) tiles.push({ x, z, y: 0.004, s: 1 });
@@ -51,6 +51,7 @@ export function buildDungeon(ctx) {
     if (instant) doorT = doorTarget;
     doorCol.off = open;
   };
+  extra.doors = [extra.setDoor]; // ステージ4と同じ形（ボスの door 番号で開け閉め）
   ctx.updaters.push((dt) => {
     doorT += Math.sign(doorTarget - doorT) * Math.min(Math.abs(doorTarget - doorT), dt * 0.8);
     door.position.y = 2.3 - doorT * 4.5;

@@ -1,7 +1,6 @@
 // エリアの読み込み・ライティング・ゲート遷移・調べる・ボス部屋の開始
 import * as THREE from 'three';
 import { AREAS } from './data/areas.js';
-import { BOSS } from './data/enemies.js';
 import { createWorld } from './world/build.js';
 import { createBoss } from './boss.js';
 
@@ -39,8 +38,14 @@ export function createLights(scene) {
   };
 }
 
-/** エリアを作り直してプレイヤーを入口に置く（HP・スタミナは全回復） */
+/**
+ * エリアを作り直してプレイヤーを入口に置く（HP・スタミナは全回復）
+ * ボスが複数いるエリアでは progress.bossStep（倒したボスの数）から再開する：倒したボスは出さず、その次のボスの部屋の前から
+ */
 export function loadArea(game, id) {
+  const pr = game.state.progress;
+  if (pr.area !== id) pr.bossStep = 0; // 別のステージに入ったら最初のボスから
+  const step = pr.bossStep || 0;
   game.enemies.clear();
   game.projectiles.clear();
   game.fx.clear();
@@ -53,16 +58,21 @@ export function loadArea(game, id) {
   const def = AREAS[id];
   game.world = createWorld(id, game);
   game.lights.apply(def);
-  for (const [type, ex, ez] of def.enemies || []) game.enemies.spawn(type, ex, ez);
+  if (step === 0) for (const [type, ex, ez] of def.enemies || []) game.enemies.spawn(type, ex, ez);
   // 迷路：番人と雑魚
   const seals = game.world.extra.seals || [];
   for (const [type, ex, ez, sealId] of game.world.extra.spawns || []) {
     const e = game.enemies.spawn(type, ex, ez, sealId);
     if (sealId >= 0) seals[sealId].guards.push(e);
   }
-  if (def.boss) game.boss = createBoss(game, def.boss.x, def.boss.z);
-  // 自分以外のプレイヤーも入口の近くへ
-  const sp = def.spawn;
+  const bd = def.bosses?.[step];
+  if (bd) {
+    game.boss = createBoss(game, bd.key, bd.x, bd.z, step);
+    // 途中から：その部屋の扉だけ開けておく
+    if (step > 0) game.world.extra.doors?.forEach((set, i) => set(i === bd.door, true));
+  }
+  // 自分以外のプレイヤーも入口（再開地点）の近くへ
+  const sp = (step > 0 && bd?.respawn) || def.spawn;
   game.players.forEach((p, i) => p.reset(sp.x + i * 1.2, sp.z, Math.PI));
   game.state.progress.area = id;
   game.cam.snapBehind(Math.PI);
@@ -118,12 +128,48 @@ export function updateAreaLogic(game, intent) {
   game.hudView.setPrompt(best ? best.label : '');
   if (best && intent.interact) best.action(game);
 
-  // ボス部屋に入ったら戦闘開始（扉を閉じる）
+  // ボス部屋に入ったら戦闘開始（後ろの扉を閉じる）
   const b = game.boss;
-  if (b && b.alive && !b.active && w.def.boss && me.pos.z < w.def.boss.triggerZ) {
+  const room = b && w.def.bosses?.[b.idx];
+  if (room && b.alive && !b.active && me.pos.z < room.triggerZ) {
     b.wake();
-    w.extra.setDoor?.(false);
-    game.sound.bgm('boss');
-    game.hudView.banner(BOSS.name);
+    w.extra.doors?.[room.door]?.(false);
+    const last = b.idx === w.def.bosses.length - 1;
+    game.sound.bgm(last && w.def.castle ? 'lastboss' : 'boss');
+    game.hudView.banner(last ? b.name : `中ボス　${b.name}`);
   }
+}
+
+/**
+ * ボスが倒れきったとき（boss.js から）。まだ次のボスがいれば奥の扉を開けて次へ、
+ * 最後のボスなら次のステージへ（なければクリア）
+ */
+export function bossDown(game, b) {
+  const w = game.world;
+  const def = w.def;
+  const list = def.bosses || [];
+  const pr = game.state.progress;
+  const next = list[b.idx + 1];
+  game.projectiles.clear(); // 残った弾は消す
+  if (next) {
+    pr.bossStep = b.idx + 1;
+    for (const e of game.enemies.list) if (e.alive) e.takeHit(game, 9999, 0, 0, 0); // 手下も消える
+    w.extra.doors?.[next.door]?.(true);
+    const heal = def.midHeal || 0;
+    for (const p of game.players) if (p.alive) p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * heal));
+    game.boss.dispose();
+    game.boss = createBoss(game, next.key, next.x, next.z, b.idx + 1);
+    game.sound.bgm(def.bgm);
+    game.sound.se('seal');
+    const left = list.length - (b.idx + 1);
+    game.toast(`${b.name}を倒した！${heal ? ' HP が少し回復した。' : ''}奥の扉が開いた（残り ${left} 体）`, 3200);
+    game.autosave();
+    return;
+  }
+  if (def.next) {
+    game.toast(`${b.name}を倒した！ さらに奥へ……`, 2600);
+    game.startTransition(def.next);
+    return;
+  }
+  game.onBossDefeated();
 }
