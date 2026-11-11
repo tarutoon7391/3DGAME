@@ -3,7 +3,7 @@
 // ブレイク：主に近接で溜まるブレイク値が上限に達すると、数秒 気絶して被ダメージ 1.5倍
 // 協力プレイ：ホストだけが本物を動かす。参加者のブラウザでは puppet（届いた状態を描くだけ）になる
 import * as THREE from 'three';
-import { BOSSES } from './data/enemies.js';
+import { BOSSES, BOSS_HP_MUL } from './data/enemies.js';
 import { makeBossModel } from './models.js';
 import { angleDiff, lerpAngle, yawTo, rand } from './util.js';
 import { hurtPlayer, bossTarget } from './combat.js';
@@ -28,7 +28,7 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
   const R = C.rage || null;
   const shotHit = C.shotHit ?? HIT.boss;
   const meleeHit = C.meleeHit ?? HIT.boss;
-  const maxHp = Math.round(C.hp * scale);
+  const maxHp = Math.round(C.hp * scale * BOSS_HP_MUL); // BOSS_HP_MUL：調整中の一時的な倍率（data/enemies.js）
 
   // 広がる衝撃波の輪の見た目
   const novaGeo = new THREE.RingGeometry(0.94, 1, 48).rotateX(-Math.PI / 2);
@@ -45,7 +45,7 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
     hp: maxHp,
     maxHp,
     brk: 0, // ブレイク値
-    brkMax: Math.round(maxHp * BREAK.ratio),
+    brkMax: Math.round(C.hp * scale * BREAK.ratio), // ブレイク値は HP の倍率の影響を受けない
     alive: true,
     active: false, // 戦闘開始まで false（攻撃も当たらない）
     raged: false,
