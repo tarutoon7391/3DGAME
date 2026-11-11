@@ -98,6 +98,10 @@ export function createViewModel(renderer, camera) {
   muzzle.renderOrder = ORDER + 3;
   muzzle.visible = false;
   R.twist.add(muzzle);
+  const muzzleL = new THREE.Sprite(muzzleMat); // 左手の銃口（ガトリングの二丁持ち）
+  muzzleL.renderOrder = ORDER + 3;
+  muzzleL.visible = false;
+  L.twist.add(muzzleL);
   /** 武器の形の一番前（-Z）・上寄りを銃口とみなす */
   function autoMuzzle() {
     const bb = new THREE.Box3();
@@ -180,6 +184,21 @@ export function createViewModel(renderer, camera) {
     arm(Gh, jobId, colors, (c) => ghostMat(c), true);
     flashMats = weapon.flashMats;
     weaponId = jobId;
+    curColors = colors;
+    akimbo = false;
+  }
+  let curColors = null;
+  let akimbo = false; // 左手にも同じ武器（ガトリング中）
+  /** 左手に、右手と同じ武器を左右反転で持たせる／外す */
+  function setAkimbo(on) {
+    if (on === akimbo || weapon?.dual) return;
+    akimbo = on;
+    if (on) arm(L, weaponId, curColors, vmMat, true);
+    else if (L.weapon) {
+      L.twist.remove(L.weapon.group);
+      L.weapon.mats.forEach((m) => m.dispose());
+      L.weapon = null;
+    }
   }
   equip(DEFAULT_JOB, look, 0xffd54f);
 
@@ -386,7 +405,20 @@ export function createViewModel(renderer, camera) {
       setDragon(!!p.dragon); // 竜化中は赤い腕と爪
       hat.visible = hatK > 0;
       if (hatK > 0) hat.scale.setScalar(Math.min(1, hatK * 3));
-      L.off.visible = !!weapon?.dual || p.vmAnim?.kind === 'cheer' || !!p.dragon;
+      // ガトリング中：左手にも同じ銃を反転させて持ち、右手と同じ構え
+      if (p.akimboT > 0) p.akimboT -= dt;
+      setAkimbo(p.akimboT > 0);
+      if (akimbo) {
+        Object.assign(Lp, Rp);
+        if (Rp.aim) L.holder.rotation.set(AIM_ROT[0], -AIM_ROT[1], -AIM_ROT[2]);
+        else if (L.baseRot) L.holder.rotation.copy(L.baseRot);
+        muzzleL.visible = muzzle.visible;
+        if (muzzle.visible) {
+          muzzleL.position.set(-muzzle.position.x, muzzle.position.y, muzzle.position.z);
+          muzzleL.scale.copy(muzzle.scale);
+        }
+      } else muzzleL.visible = false;
+      L.off.visible = !!weapon?.dual || akimbo || p.vmAnim?.kind === 'cheer' || !!p.dragon;
       if (L.off.visible) {
         L.off.position.set(LEFT_X - Lp.x, Lp.y, Lp.z);
         L.pivot.rotation.set(Lp.rx, -Lp.ry, -Lp.rz, 'YXZ');

@@ -242,6 +242,9 @@ export function createSkillVis({ game, add, mesh, slash, column, slam, streak })
       case 'shieldwall':
         fx().shieldWall?.(p, o.dur ?? c.sk.dur ?? 1, col);
         break;
+      case 'akimbo':
+        p.akimboT = o.dur ?? 4; // 左手にも同じ武器（viewmodel.js）
+        break;
       case 'rewind':
         if (p === game.me?.()) fx().rewindScreen?.();
         break;
