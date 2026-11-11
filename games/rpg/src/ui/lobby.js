@@ -1,9 +1,9 @@
 // ステージ2・3（レイド）の準備画面：名前・職業を選んで「ひとりで挑む」か、ルームを作る／合言葉で参加する
 // ルームの中では参加者・職業・準備完了の一覧を見せ、全員が「準備完了」を押すとホストが「出発！」できる
-// 職業は16職ずつのタブに分けて（ui/jobgrid.js）、スクロールしなくても全部見えるようにしている
+// 職業はロールごとのタブ（ui/jobgrid.js）。スマホ横持ちでは見出し・タブ・説明・ボタンを固定し、カードだけスクロールする
 import { createNet } from '/shared/net.js';
 import { JOBS, MAX_RAID_PLAYERS, RAID_SCALE } from '../data/jobs.js';
-import { jobGridHtml, tabOf } from './jobgrid.js';
+import { jobGridHtml, tabOf, handleGridClick, keepGridScroll } from './jobgrid.js';
 import { esc } from '../util.js';
 
 const MAX_PLAYERS = MAX_RAID_PLAYERS;
@@ -18,6 +18,8 @@ const MAX_PLAYERS = MAX_RAID_PLAYERS;
 export function openLobby({ settings, save, onSolo, onStart, onBack, area = 'castle', heading = 'ステージ2　冥王の城', headingOf = null }) {
   let job = JOBS[settings.job] ? settings.job : 'swordsman';
   let tab = tabOf(job);
+  let infoOpen = false; // 職業の説明（技）を開いているか
+  let code = ''; // 入力中の合言葉（描き直しても消えないように持っておく）
   let name = settings.name || `ぼうけんしゃ${Math.floor(Math.random() * 900 + 100)}`;
   let ready = false;
   let net = null;
@@ -50,11 +52,11 @@ export function openLobby({ settings, save, onSolo, onStart, onBack, area = 'cas
     let top;
     let btns;
     if (!inRoom) {
-      top = `<div class="rpg-lobby-row"><label>名前 <input class="rpg-name" maxlength="12" value="${esc(name)}"></label></div>`;
+      top = '';
       btns = `
         <button type="button" class="g3-btn" data-act="solo">ひとりで挑む</button>
-        <button type="button" class="g3-btn" data-act="create">ルームを作る（最大${MAX_PLAYERS}人）</button>
-        <span class="rpg-join"><input class="rpg-code" maxlength="12" placeholder="合言葉"><button type="button" class="g3-btn sub" data-act="join">参加する</button></span>
+        <button type="button" class="g3-btn" data-act="create">ルームを作る</button>
+        <span class="rpg-join"><input class="rpg-code" maxlength="12" placeholder="合言葉" value="${esc(code)}" autocapitalize="characters" autocomplete="off"><button type="button" class="g3-btn sub" data-act="join">参加する</button></span>
         <button type="button" class="g3-btn sub" data-act="back">タイトルへ戻る</button>`;
     } else {
       // 参加者は小さな札で横に並べる（8人でも高さを取らない）。準備完了の人には緑のチェック
@@ -66,7 +68,7 @@ export function openLobby({ settings, save, onSolo, onStart, onBack, area = 'cas
       }).join('');
       const nReady = net.players.filter((p) => info.get(p.id)?.ready).length;
       top = `<div class="rpg-room">
-          <div>合言葉 <b class="rpg-room-code">${esc(net.room.code)}</b>　<span class="rpg-small">${net.players.length}/${MAX_PLAYERS} 人・ボス HP ×${RAID_SCALE(net.players.length).toFixed(2)}　準備完了 ${nReady}/${net.players.length}</span></div>
+          <div class="rpg-room-line">合言葉 <b class="rpg-room-code">${esc(net.room.code)}</b><span class="rpg-small">${net.players.length}/${MAX_PLAYERS} 人・ボス HP ×${RAID_SCALE(net.players.length).toFixed(2)}　準備完了 ${nReady}/${net.players.length}</span></div>
           <div class="rpg-members">${members}</div>
         </div>`;
       btns = `
@@ -76,39 +78,42 @@ export function openLobby({ settings, save, onSolo, onStart, onBack, area = 'cas
           : `<span class="rpg-small">${allReady() ? 'ホストの「出発！」を待っています…' : '全員が準備完了するとホストが出発できます'}</span>`}
         <button type="button" class="g3-btn sub" data-act="leave">ルームを出る</button>`;
     }
+    const touch = document.body.classList.contains('rpg-touch-on');
     el.innerHTML = `<div class="rpg-lobby-panel">
-      <h2>${esc(heading)}　―　レイド（1〜${MAX_PLAYERS}人）</h2>
-      <p class="rpg-small">${document.body.classList.contains('rpg-touch-on') ? '攻撃ボタン' : '左クリック'}：通常攻撃（長押しで連続）　Q・E：スキル　R：必殺技（攻撃を当てて溜める。近接ほど早く溜まる）。ボスは近接で殴るとブレイク（気絶）する。倒れた味方はそばに立つと蘇生。</p>
-      ${msg ? `<p class="rpg-lobby-msg">${esc(msg)}</p>` : ''}
+      <div class="rpg-lobby-head">
+        <h2>${esc(heading)}　―　レイド（1〜${MAX_PLAYERS}人）</h2>
+        ${inRoom ? '' : `<div class="rpg-lobby-row"><label>名前 <input class="rpg-name" maxlength="12" value="${esc(name)}" autocomplete="off"></label></div>`}
+        <p class="rpg-small rpg-lobby-hint">${touch ? '攻撃ボタン' : '左クリック'}：通常攻撃（長押しで連続）　Q・E：スキル　R：必殺技（攻撃を当てて溜める。近接ほど早く溜まる）。ボスは近接で殴るとブレイク（気絶）する。倒れた味方はそばに立つと蘇生。</p>
+        ${msg ? `<p class="rpg-lobby-msg">${esc(msg)}</p>` : ''}
+      </div>
       ${top}
-      ${jobGridHtml(job, tab)}
+      ${jobGridHtml(job, tab, { infoOpen })}
       <div class="rpg-lobby-btns">${btns}</div>
     </div>`;
   }
+  const redraw = () => keepGridScroll(el, render);
 
   el.addEventListener('input', (e) => {
     if (e.target.classList.contains('rpg-name')) {
       name = e.target.value.trim().slice(0, 12) || name;
       settings.name = name;
       save();
+    } else if (e.target.classList.contains('rpg-code')) {
+      code = e.target.value;
     }
   });
   el.addEventListener('click', async (e) => {
-    const t = e.target.closest('[data-tab]');
-    if (t) {
-      tab = Number(t.dataset.tab);
-      render();
-      return;
-    }
-    const card = e.target.closest('[data-job]');
-    if (card) {
-      job = card.dataset.job;
-      settings.job = job;
-      save();
-      if (net?.room) announce();
-      render();
-      return;
-    }
+    if (handleGridClick(e, {
+      onTab: (r) => { tab = r; redraw(); },
+      onJob: (j) => {
+        job = j;
+        settings.job = job;
+        save();
+        if (net?.room) announce();
+        redraw();
+      },
+      onInfo: () => { infoOpen = !infoOpen; redraw(); },
+    })) return;
     const act = e.target.closest('[data-act]')?.dataset.act;
     if (!act) return;
     try {
@@ -119,7 +124,7 @@ export function openLobby({ settings, save, onSolo, onStart, onBack, area = 'cas
         close();
         onBack();
       } else if (act === 'create' || act === 'join') {
-        const code = el.querySelector('.rpg-code')?.value.trim();
+        code = (el.querySelector('.rpg-code')?.value ?? code).trim();
         if (act === 'join' && !code) {
           msg = '合言葉を入れてください';
           render();
@@ -138,7 +143,7 @@ export function openLobby({ settings, save, onSolo, onStart, onBack, area = 'cas
       } else if (act === 'ready') {
         ready = !ready;
         announce();
-        render();
+        redraw();
       } else if (act === 'leave') {
         leave();
         msg = 'ルームを出ました';
@@ -160,9 +165,9 @@ export function openLobby({ settings, save, onSolo, onStart, onBack, area = 'cas
     offs.push(net.onMessage('lobby', (d, from) => {
       info.set(from, d);
       if (from === net.room?.hostId) matchHostArea(d.area);
-      render();
+      redraw();
     }));
-    offs.push(net.onRoomChange(() => render()));
+    offs.push(net.onRoomChange(() => redraw()));
     offs.push(net.onPlayerJoin(() => {
       // 新しく来た人に自分の職業と準備完了（ホストはステージも）を教える
       net.send('lobby', { name, job, ready, area: net.isHost ? area : undefined });

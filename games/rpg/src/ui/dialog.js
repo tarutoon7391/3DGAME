@@ -34,6 +34,11 @@ export function createModalHost(game) {
   return host;
 }
 
+/** 「次へ／閉じる」の案内。スマホはタップ、PC はキーとクリック */
+function touchHint(what) {
+  return document.body.classList.contains('rpg-touch-on') ? `▼ タップで${what}` : `▼ F / Space / クリックで${what}`;
+}
+
 export function createDialog(game, host) {
   /** 会話：lines を1行ずつ。終わったら after() */
   function talk(name, lines, after) {
@@ -43,7 +48,7 @@ export function createDialog(game, host) {
       const el = host.show('rpg-talk', `
         <div class="rpg-talk-name">${esc(name)}</div>
         <div class="rpg-talk-text">${esc(lines[i])}</div>
-        <div class="rpg-talk-next">${i < lines.length - 1 ? '▼ F / Space / クリックで次へ' : '▼ F / Space / クリックで閉じる'}</div>`, (e) => {
+        <div class="rpg-talk-next">${touchHint(i < lines.length - 1 ? '次へ' : '閉じる')}</div>`, (e) => {
         if (['KeyF', 'Space', 'Enter'].includes(e.code)) { e.preventDefault(); next(); }
         else if (e.code === 'Escape') { i = lines.length - 1; next(); }
       });

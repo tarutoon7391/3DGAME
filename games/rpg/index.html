@@ -8,7 +8,10 @@
     { "imports": { "three": "/vendor/three/three.module.js", "three/addons/": "/vendor/three/addons/" } }
   </script>
   <style>
-    html,body{margin:0;height:100%;background:#0d1117;overflow:hidden}
+    html,body{margin:0;height:100%;background:#0d1117;overflow:hidden;overscroll-behavior:none;-webkit-text-size-adjust:100%}
+    html{touch-action:manipulation}
+    body.rpg-touch-on{position:fixed;inset:0;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+    body.rpg-touch-on :not(input){user-select:none;-webkit-user-select:none}
     /* ---- HUD（左上は shared の hud()） ---- */
     .rpg-status{background:#0b0f16b0;border:1px solid #30363d;border-radius:10px;padding:8px 12px;min-width:250px}
     .rpg-lv{color:#ffd54f;font-size:17px}
@@ -66,43 +69,58 @@
     .rpg-party{position:absolute;right:12px;top:12px;display:flex;flex-direction:column;gap:4px;font-size:12px}
     .rpg-party>div{background:#0b0f16b0;border:1px solid #30363d;border-radius:8px;padding:4px 8px;min-width:170px}
     .rpg-party .down{color:#ff5252;font-weight:bold}
-    /* ---- レイドの準備画面 ---- */
-    .rpg-lobby{position:fixed;inset:0;z-index:20;background:#05070bcc;display:flex;align-items:center;justify-content:center;font-family:system-ui,"Segoe UI","Hiragino Sans","Yu Gothic UI",sans-serif;color:#f0f4f8;overflow:auto;padding:16px;box-sizing:border-box}
-    .rpg-lobby-panel{background:#0d1424f2;border:1px solid #30363d;border-radius:14px;padding:12px 18px;width:min(1040px,100%);max-height:100%;overflow:auto;box-sizing:border-box}
-    .rpg-lobby h2{margin:0 0 6px;color:#ffd54f;font-size:20px}
+    /* ---- レイドの準備画面（全滅時の選び直しも同じ枠） ----
+       枠は縦の flex：見出し・名前/ルーム・ロールのタブ・職業の説明・[カード一覧＝ここだけスクロール]・ボタン */
+    .rpg-lobby{position:fixed;inset:0;z-index:20;background:#05070bcc;display:flex;align-items:center;justify-content:center;font-family:system-ui,"Segoe UI","Hiragino Sans","Yu Gothic UI",sans-serif;color:#f0f4f8;padding:16px;box-sizing:border-box;padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right));padding-bottom:max(16px,env(safe-area-inset-bottom))}
+    .rpg-lobby-panel{background:#0d1424f2;border:1px solid #30363d;border-radius:14px;padding:12px 18px;width:min(1040px,100%);max-height:100%;box-sizing:border-box;display:flex;flex-direction:column;gap:8px;min-height:0}
+    .rpg-lobby h2{margin:0 0 4px;color:#ffd54f;font-size:20px}
     .rpg-small{font-size:12px;color:#9fb1c2;line-height:1.6}
+    .rpg-lobby-head{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;flex:none}
+    .rpg-lobby-head h2{flex:1 1 auto}
+    .rpg-lobby-head p{margin:0;flex-basis:100%}
+    .rpg-lobby-head .rpg-lobby-row{flex:none;display:flex;align-items:center;gap:6px}
     .rpg-lobby-msg{color:#ffcc80}
-    .rpg-lobby-row{margin:8px 0}
-    .rpg-lobby input{background:#000a;border:1px solid #58a6ff88;color:#fff;border-radius:6px;padding:6px 8px;font-size:14px}
-    .rpg-jobs{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;margin:10px 0}
-    .rpg-job{text-align:left;background:#0b0f16;border:2px solid #30363d;border-radius:10px;color:#dfe7ef;padding:8px 10px;cursor:pointer;display:flex;flex-direction:column;gap:3px;font-size:12px;line-height:1.45;font-family:inherit}
-    .rpg-job b{font-size:16px;color:var(--c)}
-    .rpg-job .role{color:#9fb1c2}
-    .rpg-job em{font-style:normal;background:#ffd54f;color:#000;border-radius:3px;padding:0 4px;margin-right:4px;font-weight:bold}
-    .rpg-job .trait{color:#ffe082}
-    .rpg-job.sel{border-color:var(--c);box-shadow:0 0 12px var(--c);background:#141c2e}
-    .rpg-lobby-btns{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+    .rpg-lobby-row{margin:0}
+    .rpg-lobby input{background:#000a;border:1px solid #58a6ff88;color:#fff;border-radius:8px;padding:8px 10px;font-size:16px;min-height:44px;box-sizing:border-box;font-family:inherit}
+    .rpg-lobby-btns{display:flex;flex-wrap:wrap;gap:8px;align-items:center;flex:none}
+    .rpg-lobby .g3-btn{min-height:44px}
     .rpg-join{display:inline-flex;gap:6px;align-items:center}
-    .rpg-room{background:#0b0f16;border:1px solid #30363d;border-radius:10px;padding:8px 12px;margin:8px 0}
+    .rpg-join .rpg-code{width:7em}
+    .rpg-room{background:#0b0f16;border:1px solid #30363d;border-radius:10px;padding:6px 12px;margin:0;flex:none}
+    .rpg-room-line{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
     .rpg-room-code{font-size:26px;letter-spacing:.2em;color:#ffd54f}
-    .rpg-members{margin:6px 0;padding-left:18px;line-height:1.8}
-    /* ---- 全滅時の職業の選び直し（小さめのカード） ---- */
     .rpg-jobpick{z-index:25}
-    /* ---- 職業のタブと小さなカード（スクロールしなくても収まる） ---- */
-    .rpg-tabs{display:flex;gap:6px;margin:8px 0 6px}
-    .rpg-tab{background:#0b0f16;border:1px solid #30363d;border-radius:8px;color:#9fb1c2;padding:5px 12px;cursor:pointer;font:inherit;font-size:12px}
-    .rpg-tab b{color:#ffd54f;font-size:14px;margin-right:4px}
-    .rpg-tab.on{border-color:#ffd54f;color:#fff;background:#1a2233}
-    .rpg-jobgrid{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:5px}
-    .rpg-jobc{background:#0b0f16;border:2px solid #30363d;border-radius:8px;color:#dfe7ef;padding:4px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;font:inherit;font-size:11px;line-height:1.3;min-width:0}
-    .rpg-jobc b{color:var(--c);font-size:14px;white-space:nowrap}
-    .rpg-jobc span{color:#9fb1c2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+    /* ロールのタブ（色の丸と職業の数）。狭いときは横にスクロール */
+    .rpg-tabs{display:flex;gap:6px;flex:none;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+    .rpg-tabs::-webkit-scrollbar{display:none}
+    .rpg-tab{flex:none;display:inline-flex;align-items:center;gap:5px;background:#0b0f16;border:1px solid #30363d;border-radius:10px;color:#9fb1c2;padding:6px 10px;min-height:40px;cursor:pointer;font:inherit;font-size:13px;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+    .rpg-tab i{width:10px;height:10px;border-radius:50%;background:var(--rc);box-shadow:0 0 4px var(--rc)}
+    .rpg-tab small{color:#6e7f90;font-size:11px}
+    .rpg-tab.on{border-color:var(--rc);color:#fff;background:#1a2233;box-shadow:inset 0 0 0 1px var(--rc)}
+    @media (max-width:720px){.rpg-tab small{display:none}.rpg-tab{padding:6px 8px;gap:4px}}
+    /* ロールの札（職業の色ではなくロールの色） */
+    .rpg-role{font-style:normal;font-size:10px;line-height:1.5;padding:0 5px;border-radius:4px;background:var(--rc);color:#000;font-weight:bold;white-space:nowrap}
+    /* カード一覧（ここだけスクロール） */
+    .rpg-jobgrid-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:2px}
+    .rpg-jobgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:6px}
+    .rpg-jobc{background:#0b0f16;border:2px solid #30363d;border-radius:10px;color:#dfe7ef;padding:5px 7px;min-height:48px;cursor:pointer;display:flex;flex-direction:column;justify-content:center;gap:2px;font:inherit;font-size:11px;line-height:1.3;min-width:0;text-align:left;-webkit-tap-highlight-color:transparent}
+    .rpg-jobc b{color:var(--c);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+    .rpg-jobc-sub{display:flex;align-items:center;gap:4px;min-width:0;max-width:100%}
+    .rpg-jobc-sub .rpg-role{flex:none;font-size:9px}
+    .rpg-jobc span{color:#9fb1c2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
     .rpg-jobc.sel{border-color:var(--c);box-shadow:0 0 10px var(--c);background:#141c2e}
-    .rpg-jobinfo{margin:6px 0;background:#0b0f16;border:1px solid var(--c);border-radius:10px;padding:6px 10px;font-size:12px;line-height:1.55}
+    /* 選んだ職業の説明：ふだんは1行、タップで技の説明まで開く */
+    .rpg-jobinfo{flex:none;background:#0b0f16;border:1px solid var(--c);border-radius:10px;padding:6px 10px;font-size:12px;line-height:1.55;cursor:pointer;-webkit-tap-highlight-color:transparent}
+    .rpg-jobinfo-head{display:flex;align-items:center;gap:8px;min-height:28px;flex-wrap:wrap}
+    .rpg-jobinfo-head>.rpg-small{flex:1 1 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .rpg-jobinfo-head u{text-decoration:none;color:#58a6ff;font-size:12px;white-space:nowrap;margin-left:auto}
+    .rpg-jobinfo-body{display:none;margin-top:4px;border-top:1px solid #30363d;padding-top:4px}
+    .rpg-jobinfo.open .rpg-jobinfo-body{display:block}
     .rpg-jobinfo b{color:var(--c);font-size:15px}
     .rpg-jobinfo em{font-style:normal;background:#ffd54f;color:#000;border-radius:3px;padding:0 4px;margin-right:4px;font-weight:bold}
     .rpg-jobinfo .trait{color:#ffe082}
-    @media (max-width:900px){.rpg-jobgrid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+    /* PC（高さのある画面）では説明をはじめから開いておく */
+    @media (min-height:700px){.rpg-jobinfo-body{display:block}.rpg-jobinfo-head u{display:none}}
     /* ---- ルームの参加者（横並びの札）と準備完了のチェック ---- */
     .rpg-room .rpg-members{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0 0;padding:0;line-height:1.4}
     .rpg-mem{background:#141c2e;border:1px solid #30363d;border-radius:8px;padding:3px 8px;font-size:12px;display:inline-flex;gap:5px;align-items:center}
@@ -123,13 +141,12 @@
     .rpg-plate.boss .bar{width:120px;height:8px;border-color:#ff8a65}
     .rpg-plate.boss .bar>div{background:linear-gradient(90deg,#b71c1c,#ff5252)}
     .rpg-plate.boss.stun .bar{box-shadow:0 0 8px #ffee58}
-    .rpg-jobs-small{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
-    .rpg-jobs-small .rpg-job{padding:6px 8px;font-size:11px}
-    .rpg-jobs-small .rpg-job b{font-size:14px}
-    /* ---- スマホ（横持ち）のタッチ操作（src/ui/touch.js） ---- */
-    .rpg-touch{position:fixed;inset:0;z-index:13;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;font-family:system-ui,"Hiragino Sans",sans-serif}
+    /* ---- スマホ（横持ち）のタッチ操作（src/ui/touch.js） ----
+       配置（640×360 を基準）：左上＝状態、その下＝地図、左下＝スティック、上中央＝ボスHP、右上＝視点/全画面/ポーズ、右下＝攻撃まわり
+       ノッチ・ホームバーは env(safe-area-inset-*) でよける。ボタンはすべて 44px 以上 */
+    .rpg-touch{position:fixed;inset:0;z-index:13;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;font-family:system-ui,"Hiragino Sans",sans-serif;--sl:env(safe-area-inset-left,0px);--sr:env(safe-area-inset-right,0px);--sb:env(safe-area-inset-bottom,0px);--st:env(safe-area-inset-top,0px)}
     .rt-look{position:absolute;inset:0}
-    .rt-stick{position:absolute;left:110px;bottom:0;top:auto;width:0;height:0;pointer-events:none;transform:translateY(-120px);opacity:.45}
+    .rt-stick{position:absolute;left:calc(190px + var(--sl));bottom:0;top:auto;width:0;height:0;pointer-events:none;transform:translateY(calc(-100px - var(--sb)));opacity:.4}
     .rt-stick.on{transform:none;opacity:1}
     .rt-base{position:absolute;left:-60px;top:-60px;width:120px;height:120px;border-radius:50%;border:2px solid #ffffff66;background:#0b0f1666}
     .rt-knob{position:absolute;left:-26px;top:-26px;width:52px;height:52px;border-radius:50%;background:#ffffffaa;box-shadow:0 0 8px #000a}
@@ -142,50 +159,106 @@
     .rt-btn.down{background:#ffffff40;border-color:#fff}
     .rt-btn.off{opacity:.55}
     .rt-btn.ready{border-color:#ffee58;box-shadow:0 0 12px #ffee58;animation:rpgblink .8s infinite;opacity:1}
-    .rt-atk{right:calc(24px + env(safe-area-inset-right));bottom:24px;width:92px;height:92px;font-size:16px;border-color:#ff8a65aa}
-    .rt-dodge{right:calc(128px + env(safe-area-inset-right));bottom:16px;width:60px;height:60px}
-    .rt-q{right:calc(138px + env(safe-area-inset-right));bottom:88px;width:62px;height:62px}
-    .rt-e{right:calc(84px + env(safe-area-inset-right));bottom:140px;width:62px;height:62px}
-    .rt-r{right:calc(16px + env(safe-area-inset-right));bottom:132px;width:62px;height:62px}
-    .rt-f{right:calc(200px + env(safe-area-inset-right));bottom:150px;width:66px;height:42px;border-radius:10px;border-color:#ffd54f;color:#ffd54f}
-    .rt-top{position:absolute;top:8px;right:calc(150px + env(safe-area-inset-right));display:flex;gap:6px}
-    .rt-mini{border:1px solid #30363d;background:#0d1117cc;color:#c9d1d9;border-radius:6px;font:12px system-ui,sans-serif;padding:6px 10px;touch-action:manipulation}
-    .rpg-rotate{display:none;position:fixed;inset:0;z-index:60;background:#05070b;color:#fff;align-items:center;justify-content:center;text-align:center;font:18px/1.8 system-ui,"Hiragino Sans",sans-serif}
+    .rt-atk{right:calc(20px + var(--sr));bottom:calc(20px + var(--sb));width:96px;height:96px;font-size:17px;border-color:#ff8a65aa}
+    .rt-dodge{right:calc(126px + var(--sr));bottom:calc(12px + var(--sb));width:64px;height:64px}
+    .rt-q{right:calc(138px + var(--sr));bottom:calc(86px + var(--sb));width:64px;height:64px}
+    .rt-e{right:calc(84px + var(--sr));bottom:calc(140px + var(--sb));width:64px;height:64px}
+    .rt-r{right:calc(14px + var(--sr));bottom:calc(132px + var(--sb));width:64px;height:64px}
+    .rt-f{right:calc(212px + var(--sr));bottom:calc(156px + var(--sb));width:76px;height:46px;border-radius:12px;border-color:#ffd54f;color:#ffd54f;font-size:14px}
+    /* 右上：視点・全画面・ポーズ（プレイ中は共通の「ハブへ戻る」を隠して、ここを空ける） */
+    .rt-top{position:absolute;top:calc(8px + var(--st));right:calc(8px + var(--sr));display:flex;gap:6px}
+    .rt-mini{border:1px solid #30363d;background:#0d1117cc;color:#c9d1d9;border-radius:8px;font:13px system-ui,sans-serif;min-width:44px;min-height:44px;padding:0 10px;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+    .rt-mini.rt-pause{font-size:18px}
+    body.rpg-touch-on.rpg-ingame .g3-home{display:none}
+    /* 縦持ちの案内 */
+    .rpg-rotate{display:none;position:fixed;inset:0;z-index:60;background:#05070b;color:#fff;align-items:center;justify-content:center;text-align:center;font:18px/1.8 system-ui,"Hiragino Sans",sans-serif;padding:24px}
     .rpg-rotate b{color:#ffd54f}
+    .rpg-rotate small{color:#9fb1c2;font-size:13px}
+    .rpg-rotate-icon{font-size:56px;line-height:1.2;animation:rpgrotate 2s ease-in-out infinite}
+    .rpg-rotate .g3-btn{margin-top:14px;min-height:44px}
+    @keyframes rpgrotate{0%,20%{transform:rotate(0)}50%,80%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
     @media (orientation:portrait){body.rpg-touch-on .rpg-rotate{display:flex}}
-    /* タッチ時：HUD のスキル欄はボタンに映すので消す。地図は左上の状態の下へ小さく */
+    /* タッチ時の HUD：スキル欄はボタンに映すので消す。各部品をタッチボタンとぶつからない場所へ */
     body.rpg-touch-on .rpg-skills{display:none}
-    body.rpg-touch-on .rpg-map{right:auto;left:8px;bottom:auto;top:118px;transform:scale(.5);transform-origin:top left;opacity:.85}
-    body.rpg-touch-on .rpg-party{top:44px}
-    body.rpg-touch-on .rpg-prompt{bottom:auto;top:62%}
+    body.rpg-touch-on .g3-hud{left:calc(8px + env(safe-area-inset-left,0px));top:calc(8px + env(safe-area-inset-top,0px))}
+    body.rpg-touch-on .rpg-status{min-width:0;padding:6px 10px}
+    body.rpg-touch-on .rpg-goal{max-width:220px;font-size:12px}
+    body.rpg-touch-on .rpg-map{right:auto;left:calc(8px + env(safe-area-inset-left,0px));bottom:auto;top:calc(118px + env(safe-area-inset-top,0px));transform:scale(.45);transform-origin:top left;opacity:.85}
+    body.rpg-touch-on .rpg-boss{top:calc(6px + env(safe-area-inset-top,0px));width:clamp(200px,100vw - 420px,440px)}
+    body.rpg-touch-on .rpg-boss-name{font-size:13px}
+    body.rpg-touch-on .rpg-boss-track{height:10px}
+    body.rpg-touch-on .rpg-boss + .rpg-boss{top:calc(58px + env(safe-area-inset-top,0px))}
+    body.rpg-touch-on .rpg-party{top:calc(214px + env(safe-area-inset-top,0px));right:auto;left:calc(8px + env(safe-area-inset-left,0px));transform:none;gap:2px;font-size:10px;max-height:calc(100vh - 226px - env(safe-area-inset-bottom,0px));overflow:hidden}
+    body.rpg-touch-on .rpg-party>div{min-width:0;padding:2px 6px;display:flex;align-items:center;gap:4px;white-space:nowrap;background:#0b0f16a0}
+    body.rpg-touch-on .rpg-prompt{bottom:auto;top:66%;font-size:14px;padding:8px 14px;max-width:min(300px,calc(100vw - 460px));box-sizing:border-box;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    body.rpg-touch-on .rpg-banner{top:30%;font-size:22px;letter-spacing:.1em;max-width:70vw;text-align:center;white-space:nowrap}
+    body.rpg-touch-on .rpg-danger{padding-bottom:0;align-items:center;padding-top:28vh}
+    body.rpg-touch-on .rpg-hint{display:none!important}
     body.rpg-touch-on canvas{touch-action:none}
+    /* トースト（共通）はボタンに被らないように画面の中ほどへ、短い字で */
+    body.rpg-touch-on .g3-toasts{bottom:auto;top:42%;width:min(52vw,480px)}
+    body.rpg-touch-on .g3-toast{font-size:13px;padding:6px 12px;line-height:1.4;text-align:center}
+    /* 会話ウィンドウ：ホームバーをよける。タップで進む */
+    body.rpg-touch-on .rpg-talk{bottom:calc(10px + env(safe-area-inset-bottom,0px));width:min(720px,calc(100vw - 32px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px)))}
+    /* 共通のオーバーレイ（タイトル・ポーズ・リザルト）：ボタンは 44px 以上、ノッチをよける */
+    body.rpg-touch-on .g3-btn{min-height:44px;padding:8px 16px}
+    body.rpg-touch-on .g3-home{min-height:36px;display:inline-flex;align-items:center;top:calc(8px + env(safe-area-inset-top,0px));right:calc(8px + env(safe-area-inset-right,0px));font-size:0;padding:0 10px}
+    body.rpg-touch-on .g3-home::before{content:"⌂ ハブ";font-size:13px}
+    body.rpg-touch-on .g3-overlay{padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+    body.rpg-touch-on .rpg-lobby-head{padding-right:calc(70px + env(safe-area-inset-right,0px))}
     /* 背の低い画面（スマホの横持ち）：HUD とメニューを詰める */
     @media (max-height:520px){
-      body .g3-hud{transform:scale(.72);transform-origin:top left}
+      body .g3-hud{transform:scale(.75);transform-origin:top left}
       body .rpg-status{min-width:200px}
       body .rpg-party{transform:scale(.8);transform-origin:top right}
+      body.rpg-touch-on .rpg-party{transform:none}
       body .rpg-boss{width:min(420px,50vw)}
+      body.rpg-touch-on .rpg-boss{width:clamp(200px,100vw - 420px,440px)}
       body .rpg-banner{font-size:22px}
       body .rpg-talk{bottom:8px;padding:8px 14px}
-      body .rpg-talk-text{font-size:14px;line-height:1.5}
-      body .g3-overlay{overflow:auto;align-items:flex-start;padding:8px 0}
-      body .g3-panel{padding:12px 18px;margin:auto;max-width:94vw}
-      body .g3-panel h1{font-size:1.3rem;margin-bottom:6px}
-      body .g3-panel h2{font-size:1.15rem;margin-bottom:6px}
-      body .g3-panel p{font-size:.85rem;margin-bottom:6px;line-height:1.45}
-      body .g3-controls{font-size:.72rem;padding:6px 10px;margin-bottom:8px}
-      body .g3-btn{padding:8px 14px;font-size:.9rem}
-      body .rpg-lobby{padding:6px}
-      body .rpg-lobby-panel{padding:8px 12px}
-      body .rpg-lobby h2{font-size:16px}
-      body .rpg-jobgrid{grid-template-columns:repeat(8,minmax(0,1fr))}
-      body .rpg-jobc{font-size:10px;padding:3px 4px}
-      body .rpg-jobc b{font-size:12px}
-      body .rpg-jobinfo{font-size:11px;line-height:1.4}
-      body .g3-toast{font-size:13px;padding:6px 12px}
-      body .rpg-tab{padding:3px 8px;font-size:11px}
-      body .rpg-tab b{font-size:12px}
+      body .rpg-talk-text{font-size:14px;line-height:1.5;min-height:2.4em}
+      body .rpg-talk-name{margin-bottom:2px}
+      /* タイトルなど共通の枠：上下の余白を詰め、はみ出す分は枠の外側でスクロール */
+      body .g3-overlay{overflow:auto;align-items:flex-start;padding:6px 0;box-sizing:border-box}
+      body .g3-panel{padding:10px 16px;margin:auto;max-width:min(900px,96vw);box-sizing:border-box}
+      body .g3-panel h1{font-size:1.2rem;margin-bottom:4px}
+      body .g3-panel h2{font-size:1.1rem;margin-bottom:4px}
+      body .g3-panel p{font-size:.82rem;margin-bottom:4px;line-height:1.45}
+      body .g3-controls{font-size:.72rem;padding:6px 10px;margin-bottom:6px;line-height:1.5}
+      body .g3-btn{padding:8px 14px;font-size:.9rem;min-height:44px}
+      /* タイトル（操作説明の枠がある画面）だけ：説明と操作説明を左右に並べ、ボタンを2列にして 360px に収める */
+      body .g3-panel:has(.g3-controls){display:grid;grid-template-columns:3fr 2fr;gap:2px 10px;text-align:left;align-items:start;padding:8px 14px}
+      body .g3-panel:has(.g3-controls)>p{font-size:.72rem;line-height:1.4}
+      body .g3-panel:has(.g3-controls)>.g3-controls{font-size:.66rem;line-height:1.45;padding:5px 8px}
+      body .g3-panel:has(.g3-controls)>h1{font-size:1.05rem;margin:0 0 2px}
+      body .g3-panel:has(.g3-controls)>h1{grid-column:1/-1;text-align:center}
+      body .g3-panel:has(.g3-controls)>p{grid-column:1;margin:0}
+      body .g3-panel:has(.g3-controls)>.g3-controls{grid-column:2;margin:0;align-self:stretch}
+      body .g3-panel:has(.g3-controls)>.g3-btns{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px}
+      body .g3-panel:has(.g3-controls)>.g3-btns .g3-btn{padding:4px 8px;font-size:.8rem;line-height:1.25;min-height:44px}
+      @media (min-width:600px){body .g3-panel:has(.g3-controls)>.g3-btns{grid-template-columns:1fr 1fr 1fr}}
+      body .rpg-lobby{padding:6px;padding-left:max(6px,env(safe-area-inset-left,0px));padding-right:max(6px,env(safe-area-inset-right,0px));padding-bottom:max(6px,env(safe-area-inset-bottom,0px))}
+      body .rpg-lobby-panel{padding:6px 10px;gap:5px;height:100%}
+      body .rpg-lobby h2{font-size:15px;margin:0}
+      body .rpg-lobby-hint{display:none}
       body .rpg-lobby .rpg-small{font-size:11px;line-height:1.4}
+      body .rpg-jobgrid{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:5px}
+      body .rpg-jobc{font-size:10px;padding:3px 6px;min-height:46px}
+      body .rpg-jobc b{font-size:13px}
+      body .rpg-jobinfo{font-size:11px;line-height:1.4;padding:3px 8px}
+      body .rpg-jobinfo b{font-size:14px}
+      body .rpg-jobinfo-head{min-height:26px}
+      body .rpg-tab{min-height:44px;padding:4px 9px;font-size:12px}
+      body .rpg-room{padding:4px 10px}
+      body .rpg-room-code{font-size:20px}
+      body .rpg-room{display:flex;align-items:center;gap:10px;min-height:44px}
+      body .rpg-room-line{flex:none;white-space:nowrap}
+      body .rpg-room .rpg-members{flex:1 1 auto;min-width:0;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0}
+      body .rpg-room .rpg-members::-webkit-scrollbar{display:none}
+      body .rpg-mem{flex:none}
+      body .rpg-lobby input{min-height:44px;padding:6px 10px}
+      body .rpg-lobby .g3-btn{min-height:44px;padding:6px 12px}
+      body .g3-toast{font-size:13px;padding:6px 12px}
     }
   </style>
 </head>

@@ -33,15 +33,30 @@ export function createTouch({ onPause, onView, allowMouse = false }) {
     <button type="button" class="rt-btn rt-r" data-k="skillR"><b>R</b><span></span><i></i><u></u></button>
     <button type="button" class="rt-btn rt-f" data-k="interact">調べる</button>
     <div class="rt-top">
-      <button type="button" class="rt-mini" data-a="view">視点</button>
-      ${document.fullscreenEnabled ? '<button type="button" class="rt-mini" data-a="full">全画面</button>' : ''}
-      <button type="button" class="rt-mini" data-a="pause">Ⅱ</button>
+      <button type="button" class="rt-mini" data-a="view" aria-label="視点の切り替え">視点</button>
+      ${document.fullscreenEnabled ? '<button type="button" class="rt-mini" data-a="full" aria-label="全画面">全画面</button>' : ''}
+      <button type="button" class="rt-mini rt-pause" data-a="pause" aria-label="ポーズ">Ⅱ</button>
     </div>`;
   document.body.appendChild(root);
+  // 縦持ちの案内（CSS の orientation:portrait で出る）。全画面にできる端末は横向きに固定するボタンも出す
   const rotate = document.createElement('div');
   rotate.className = 'rpg-rotate';
-  rotate.innerHTML = '<div>📱↻<br>スマホを<b>横向き</b>にしてください</div>';
+  rotate.innerHTML = `<div><div class="rpg-rotate-icon">📱</div>スマホを<b>横向き</b>にしてください<br><small>横持ち専用のゲームです</small>
+    ${document.fullscreenEnabled ? '<br><button type="button" class="g3-btn rpg-rotate-btn">横向きに固定する（全画面）</button>' : ''}</div>`;
   document.body.appendChild(rotate);
+  rotate.querySelector('.rpg-rotate-btn')?.addEventListener('click', () => goFullscreen());
+  // ダブルタップ拡大・ピンチ拡大・長押しメニュー・画面のスクロールを抑える（メニューの中のスクロールは許す）
+  const SCROLLABLE = '.rpg-lobby-panel,.rpg-jobgrid-scroll,.g3-overlay,.rpg-tabs,.rpg-members';
+  document.addEventListener('touchmove', (e) => { if (!e.target.closest?.(SCROLLABLE)) e.preventDefault(); }, { passive: false });
+  document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false }); // iOS のピンチ
+  document.addEventListener('contextmenu', (e) => { if (!e.target.closest?.('input')) e.preventDefault(); });
+  let lastTap = 0;
+  document.addEventListener('touchend', (e) => {
+    // ボタン以外の素早い2回タップ（iOS のダブルタップ拡大）を止める。ボタン・入力欄はそのまま
+    const now = performance.now();
+    if (now - lastTap < 320 && !e.target.closest?.('button,input,a,label,[data-job],[data-tab],[data-act],.rpg-talk')) e.preventDefault();
+    lastTap = now;
+  }, { passive: false });
 
   const st = { mx: 0, my: 0, dash: false, attack: false, lookDx: 0, lookDy: 0, pressed: new Set() };
   const stick = root.querySelector('.rt-stick');
@@ -154,9 +169,13 @@ export function createTouch({ onPause, onView, allowMouse = false }) {
       else if (a === 'view') onView?.();
       else if (a === 'full') {
         if (document.fullscreenElement) document.exitFullscreen?.();
-        else document.documentElement.requestFullscreen?.({ navigationUI: 'hide' }).then(() => screen.orientation?.lock?.('landscape').catch(() => {})).catch(() => {});
+        else goFullscreen();
       }
     });
+  }
+  /** 全画面にして横向きに固定する（固定できない端末では全画面だけ） */
+  function goFullscreen() {
+    document.documentElement.requestFullscreen?.({ navigationUI: 'hide' }).then(() => screen.orientation?.lock?.('landscape').catch(() => {})).catch(() => {});
   }
   // ゲーム中に画面がスクロール・拡大しないように
   root.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });

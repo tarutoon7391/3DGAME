@@ -1,7 +1,7 @@
-// 職業の選び直し（全滅したとき）。準備画面と同じ16職ずつのタブ（ui/jobgrid.js）で選ぶ
+// 職業の選び直し（全滅したとき）。準備画面と同じロールごとのタブ（ui/jobgrid.js）で選ぶ
 // 協力プレイ（ready を渡す）：選んだら「準備OK」。全員そろうとホストが「再開」を押せる。時間制限はない
 import { JOBS } from '../data/jobs.js';
-import { jobGridHtml, tabOf } from './jobgrid.js';
+import { jobGridHtml, tabOf, handleGridClick, keepGridScroll } from './jobgrid.js';
 import { esc } from '../util.js';
 
 /**
@@ -13,6 +13,7 @@ export function openJobPicker({ current, title = '職業を選び直す', second
   let iAmReady = false;
   let picked = current;
   let tab = tabOf(current);
+  let infoOpen = false;
   let left = seconds;
   let closed = false;
   const el = document.createElement('div');
@@ -38,39 +39,35 @@ export function openJobPicker({ current, title = '職業を選び直す', second
   }
 
   function render() {
-    const panel = el.querySelector('.rpg-lobby-panel');
-    const keep = panel ? panel.scrollTop : 0;
     el.innerHTML = `<div class="rpg-lobby-panel">
-      <h2>${esc(title)}</h2>
-      <p class="rpg-small">いまの職業：<b style="color:${JOBS[picked].color}">${esc(JOBS[picked].name)}</b>
-      ${seconds ? `　あと <b class="rpg-pick-left">${Math.ceil(left)}</b> 秒でやり直し（選ばなければ今の職業のまま）` : ''}</p>
+      <div class="rpg-lobby-head">
+        <h2>${esc(title)}</h2>
+        <p class="rpg-small">いまの職業：<b style="color:${JOBS[picked].color}">${esc(JOBS[picked].name)}</b>
+        ${seconds ? `　あと <b class="rpg-pick-left">${Math.ceil(left)}</b> 秒でやり直し（選ばなければ今の職業のまま）` : ''}</p>
+      </div>
       ${ready ? readyHtml() : ''}
-      ${jobGridHtml(picked, tab)}
+      ${jobGridHtml(picked, tab, { infoOpen })}
       ${ready ? readyBtns() : seconds ? '' : '<div class="rpg-lobby-btns"><button type="button" class="g3-btn" data-act="ok">この職業でやり直す</button><button type="button" class="g3-btn sub" data-act="cancel">やめる</button></div>'}
     </div>`;
-    el.querySelector('.rpg-lobby-panel').scrollTop = keep;
   }
+  const redraw = () => keepGridScroll(el, render);
 
   el.addEventListener('click', (e) => {
-    const t = e.target.closest('[data-tab]');
-    if (t) {
-      tab = Number(t.dataset.tab);
-      render();
-      return;
-    }
-    const card = e.target.closest('[data-job]');
-    if (card) {
-      picked = card.dataset.job;
-      onPick?.(picked, false);
-      if (ready) ready.onReady(picked, iAmReady); // 職業を変えたことも伝える
-      render();
-      return;
-    }
+    if (handleGridClick(e, {
+      onTab: (r) => { tab = r; redraw(); },
+      onJob: (j) => {
+        picked = j;
+        onPick?.(picked, false);
+        if (ready) ready.onReady(picked, iAmReady); // 職業を変えたことも伝える
+        redraw();
+      },
+      onInfo: () => { infoOpen = !infoOpen; redraw(); },
+    })) return;
     const act = e.target.closest('[data-act]')?.dataset.act;
     if (ready && act === 'ready') {
       iAmReady = !iAmReady;
       ready.onReady(picked, iAmReady);
-      render();
+      redraw();
       return;
     }
     if (ready && act === 'start') {
@@ -102,5 +99,5 @@ export function openJobPicker({ current, title = '職業を選び直す', second
   }
 
   render();
-  return { close, refresh: () => { if (!closed) render(); } };
+  return { close, refresh: () => { if (!closed) redraw(); } };
 }

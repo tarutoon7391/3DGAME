@@ -63,7 +63,8 @@ export function createHudView(game) {
   let lastPrompt = null;
   let bannerT = 0;
 
-  function bar(cur, max, color, w = 180, cls = '') {
+  const BAR_W = game.touch ? 130 : 180; // スマホはバーを短くして左上の枠を小さく
+  function bar(cur, max, color, w = BAR_W, cls = '') {
     const r = Math.max(0, Math.min(1, cur / max));
     return `<div class="rpg-bar ${cls}" style="width:${w}px"><div style="width:${(r * 100).toFixed(1)}%;background:${color}"></div></div>`;
   }
@@ -114,7 +115,7 @@ export function createHudView(game) {
     // 協力プレイの仲間（自分以外）
     const others = game.players.filter((p) => p !== me);
     const ph = others.map((p) => `<div><b style="color:${p.job.color}">${esc(p.name || '仲間')}</b> ${esc(p.job.name)}
-      ${p.downed ? '<span class="down">ダウン！ そばに立って蘇生</span>' : bar(p.hp, p.maxHp, p.hp / p.maxHp < 0.3 ? '#ff5252' : '#66bb6a', 150)}</div>`).join('');
+      ${p.downed ? '<span class="down">ダウン！ そばに立って蘇生</span>' : bar(p.hp, p.maxHp, p.hp / p.maxHp < 0.3 ? '#ff5252' : '#66bb6a', game.touch ? 80 : 150)}</div>`).join('');
     if (ph !== lastParty) {
       lastParty = ph;
       party.innerHTML = ph;
@@ -234,6 +235,8 @@ export function createHudView(game) {
     },
     show(v) {
       root.style.display = v ? '' : 'none';
+      // プレイ中（HUD が出ている間）の目印。スマホでは「ハブへ戻る」を隠してボタンの場所を空ける（ポーズ画面から戻れる）
+      document.body.classList.toggle('rpg-ingame', !!v);
       game.plates?.show(v);
       if (!v) hud('');
     },
