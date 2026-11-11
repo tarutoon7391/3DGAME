@@ -578,6 +578,7 @@ function skillData(game, p, intent, dist = 0) {
   const yaw = intent.aimYaw;
   const [ox, oz] = fwd(yaw, dist);
   const d = { x: p.pos.x, z: p.pos.z, yaw, tx: p.pos.x + ox, tz: p.pos.z + oz, still: p.still > 0.3 };
+  if (intent.moveX || intent.moveZ) d.myaw = +Math.atan2(intent.moveX, intent.moveZ).toFixed(3); // 動いている向き（ローリング用）
   // 一番近い戦闘中のボス（鎖で飛びつく・自動で狙う技用）
   let best = null;
   let bd = Infinity;
@@ -675,7 +676,7 @@ const GENERIC = {
       const dist = Math.max(1.5, Math.hypot(d.bx - d.x, d.bz - d.z) - (d.br || 1.5) - 0.8);
       dd = { ...d, yaw: Math.atan2(d.bx - d.x, d.bz - d.z) };
       sk = { ...sk, dist: Math.min(sk.dist, dist) };
-      for (let k = 0; k < 1; k += 0.1) game.fx.burst(d.x + (d.bx - d.x) * k, 1.2, d.z + (d.bz - d.z) * k, 0x9e9e9e, 1, { speed: 0.5, up: 0.5, life: 0.3, grav: 0 });
+      game.skillFx?.grappleFx?.(p, d, sk); // 鎖を飛ばし、斜め上へ飛び上がって鎖を振り下ろす
     }
     dashStrike(game, p, dd, local, sk, sk.color ?? 0xffffff, { brkMul: sk.brkMul, knock: sk.knock });
   },
@@ -706,6 +707,7 @@ const GENERIC = {
       game.fx.burst(p.pos.x, 1, p.pos.z, sk.color, 24, { speed: 8, up: 1.5, life: 0.4, size: 0.15, grav: 2 });
       if (sk.id === 'wardburst') setTimeout(() => game.skillFx?.wardShatter?.(p, sk), windup * 1000); // 結界の衝撃：張ったバリアが砕ける
       else if (sk.id === 'bigbang') game.skillFx?.bigBang?.(p, sk);
+      else if (sk.id === 'holysmite') setTimeout(() => game.skillFx?.smiteHit?.(p, sk), windup * 1000);
       else game.skillFx?.spin(p.pos.x, p.pos.z, sk.radius, sk.color);
     }
   },
@@ -747,7 +749,8 @@ const GENERIC = {
     if (sk.aim && d.bx !== undefined) yaw = Math.atan2(d.bx - d.x, d.bz - d.z);
     const fire = (i) => {
       const a = yaw + (i - (n - 1) / 2) * (sk.spread || 0) + (sk.jitter ? (Math.random() - 0.5) * sk.jitter : 0);
-      const o = { speed: sk.speed || 22, mult: sk.mult, color: sk.colors ? sk.colors[i % sk.colors.length] : sk.color, size: sk.size || 0.3, range: sk.range || 24, pierce: sk.pierce, explode: sk.explode, dot: sk.dot, split: sk.split, boomerang: sk.boomerang, local, gauge: sk.gaugeSelf ?? GAUGE.gainSkill, zap: !!sk.chain };
+      game.skillFx?.muzzle?.(p); // 拳銃：銃口が光る
+      const o = { pop: sk.pop, speed: sk.speed || 22, mult: sk.mult, color: sk.colors ? sk.colors[i % sk.colors.length] : sk.color, size: sk.size || 0.3, range: sk.range || 24, pierce: sk.pierce, explode: sk.explode, dot: sk.dot, split: sk.split, boomerang: sk.boomerang, local, gauge: sk.gaugeSelf ?? GAUGE.gainSkill, zap: !!sk.chain };
       if (sk.debuff) o.onHit = (t) => { if (t && game.bosses.includes(t)) game.bossCommand({ type: 'debuff', ...sk.debuff, sub: t.sub }); };
       if (sk.chain) o.onHit = chainHit(game, p, sk.chain, sk.color);
       if (sk.orbit) o.orbit = { ...sk.orbit, phase: (i / n) * Math.PI * 2 }; // ジャグリング爆弾：3つが輪になって回る
@@ -853,6 +856,14 @@ const GENERIC = {
     game.fx.burst(p.pos.x, 1.4, p.pos.z, sk.color, 36, { speed: 5, up: 4, life: 0.7 });
     if (!game.skillFx?.selfBuffFx?.(p, sk)) game.skillFx?.powerUp(p, sk.color); // 煙玉は地面へ叩きつけて煙
     // 竜化：空から雷が降って周りを打つ（雷の光の中で竜に変わる）
+    // ローリング：ふつうの回避と同じように転がって動く（動いていなければ後ろへ）
+    if (sk.move) {
+      const y = d.myaw ?? p.yaw + Math.PI;
+      p.action = 'dodge';
+      p.actT = 0;
+      p.dodgeX = Math.sin(y);
+      p.dodgeZ = Math.cos(y);
+    }
     if (sk.strike && local) radiusHit(game, p, sk.strike.mult, sk.strike.radius, { gauge: GAUGE.gainSkill, knock: 1.5, color: 0xfff176 });
     if (local) {
       p.buff(sk.buff, sk.dur, { ...sk.vals });
@@ -881,7 +892,12 @@ const GENERIC = {
   debuff(game, p, d, local, sk) {
     startAction(p, 'cast', 0.4);
     game.sound.se('gate');
-    for (const b of game.bosses) if (b.alive) { ringFx(game, b.pos.x, b.pos.z, b.radius + 2, sk.color); game.skillFx?.curse(b, sk.color); }
+    for (const b of game.bosses) {
+      if (!b.alive) continue;
+      ringFx(game, b.pos.x, b.pos.z, b.radius + 2, sk.color);
+      if (sk.id === 'chainbind') game.skillFx?.chainBind?.(p, b, sk.debuffs[0]?.dur || 5); // 鎖を飛ばして体に巻きつける
+      else game.skillFx?.curse(b, sk.color);
+    }
     if (local) for (const db of sk.debuffs) game.bossCommand({ type: 'debuff', ...db });
   },
   beam(game, p, d, local, sk) {
@@ -1145,6 +1161,7 @@ function shoot(game, p, d, local) {
   const n = b.count || 1;
   const o = { ...b, mult, local, gauge: p.job.basicGauge, basic: true }; // 通常攻撃：ゲージは職業ごとの basicGauge
   if (b.debuff) o.onHit = (t) => { if (t && game.bosses.includes(t)) game.bossCommand({ type: 'debuff', ...b.debuff, sub: t.sub }); };
+  game.skillFx?.muzzle?.(p); // 拳銃：銃口が光る
   for (let i = 0; i < n; i++) {
     const jit = b.jitter ? (Math.random() - 0.5) * b.jitter : 0; // マシンガン：少しばらける
     game.projectiles.playerShot(p, d.x, d.z, d.yaw + (i - (n - 1) / 2) * (b.spread || 0) + jit, o);

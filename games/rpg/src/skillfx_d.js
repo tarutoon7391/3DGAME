@@ -217,6 +217,12 @@ export function createSkillFxD({ game, root, add, mesh }) {
       w.style.opacity = (big ? 0 : o).toFixed(2);
       gr.style.opacity = (big ? o : 0).toFixed(2);
     }
+    // 神の盾：金色の縁
+    const dv = alive ? me.buffs?.divine : null;
+    if (dv || frames.divine) {
+      const el = frameEl('divine', 'box-shadow:inset 0 0 80px 18px rgba(255,213,79,.55);border:5px solid rgba(255,236,130,.85)');
+      el.style.opacity = (dv && dv.t > 0 ? (0.8 + 0.2 * Math.sin(frameT * 4)) * blink(dv) : 0).toFixed(2);
+    }
     // 煙玉：縁に灰色のもやが漂う
     const sm = alive ? me.buffs?.smoke : null;
     if (sm || frames.smoke) {
@@ -430,6 +436,7 @@ export function createSkillFxD({ game, root, add, mesh }) {
   }
 
   return {
+    iconRing, // 技マークの並んだ輪（神の盾などからも使う）
     bolt,
     groundZap,
     zapHit,

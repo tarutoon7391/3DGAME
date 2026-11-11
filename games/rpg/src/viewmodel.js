@@ -10,6 +10,7 @@ import { DEFAULT_JOB } from './data/jobs.js';
 import { buildWeapon, HOLD_ROT, HOLD_POS } from './weaponmodel.js';
 import { animateSpecial, vertical } from './vmanim.js';
 import { createBladeAura } from './vmaura.js';
+import { starTexture } from './fxtex.js';
 
 const ORDER = 10000; // 透明物よりも後に描く
 const LEFT_X = -0.72; // 左手の肩（右手の肩から見た位置）
@@ -90,6 +91,13 @@ export function createViewModel(renderer, camera) {
     A.hand.add(g);
     return g;
   });
+  // 銃口の光（撃った瞬間だけ。拳銃使い）
+  const muzzleMat = new THREE.SpriteMaterial({ map: starTexture(), color: 0xffe0b2, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending });
+  mats.push(muzzleMat);
+  const muzzle = new THREE.Sprite(muzzleMat);
+  muzzle.renderOrder = ORDER + 3;
+  muzzle.visible = false;
+  R.twist.add(muzzle);
   let dragonOn = false;
   function setDragon(on) {
     if (on === dragonOn) return;
@@ -347,6 +355,15 @@ export function createViewModel(renderer, camera) {
       R.pivot.rotation.set(Rp.rx, Rp.ry, Rp.rz, 'YXZ');
       R.twist.rotation.y = Rp.twist;
       aura.update(dt, ench);
+      // 銃口の光
+      const mz = weapon?.muzzle;
+      if (mz && p.muzzleT > 0) {
+        muzzle.visible = true;
+        muzzle.position.set(mz[0], mz[1], mz[2]);
+        muzzle.scale.setScalar(0.2 + Math.random() * 0.1);
+        muzzleMat.rotation = Math.random() * 6.28;
+        p.muzzleT -= dt;
+      } else muzzle.visible = false;
       if (Rp.aim) R.holder.rotation.set(AIM_ROT[0], AIM_ROT[1], AIM_ROT[2]);
       else if (R.baseRot) R.holder.rotation.copy(R.baseRot);
       // 左手（両手の拳の職業だけ。大盤振る舞いの両手の振り上げでも出す）。左右反転して置く

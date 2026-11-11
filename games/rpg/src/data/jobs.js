@@ -356,7 +356,7 @@ export const JOBS = {
     healer: true, // 回復ができる：ピンチの味方が赤く光って見える
     power: 0.95, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.4, hit: 0.14, mult: 1.1 }, { dur: 0.4, hit: 0.14, mult: 1.15 }, { dur: 0.55, hit: 0.22, mult: 1.8 }], range: 2.7, arc: 2.3, heavyBonus: 0.3 },
-    q: { id: 'holysmite', kind: 'burst', name: '聖撃', desc: '聖なる力で周りを打つ', cd: 6, mult: 1.8, radius: 3.8, color: 0xffe082 },
+    q: { id: 'holysmite', kind: 'burst', name: '聖撃', desc: '剣を振りかぶり、聖なる力をまとった縦斬りで周りを打つ', cd: 6, windup: 0.15, anim: 'cast', mult: 1.8, radius: 3.8, color: 0xffe082 },
     e: { id: 'consecrate', kind: 'zone', zone: 'field', name: '聖別', desc: '足元を6秒間 聖地にする（敵に継続ダメージ・中の味方は毎秒少し回復）', cd: 12, radius: 5, dur: 6, every: 0.5, mult: 0.5, heal: 0.01, color: 0xffe082 },
     r: { id: 'divineshield', kind: 'teambuff', name: '神の盾', desc: '周囲12mの味方の被ダメージ -50%（6秒）', radius: 12, buff: 'divine', dur: 6, vals: { dmgMul: 0.5 }, color: 0xffd54f, msg: '神の盾！ 被ダメージ半減' },
     trait: '周囲6mの味方の被ダメージ -10%',
@@ -368,8 +368,8 @@ export const JOBS = {
     power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.18, speed: 40, mult: 0.45, color: 0xffcc80, size: 0.16, range: 26 },
     q: { id: 'fanning', kind: 'shots', name: 'ファニング', desc: '0.6秒で6連射', cd: 6, count: 6, every: 0.1, jitter: 0.12, speed: 40, mult: 0.75, size: 0.18, range: 26, color: 0xffcc80 },
-    e: { id: 'roll', kind: 'selfbuff', name: 'ローリング', desc: '0.6秒 無敵になり、5秒間 会心率 +30%', cd: 8, buff: 'roll', dur: 5, vals: { critAdd: 0.3 }, invuln: 0.6, color: 0xffcc80, sound: 'dodge' },
-    r: { id: 'deadeye', kind: 'shots', name: 'デッドアイ', desc: '一番近いボスへ自動で狙う6連射（必ず当たる向き）', aim: true, count: 6, every: 0.12, speed: 50, mult: 1.6, size: 0.22, range: 40, pierce: true, color: 0xffab40 },
+    e: { id: 'roll', kind: 'selfbuff', name: 'ローリング', desc: '転がって回避し（回避と同じ移動）、0.6秒 無敵・5秒間 会心率 +30%', cd: 8, move: true, buff: 'roll', dur: 5, vals: { critAdd: 0.3 }, invuln: 0.6, color: 0xffcc80, sound: 'dodge' },
+    r: { id: 'deadeye', kind: 'shots', name: 'デッドアイ', desc: '一番近いボスへ自動で狙う6連射（必ず当たる向き。着弾で小さく爆ぜる）', aim: true, pop: true, count: 6, every: 0.12, speed: 50, mult: 1.6, size: 0.22, range: 40, pierce: true, color: 0xffab40 },
     trait: '移動しながらでも撃ちやすい速射。会心率 +5%',
     critBonus: 0.05, breakMul: 1,
     look: { armorColor: 0x6d4c41, swordColor: 0x424242, swordLen: 0.6, cape: 0x8d6e63, weapon: 'gun' },

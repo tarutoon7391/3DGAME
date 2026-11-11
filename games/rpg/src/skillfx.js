@@ -15,6 +15,7 @@ import { createSkillFxC } from './skillfx_c.js';
 import { createSkillFxD } from './skillfx_d.js';
 import { createSkillFxE } from './skillfx_e.js';
 import { createSkillFxF } from './skillfx_f.js';
+import { createSkillFxG } from './skillfx_g.js';
 
 /** 矢の雨：上へ放った矢が落ちてくるまでの間（秒）。この間は矢を降らせない（見た目だけ） */
 const RAIN_DELAY = 0.4;
@@ -343,6 +344,7 @@ export function createSkillFx(game) {
   const D = createSkillFxD({ game, root, add, mesh });
   const E = createSkillFxE({ game, root, add, mesh, slash, streak, column });
   const F = createSkillFxF({ game, root, add, mesh });
+  const G = createSkillFxG({ game, root, add, mesh, slash, column, slam });
 
   return {
     ...B,
@@ -350,6 +352,7 @@ export function createSkillFx(game) {
     ...D,
     ...E,
     ...F,
+    ...G,
     /** 自分強化の技ごとの見た目。true を返すと、いつもの光の柱は出さない */
     selfBuffFx(p, sk) {
       if (sk.id === 'enchant') E.enchantFx(p);
@@ -369,17 +372,22 @@ export function createSkillFx(game) {
       if (sk.id === 'wardburst') D.wardStart(p, sk);
       else if (sk.id === 'firewhirl') F.fireWhirl(p, (sk.ticks || 1) * (sk.every || 0.2) + 0.8); // 炎の竜巻
       else if (sk.id === 'bigbang') return;
+      else if (sk.id === 'holysmite') G.smiteStart(p, sk); // 振りかぶる
+      else if (sk.id === 'chainstorm') G.stormStart(p, sk); // 鎖が高速で回る
       else Cx.burstStart(p, sk);
     },
     /** 周囲攻撃の1回ごと（結界の衝撃はバリアが砕ける） */
     burstTick(p, sk, n, ticks) {
       if (sk.id === 'wardburst') D.wardShatter(p, sk);
       else if (sk.id === 'bigbang') F.bigBang(p, sk); // 手品の大爆発（派手に）
+      else if (sk.id === 'holysmite') G.smiteHit(p, sk); // 聖なる縦斬り
+      else if (sk.id === 'chainstorm') G.stormTick(p, sk, n); // ×字の高速斬り
       else Cx.burstTick(p, sk, n, ticks);
     },
     teamBuffFx(p, sk) {
       Cx.teamBuffFx(p, sk);
       D.teamBuffD(p, sk);
+      if (sk.id === 'divineshield') G.divineFx(p, sk); // 天使の翼・大きな盾・羽マークの金の輪
       if (sk.id === 'ovation') B.songRing(p.pos.x, p.pos.z, 12, 0xf48fb1, 'hype'); // 大道芸の全員強化は吟遊詩人の楽譜の輪
     },
     slash(x, z, yaw, range, arc, color, o) {

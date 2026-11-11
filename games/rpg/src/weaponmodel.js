@@ -97,5 +97,5 @@ export function buildWeapon(id, colors, makeMat) {
     group.add(mesh);
   }
   if (spec.scale) group.scale.setScalar(spec.scale);
-  return { group, hold: spec.hold || 'up', rot: spec.rot, pos: spec.pos, style: spec.style || 'swing', dual: !!spec.dual, lastV: !!spec.lastV, flashMats, mats };
+  return { group, hold: spec.hold || 'up', rot: spec.rot, pos: spec.pos, style: spec.style || 'swing', dual: !!spec.dual, lastV: !!spec.lastV, muzzle: spec.muzzle || null, flashMats, mats };
 }

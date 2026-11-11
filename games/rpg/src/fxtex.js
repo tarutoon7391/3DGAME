@@ -485,3 +485,29 @@ export function smokeTexture() {
     }
   });
 }
+
+/** 天使の羽のマーク（神の盾の輪に並べる）：左右に広がる羽と、まん中の小さな輪 */
+export function wingIconTexture() {
+  return make('wingIcon', 128, 128, (c, w) => {
+    const R = w / 2;
+    c.translate(R, R + 6);
+    c.fillStyle = 'rgba(255,255,255,1)';
+    for (const s of [-1, 1]) {
+      // 羽根を5枚、外へ行くほど長く
+      for (let i = 0; i < 5; i++) {
+        const len = R * (0.75 - i * 0.08);
+        c.save();
+        c.rotate((s === 1 ? 0 : Math.PI) - s * (0.05 + i * 0.26)); // 横から上へ扇に広げる
+        c.beginPath();
+        c.ellipse(len / 2 + 4, 0, len / 2, R * 0.09, 0, 0, Math.PI * 2);
+        c.fill();
+        c.restore();
+      }
+    }
+    c.lineWidth = 5;
+    c.strokeStyle = 'rgba(255,255,255,1)';
+    c.beginPath();
+    c.ellipse(0, -R * 0.62, R * 0.22, R * 0.08, 0, 0, Math.PI * 2);
+    c.stroke();
+  });
+}
