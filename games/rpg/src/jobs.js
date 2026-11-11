@@ -120,6 +120,8 @@ const SKILLS = {
     const e = JOBS.archer.r;
     startAction(p, 'cast', 0.4);
     game.sound.se('shoot');
+    p.aimUpT = 0.45; // 一人称：弓を真上へ向けて放つ
+    game.skillFx?.volleyUp(p); // 上へ放つ矢（少し遅れて降ってくる）
     addZone(game, { kind: 'arrowrain', x: d.tx, z: d.tz, r: e.radius, t: e.dur, every: e.every, tick: 0, mult: e.mult, owner: p.id, local, p });
   },
   // ---- 忍者 ----
@@ -142,6 +144,7 @@ const SKILLS = {
     startAction(p, 'cast', 0.4);
     game.sound.se('seal');
     ringFx(game, d.x, d.z, q.radius, 0xf48fb1);
+    game.skillFx?.songRing(d.x, d.z, q.radius, 0xf48fb1, 'lonely'); // 楽譜の輪（寂しげに）
     if (local) game.teamEffect({ kind: 'buff', name: 'courage', dur: q.dur, vals: { mul: q.atkMul }, x: d.x, z: d.z, r: q.radius, msg: '勇気の歌：攻撃力アップ！' });
   },
   gale(game, p, d, local) {
@@ -149,7 +152,7 @@ const SKILLS = {
     startAction(p, 'cast', 0.5);
     game.sound.se('seal');
     game.fx.burst(p.pos.x, 2, p.pos.z, 0xf48fb1, 50, { speed: 8, up: 4, life: 1 });
-    game.skillFx?.powerUp(p, 0xf48fb1, true);
+    game.skillFx?.songRing(p.pos.x, p.pos.z, 12, 0xf48fb1, 'hype'); // 楽譜の輪（盛り上がる）
     if (local) game.teamEffect({ kind: 'buff', name: 'gale', dur: e.dur, vals: { speedMul: e.speedMul, regen: e.regen }, msg: '疾風の旋律：スタミナ無限・足が速くなる！' });
   },
   // ---- 召喚士 ----
@@ -376,6 +379,7 @@ const SKILLS = {
   bash(game, p, d, local) {
     const e = JOBS.knight.e;
     dashStrike(game, p, d, local, e, 0x90a4ae, { brkMul: e.brkMul, knock: 2 });
+    game.skillFx?.shieldWall(p, e.time, 0x80d8ff); // 盾を構えて水色の壁ごと突撃
   },
   icelance(game, p, d, local) {
     const e = JOBS.mage.e;

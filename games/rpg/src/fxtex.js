@@ -154,3 +154,83 @@ export function sigilTexture() {
     c.stroke();
   });
 }
+
+/** 音符（♪ 1つ・♫ 2つつながり）。kind：'one' / 'two' */
+export function noteTexture(kind = 'one') {
+  return make('note:' + kind, 128, 128, (c, w) => {
+    const R = w / 2;
+    c.translate(R, R);
+    c.fillStyle = '#fff';
+    c.shadowColor = 'rgba(255,255,255,0.9)';
+    c.shadowBlur = R * 0.15;
+    const head = (x, y) => {
+      c.beginPath();
+      c.ellipse(x, y, R * 0.24, R * 0.17, -0.45, 0, Math.PI * 2);
+      c.fill();
+    };
+    if (kind === 'two') {
+      head(-R * 0.38, R * 0.45);
+      head(R * 0.32, R * 0.32);
+      c.fillRect(-R * 0.2, -R * 0.62, R * 0.09, R * 1.07);
+      c.fillRect(R * 0.5, -R * 0.75, R * 0.09, R * 1.07);
+      c.beginPath();
+      c.moveTo(-R * 0.2, -R * 0.62);
+      c.lineTo(R * 0.59, -R * 0.75);
+      c.lineTo(R * 0.59, -R * 0.55);
+      c.lineTo(-R * 0.2, -R * 0.42);
+      c.closePath();
+      c.fill();
+    } else {
+      head(-R * 0.1, R * 0.45);
+      c.fillRect(R * 0.1, -R * 0.7, R * 0.09, R * 1.15);
+      c.beginPath();
+      c.moveTo(R * 0.19, -R * 0.7);
+      c.quadraticCurveTo(R * 0.6, -R * 0.45, R * 0.42, -R * 0.05);
+      c.quadraticCurveTo(R * 0.45, -R * 0.4, R * 0.19, -R * 0.45);
+      c.closePath();
+      c.fill();
+    }
+  });
+}
+
+/** 五線譜：横に5本の線（輪に巻くと楽譜の輪になる）。u 方向に繰り返して使う */
+export function staffTexture() {
+  return make('staff', 256, 64, (c, w, h) => {
+    c.fillStyle = '#fff';
+    for (let i = 0; i < 5; i++) c.fillRect(0, h * (0.14 + i * 0.18), w, h * 0.045);
+    // 小節の縦線
+    c.fillRect(w * 0.98, h * 0.14, w * 0.012, h * 0.765);
+  });
+}
+
+/** 六角の網目（盾の壁）。縁は明るく */
+export function hexGridTexture() {
+  return make('hexgrid', 256, 256, (c, w, h) => {
+    const g = c.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, 'rgba(255,255,255,0.15)');
+    g.addColorStop(0.5, 'rgba(255,255,255,0.35)');
+    g.addColorStop(1, 'rgba(255,255,255,0.15)');
+    c.fillStyle = g;
+    c.fillRect(0, 0, w, h);
+    c.strokeStyle = 'rgba(255,255,255,0.95)';
+    c.lineWidth = 3;
+    const s = 22;
+    for (let row = -1; row < h / (s * 1.5) + 1; row++) {
+      for (let col = -1; col < w / (s * Math.sqrt(3)) + 1; col++) {
+        const cx = col * s * Math.sqrt(3) + (row % 2 ? (s * Math.sqrt(3)) / 2 : 0);
+        const cy = row * s * 1.5;
+        c.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const a = (i / 6) * Math.PI * 2 + Math.PI / 6;
+          c.lineTo(cx + Math.cos(a) * s * 0.92, cy + Math.sin(a) * s * 0.92);
+        }
+        c.closePath();
+        c.stroke();
+      }
+    }
+    // 上下の縁
+    c.fillStyle = '#fff';
+    c.fillRect(0, 0, w, 6);
+    c.fillRect(0, h - 6, w, 6);
+  });
+}

@@ -1,4 +1,4 @@
-// 召喚士の召喚物：精霊（その場からボスを撃つ）と岩巨人（ボスの狙いを引きつけて殴る）
+// 召喚士の召喚物：精霊（その場からボスを撃つ水色のおばけ）と岩巨人（ボスの狙いを引きつけ、地面から岩を引き抜いて投げる）
 // ホストが動かし、参加者には位置を配る（参加者のブラウザでは puppet：見た目と演出だけ）
 import * as THREE from 'three';
 import { JOBS } from './data/jobs.js';
@@ -9,8 +9,53 @@ import { yawTo, lerpAngle } from './util.js';
 export function createAllies(game) {
   const list = [];
   let nextId = 1;
-  const spiritGeo = new THREE.OctahedronGeometry(0.45, 0);
-  const spiritMat = new THREE.MeshBasicMaterial({ color: 0x80cbc4 });
+  // ---- 精霊：水色のおばけ（使い回す形と材質） ----
+  const G = {
+    head: new THREE.SphereGeometry(0.42, 16, 12),
+    tail: new THREE.CylinderGeometry(0.42, 0.3, 0.4, 16, 1, true),
+    tip: new THREE.ConeGeometry(0.12, 0.28, 6),
+    eye: new THREE.SphereGeometry(0.075, 10, 8),
+    shine: new THREE.SphereGeometry(0.026, 6, 5),
+    nub: new THREE.SphereGeometry(0.1, 8, 6),
+    glow: new THREE.SphereGeometry(0.75, 14, 10),
+    rock: new THREE.DodecahedronGeometry(0.32, 0),
+  };
+  const M = {
+    body: new THREE.MeshLambertMaterial({ color: 0x9be7f0, emissive: 0x2a8a96, transparent: true, opacity: 0.92 }),
+    eye: new THREE.MeshBasicMaterial({ color: 0x102027 }),
+    shine: new THREE.MeshBasicMaterial({ color: 0xffffff }),
+    blush: new THREE.MeshBasicMaterial({ color: 0xff8fb1, transparent: true, opacity: 0.7 }),
+    glow: new THREE.MeshBasicMaterial({ color: 0x80deea, transparent: true, opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending }),
+    rock: new THREE.MeshLambertMaterial({ color: 0x8d6e63, flatShading: true }),
+  };
+  function makeSpirit() {
+    const group = new THREE.Group();
+    const core = new THREE.Group();
+    core.position.y = 1.5;
+    group.add(core);
+    const add = (g, m, x, y, z, sx = 1, sy = 1, sz = 1) => {
+      const o = new THREE.Mesh(g, m);
+      o.position.set(x, y, z);
+      o.scale.set(sx, sy, sz);
+      core.add(o);
+      return o;
+    };
+    add(G.head, M.body, 0, 0, 0, 1, 1.05, 0.95);
+    add(G.tail, M.body, 0, -0.2, 0);
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2;
+      add(G.tip, M.body, Math.sin(a) * 0.24, -0.47, Math.cos(a) * 0.24).rotation.x = Math.PI; // すそのひらひら
+    }
+    // 目（黒目に白い光）・ほっぺ・小さな手
+    for (const s of [-1, 1]) {
+      add(G.eye, M.eye, s * 0.15, 0.06, 0.37, 0.8, 1.25, 0.5);
+      add(G.shine, M.shine, s * 0.15 - 0.025, 0.12, 0.41);
+      add(G.nub, M.blush, s * 0.27, -0.07, 0.32, 0.8, 0.5, 0.3);
+      add(G.nub, M.body, s * 0.43, -0.12, 0.05);
+    }
+    add(G.glow, M.glow, 0, -0.05, 0);
+    return { group, core };
+  }
 
   /** 召喚物が攻撃するときの「攻撃者」（召喚した人の攻撃力を使う） */
   const attacker = (a) => ({
@@ -24,11 +69,7 @@ export function createAllies(game) {
       m.group.scale.multiplyScalar(1.3);
       return m;
     }
-    const group = new THREE.Group();
-    const core = new THREE.Mesh(spiritGeo, spiritMat);
-    core.position.y = 1.6;
-    group.add(core);
-    return { group, core };
+    return makeSpirit();
   }
 
   function spawn(kind, x, z, owner, id = nextId++, puppet = false) {
@@ -38,9 +79,10 @@ export function createAllies(game) {
     game.scene.add(m.group);
     const a = {
       id, kind, owner, model: m, pos: m.group.position, yaw: 0, puppet,
-      life: kind === 'golem' ? S.e.dur : S.q.dur,
-      maxLife: kind === 'golem' ? S.e.dur : S.q.dur,
-      hp: kind === 'golem' ? S.e.hp : 1,
+      life: kind === 'golem' ? S.r.dur : S.q.dur,
+      maxLife: kind === 'golem' ? S.r.dur : S.q.dur,
+      hp: kind === 'golem' ? S.r.hp : 1,
+      throwT: -1, thrown: false, held: null, // 岩巨人の投げ（throwT：投げ始めてからの秒、-1 で投げていない）
       cd: 0.5, t: 0, alive: true, radius: kind === 'golem' ? 1.2 : 0.5, net: null,
     };
     list.push(a);
@@ -50,13 +92,82 @@ export function createAllies(game) {
 
   function remove(i) {
     const a = list[i];
+    if (a.held) a.model.group.remove(a.held);
     game.scene.remove(a.model.group);
     a.model.bodyMat?.dispose();
     game.fx.burst(a.pos.x, 1, a.pos.z, 0x80cbc4, 15, { speed: 3, up: 3, life: 0.5 });
     list.splice(i, 1);
   }
 
+  // ---- 岩巨人の投げ ----
+  const THROW = { range: 10, pick: 0.5, end: 0.8, cycle: 1.1, flight: 0.4, arc: 3.5 }; // 1回 1.1 秒（前の殴りと同じ間隔）
+  const rocks = []; // 飛んでいる岩 { mesh, x0, z0, y0, target, t, local, from }
+  /** 投げの動き（ホスト・参加者とも）。target が無ければ投げない */
+  function stepThrow(a, dt, target, local) {
+    if (a.throwT < 0) return;
+    a.throwT += dt;
+    // 地面から岩を引き抜く（少しかがんだところで土が飛ぶ）
+    if (a.throwT >= 0.12 && !a.held && !a.thrown) {
+      a.held = new THREE.Mesh(G.rock, M.rock);
+      a.held.scale.setScalar(1.2);
+      a.model.group.add(a.held);
+      game.fx.burst(a.pos.x + Math.sin(a.yaw) * 1.2, 0.3, a.pos.z + Math.cos(a.yaw) * 1.2, 0x8d6e63, 22, { speed: 4, up: 6, life: 0.6, size: 0.2 });
+      game.fx.shake(0.12);
+    }
+    if (a.held) {
+      // 前の地面 → 頭の上へ持ち上げる
+      const k = Math.min(1, Math.max(0, (a.throwT - 0.12) / (THROW.pick - 0.12)));
+      const e = 1 - (1 - k) * (1 - k);
+      a.held.position.set(0, -0.1 + e * 2.6, 0.55 * (1 - e) + 0.05);
+      a.held.rotation.x += dt * 3;
+    }
+    // 思い切り投げる
+    if (!a.thrown && a.throwT >= THROW.pick && target) {
+      a.thrown = true;
+      if (a.held) {
+        a.model.group.remove(a.held);
+        a.held = null;
+      }
+      const mesh = new THREE.Mesh(G.rock, M.rock);
+      mesh.scale.setScalar(2.4);
+      game.scene.add(mesh);
+      rocks.push({ mesh, x0: a.pos.x, z0: a.pos.z, y0: 5, target, tx: target.pos.x, tz: target.pos.z, t: 0, local, from: a });
+      game.sound.se('swing');
+    }
+    if (a.throwT >= THROW.end) {
+      a.throwT = -1;
+      a.thrown = false;
+    }
+  }
+  function updateRocks(dt) {
+    for (let i = rocks.length - 1; i >= 0; i--) {
+      const r = rocks[i];
+      r.t += dt;
+      // 当たる先は飛んでいる間も相手を追う
+      if (r.target.alive) {
+        r.tx = r.target.pos.x;
+        r.tz = r.target.pos.z;
+      }
+      const k = Math.min(1, r.t / THROW.flight);
+      const ty = (r.target.hpY || 3) * 0.45;
+      r.mesh.position.set(r.x0 + (r.tx - r.x0) * k, r.y0 + (ty - r.y0) * k + Math.sin(k * Math.PI) * THROW.arc, r.z0 + (r.tz - r.z0) * k);
+      r.mesh.rotation.x += dt * 9;
+      r.mesh.rotation.z += dt * 6;
+      if (Math.random() < 0.5) game.fx.burst(r.mesh.position.x, r.mesh.position.y, r.mesh.position.z, 0xa1887f, 1, { speed: 0.5, up: 0, life: 0.3, grav: 0 });
+      if (k < 1) continue;
+      // 命中：ホストだけダメージ、見た目は全員
+      if (r.local && r.target.alive) strike(game, attacker(r.from), r.target, JOBS.summoner.r.mult, { melee: true, gauge: 0, color: 0xa1887f, knock: 1.2 });
+      game.fx.burst(r.tx, ty, r.tz, 0x8d6e63, 36, { speed: 8, up: 5, life: 0.7, size: 0.26 });
+      game.enemyFx?.impact(r.tx, r.tz, 2.6, 0xa1887f, 'earth');
+      game.fx.shake(0.3);
+      game.sound.se('slam');
+      game.scene.remove(r.mesh);
+      rocks.splice(i, 1);
+    }
+  }
+
   function update(dt, time) {
+    updateRocks(dt);
     // 一番近い戦闘中のボスを狙う（2体同時の部屋もある）
     const nearestBoss = (a) => {
       let best = null;
@@ -89,6 +200,16 @@ export function createAllies(game) {
             game.projectiles.playerShot(attacker(a), a.pos.x, a.pos.z, yawTo(a.pos.x, a.pos.z, b.pos.x, b.pos.z), { speed: 24, mult: 0, color: 0x80cbc4, size: 0.22, range: 30, local: false });
           }
         }
+        if (a.kind === 'golem') {
+          // 新しい投げが始まったときだけ再生（届いた値が前より小さい＝投げ直し）
+          const th = n ? n.th : -1;
+          if (th >= 0 && (a.lastTh === undefined || a.lastTh < 0 || th < a.lastTh) && a.throwT < 0) {
+            a.throwT = th;
+            a.thrown = false;
+          }
+          a.lastTh = th;
+          stepThrow(a, dt, b, false);
+        }
         draw(a, time, !!(n && Math.hypot(n.x - a.pos.x, n.z - a.pos.z) > 0.05));
         continue;
       }
@@ -107,21 +228,20 @@ export function createAllies(game) {
           game.projectiles.playerShot(attacker(a), a.pos.x, a.pos.z, a.yaw, { speed: 24, mult: S.q.mult, color: 0x80cbc4, size: 0.22, range: 30, local: true, gauge: 0 });
         }
       } else if (target) {
-        // 岩巨人：ボスへ歩いて殴る
+        // 岩巨人：投げられる距離まで歩き、地面から岩を引き抜いてボスへ投げる（1回 1.1 秒）
         a.yaw = lerpAngle(a.yaw, yawTo(a.pos.x, a.pos.z, target.pos.x, target.pos.z), Math.min(1, dt * 5));
         const d = Math.hypot(target.pos.x - a.pos.x, target.pos.z - a.pos.z);
-        if (d > target.radius + a.radius + 0.8) {
+        a.cd -= dt;
+        if (a.throwT < 0 && d > THROW.range + target.radius) {
           a.pos.x += Math.sin(a.yaw) * 4.2 * dt;
           a.pos.z += Math.cos(a.yaw) * 4.2 * dt;
           walking = true;
-        } else {
-          a.cd -= dt;
-          if (a.cd <= 0) {
-            a.cd = 1.1;
-            strike(game, attacker(a), target, S.e.mult, { melee: true, gauge: 0, color: 0xa1887f });
-            game.fx.shake(0.15);
-          }
+        } else if (a.throwT < 0 && a.cd <= 0) {
+          a.cd = THROW.cycle;
+          a.throwT = 0;
+          a.thrown = false;
         }
+        stepThrow(a, dt, target, true);
         game.world.collide(a.pos, a.radius);
       }
       draw(a, time, walking);
@@ -132,11 +252,25 @@ export function createAllies(game) {
     const m = a.model;
     m.group.rotation.y = a.yaw;
     if (a.kind === 'spirit') {
-      m.core.position.y = 1.6 + Math.sin(a.t * 3) * 0.2;
-      m.core.rotation.y += 0.05;
+      // ふわふわ浮いて、左右にゆらゆら
+      m.core.position.y = 1.5 + Math.sin(a.t * 3) * 0.18;
+      m.core.rotation.z = Math.sin(a.t * 2.2) * 0.15;
+      const sq = 1 + Math.sin(a.t * 6) * 0.04;
+      m.core.scale.set(1 / sq, sq, 1 / sq);
     } else {
       animateWalk(m, time * 8, walking ? 1 : 0, true);
-      if (a.cd > 0.8) m.armR.rotation.set(-2.4, 0, 0);
+      if (a.throwT >= 0) {
+        // かがむ → 両手で頭の上へ持ち上げる → 前へ振り下ろして投げる
+        const t = a.throwT;
+        let arm;
+        if (t < 0.12) arm = -0.9 * (t / 0.12);
+        else if (t < THROW.pick) arm = -0.9 - 2.1 * ((t - 0.12) / (THROW.pick - 0.12));
+        else arm = -3.0 + 2.4 * Math.min(1, (t - THROW.pick) / 0.15);
+        m.armL.rotation.set(arm, 0, 0.15);
+        m.armR.rotation.set(arm, 0, -0.15);
+        m.root.position.y = t < 0.2 ? -0.12 * Math.sin((t / 0.2) * Math.PI) : 0;
+        m.root.rotation.x = t >= THROW.pick ? 0.25 * Math.sin(Math.min(1, (t - THROW.pick) / 0.3) * Math.PI) : -0.1;
+      } else m.root.rotation.x = 0;
     }
   }
 
@@ -169,20 +303,22 @@ export function createAllies(game) {
       }
     },
     /** ホスト → 参加者 */
-    snapshot: () => list.map((a) => [a.id, a.kind, +a.pos.x.toFixed(2), +a.pos.z.toFixed(2), +a.yaw.toFixed(2), a.owner]),
+    snapshot: () => list.map((a) => [a.id, a.kind, +a.pos.x.toFixed(2), +a.pos.z.toFixed(2), +a.yaw.toFixed(2), a.owner, a.kind === 'golem' && a.throwT >= 0 ? +a.throwT.toFixed(2) : -1]),
     /** 参加者：届いた一覧に合わせて作る・消す */
     applyNet(arr) {
       const seen = new Set();
-      for (const [id, kind, x, z, yaw, owner] of arr) {
+      for (const [id, kind, x, z, yaw, owner, th = -1] of arr) {
         seen.add(id);
         let a = list.find((o) => o.id === id);
         if (!a) a = spawn(kind, x, z, owner, id, true);
-        a.net = { x, z, yaw };
+        a.net = { x, z, yaw, th };
       }
       for (let i = list.length - 1; i >= 0; i--) if (!seen.has(list[i].id)) remove(i);
     },
     clear() {
       for (let i = list.length - 1; i >= 0; i--) remove(i);
+      for (const r of rocks) game.scene.remove(r.mesh);
+      rocks.length = 0;
     },
   };
 }
