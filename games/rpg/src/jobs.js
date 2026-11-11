@@ -608,6 +608,13 @@ function run(game, p, id, d, local) {
 
 function cast(game, p, id, d) {
   const sk = findSkill(p, id);
+  // 双子の入れ替わり：前に使った場所と、今回の色（0 青・1 ピンク）を d に入れて、全員で同じ動きにする
+  if (sk?.swap) {
+    d.sw = p.swapMark || null;
+    d.sc = (p.swapN || 0) % 2;
+    p.swapMark = { x: d.x, z: d.z };
+    p.swapN = (p.swapN || 0) + 1;
+  }
   // 暗黒騎士：HP を払って撃つ技（足りなければ撃てない）
   if (sk?.hpCost) {
     const cost = p.maxHp * sk.hpCost;
@@ -672,6 +679,20 @@ export function playRemoteSkill(game, p, id, d) {
 const GENERIC = {
   dash(game, p, d, local, sk) {
     let dd = d;
+    // 双子の入れ替わり：前に使った場所（d.sw）があれば、そこまで斬り抜ける。色は青・ピンクで交互（d.sc）
+    if (sk.swap) {
+      const color = d.sc ? 0xff80ab : 0x64b5f6;
+      if (d.sw) {
+        const dist = Math.hypot(d.sw.x - d.x, d.sw.z - d.z);
+        if (dist > 0.5) {
+          dd = { ...d, yaw: Math.atan2(d.sw.x - d.x, d.sw.z - d.z) };
+          sk = { ...sk, dist, time: Math.min(0.6, Math.max(0.2, dist / 30)) };
+        }
+      }
+      game.skillFx?.twinSwap?.(p, d, color, sk); // ハートの演出・場にハートを置く
+      dashStrike(game, p, dd, local, sk, color, { brkMul: sk.brkMul, knock: sk.knock });
+      return;
+    }
     if (sk.toBoss && d.bx !== undefined) {
       // 鎖でボスへ飛びつく：ボスの手前まで
       const dist = Math.max(1.5, Math.hypot(d.bx - d.x, d.bz - d.z) - (d.br || 1.5) - 0.8);

@@ -543,8 +543,8 @@ export function createSkillFx(game) {
       for (let i = fxs.length - 1; i >= 0; i--) {
         const f = fxs[i];
         f.t += dt;
-        const k = Math.min(1, f.t / f.dur);
-        f.tick(k, dt);
+        let k = Math.min(1, f.t / f.dur);
+        if (f.tick(k, dt) === 'done') k = 1; // tick が 'done' を返したら早めに終わる（入れ替わりのハートなど）
         if (k >= 1) {
           root.remove(f.obj);
           f.mats.forEach((m) => m.dispose());
