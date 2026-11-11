@@ -99,7 +99,9 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
     /** 今の攻撃力（バフ込み） */
     atkNow() {
       let a = J.stats.atk * (p.buffs.courage ? p.buffs.courage.mul : 1);
-      if (p.buffs.warcry) a *= p.buffs.warcry.atkMul; // 狂戦士の怒号
+      // 汎用：バフの atkMul（怒号・竜化・星占いなど）をすべて掛ける
+      for (const b of Object.values(p.buffs)) if (b.atkMul) a *= b.atkMul;
+      if (J.barrierAtk && p.buffs.barrier) a *= J.barrierAtk; // 結界師：バリアがある間 攻撃力アップ
       if (J.chainPer) a *= 1 + (p.chain || 0) * J.chainPer; // 格闘家の連打
       if (J.lowHpBonus) a *= 1 + J.lowHpBonus * (1 - p.hp / p.maxHp); // 狂戦士：HP が減るほど強い
       return a;
@@ -109,7 +111,9 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
       let m = J.dmgTaken ?? 1;
       if (p.buffs.taunt) m *= 0.5;
       if (p.buffs.sanctuary) m *= p.buffs.sanctuary.mul; // 僧侶の聖なる守り
-      if (p.buffs.warcry) m *= p.buffs.warcry.dmgMul;
+      // 汎用：バフの dmgMul（怒号・竜化・闇の衣など）をすべて掛ける
+      for (const b of Object.values(p.buffs)) if (b.dmgMul) m *= b.dmgMul;
+      if (game.paladinAura?.(p)) m *= 0.9; // 聖騎士の近くでは被ダメ -10%
       if (p.buffs.aegis) m *= 0.5;
       if (J.summonGuard && game.allies?.ownedBy(p.id)) m *= J.summonGuard;
       return m;
@@ -122,7 +126,7 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
     /** 必殺ゲージを足す */
     addGauge(n) {
       if (p.remote) return;
-      p.gauge = Math.min(GAUGE.max, p.gauge + n);
+      p.gauge = Math.min(GAUGE.max, p.gauge + n * (J.gaugeMul || 1));
     },
     buff(name, dur, vals = {}) {
       p.buffs[name] = { t: dur, ...vals };
@@ -231,6 +235,7 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
         if (moving && !intent.lockYaw) p.yaw = y;
         p.useStamina(STAMINA.dodgeCost * (J.dodgeCostMul ?? 1));
         if (J.dodgeCostMul) p.critNext = true; // 忍者：回避直後の1撃は会心
+        if (J.dodgeGauge) p.addGauge(J.dodgeGauge); // 踊り子：回避で必殺ゲージ
         game.sound.se('dodge');
         game.fx.burst(p.pos.x, 0.3, p.pos.z, 0xd7ccc8, 8, { speed: 2, up: 1, life: 0.4 });
       } else if (intent.dodge && p.tired && p === game.me()) {
@@ -329,8 +334,8 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
         }
       }
       if (p.tired && !p.buffs.gale) speedMul *= PLAYER.tiredMul;
-      if (p.buffs.gale) speedMul *= p.buffs.gale.speedMul;
-      if (p.buffs.clone) speedMul *= p.buffs.clone.speedMul;
+      // 汎用：バフの speedMul（疾風の旋律・影分身・雷速・竜化など）
+      for (const b of Object.values(p.buffs)) if (b.speedMul) speedMul *= b.speedMul;
 
       // ---- 移動 ----
       let vx = 0;

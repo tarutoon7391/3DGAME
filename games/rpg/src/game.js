@@ -156,7 +156,9 @@ export function createGame() {
         break;
       case 'buff':
         if (me.alive && near) {
-          me.buff(eff.name, eff.dur, eff.vals);
+          // 結界師のバリア：最大 HP の割合 → 吸収できる量
+          if (eff.vals?.shield) me.buff(eff.name, eff.dur, { hp: me.maxHp * eff.vals.shield });
+          else me.buff(eff.name, eff.dur, { ...eff.vals });
           if (eff.msg) game.toastOnce(eff.msg, 1600);
         }
         break;
@@ -165,6 +167,13 @@ export function createGame() {
         me.hp = me.maxHp;
         me.invuln = Math.max(me.invuln, eff.invuln);
         game.toastOnce('女神の祈り：全回復＆無敵！', 1600);
+        break;
+      case 'gauge':
+        // 盗賊の大盤振る舞い：必殺ゲージを配る
+        if (me.alive && near && eff.from !== me.id) {
+          me.addGauge(eff.amount);
+          game.toastOnce(`必殺ゲージをもらった！（+${eff.amount}）`, 1400);
+        }
         break;
       case 'revive':
         if (eff.id === me.id && me.downed) {
@@ -198,6 +207,9 @@ export function createGame() {
       game.allies.spawn(cmd.kind, cmd.x, cmd.z, cmd.owner);
     }
   }
+
+  /** 聖騎士の近く（6m）にいるか（被ダメ -10%） */
+  game.paladinAura = (p) => game.players.some((o) => o.alive && o.jobId === 'paladin' && Math.hypot(o.pos.x - p.pos.x, o.pos.z - p.pos.z) <= 6);
 
   /** 吟遊詩人の近くでは Q のクールダウンが速く戻る */
   game.bardAura = (p) => {
@@ -661,6 +673,8 @@ export function createGame() {
       game.raid.update(dt);
     }
     priestAura(dt, me);
+    // 祈祷師の近くにいると必殺ゲージが少しずつ溜まる
+    if (me.alive && game.players.some((o) => o !== me && o.alive && o.jobId === 'shaman' && Math.hypot(o.pos.x - me.pos.x, o.pos.z - me.pos.z) <= 8)) me.addGauge(1.5 * dt);
     saveTimer += dt;
     if (saveTimer > 45 && !game.bosses.some((b) => b.active)) {
       saveTimer = 0;
