@@ -189,7 +189,7 @@ export function createSkillFxC(core) {
     },
     /** 見切り：刀を鞘に納めて構え、終わると素早く抜き戻す */
     counterFx(p, sk) {
-      p.vmAnim = { kind: 'sheathe', t: 0, dur: sk.dur || 1 };
+      if (sk.id === 'mikiri') p.vmAnim = { kind: 'sheathe', t: 0, dur: sk.dur || 1 }; // 侍だけ（刀を鞘へ）
     },
     /** 味方強化の技ごとの演出（情熱のサンバ：少し踊って、まわりに音符のオーラ） */
     teamBuffFx(p, sk) {

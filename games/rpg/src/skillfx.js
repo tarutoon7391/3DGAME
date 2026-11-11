@@ -13,6 +13,7 @@ import { geo, sectorGeo, discGeo, columnGeo, beamGeo, ribbonGeo, ringGeo, glow, 
 import { createSkillFxB } from './skillfx_b.js';
 import { createSkillFxC } from './skillfx_c.js';
 import { createSkillFxD } from './skillfx_d.js';
+import { createSkillFxE } from './skillfx_e.js';
 
 /** 矢の雨：上へ放った矢が落ちてくるまでの間（秒）。この間は矢を降らせない（見た目だけ） */
 const RAIN_DELAY = 0.4;
@@ -190,7 +191,7 @@ export function createSkillFx(game) {
       arrows.userData.seeds = Array.from({ length: 24 }, () => [Math.random(), Math.random(), Math.random()]);
       g.add(arrows);
       mats.push(mA);
-    } else if (z.kind === 'strike' && z.skill !== 'thunder') { // 落雷は落ちる瞬間に本物の稲妻（skillfx_d.js）
+    } else if (z.kind === 'strike' && !['thunder', 'starfall', 'meteorshower'].includes(z.skill)) { // 落雷は落ちる瞬間に本物の稲妻（skillfx_d.js）
       const mB = glow(color, 0.6, wallTexture());
       bolt = mesh(columnGeo(), mB);
       g.add(bolt);
@@ -339,11 +340,18 @@ export function createSkillFx(game) {
   const B = createSkillFxB({ game, root, add, mesh, column, sigil, streak, slash, slam });
   const Cx = createSkillFxC({ game, root, add, mesh, column, slash, streak });
   const D = createSkillFxD({ game, root, add, mesh });
+  const E = createSkillFxE({ game, root, add, mesh, slash, streak, column });
 
   return {
     ...B,
     ...Cx,
     ...D,
+    ...E,
+    /** 自分強化の技ごとの見た目。true を返すと、いつもの光の柱は出さない */
+    selfBuffFx(p, sk) {
+      if (sk.id === 'enchant') E.enchantFx(p);
+      return D.selfBuffFx(p, sk);
+    },
     /** 周囲攻撃の始まり（結界の衝撃はバリアを張る） */
     burstStart(p, sk) {
       if (sk.id === 'wardburst') D.wardStart(p, sk);
@@ -475,6 +483,7 @@ export function createSkillFx(game) {
     zoneAdded(z) {
       if (z.kind === 'meteor' || z.kind === 'arrowrain' || z.kind === 'strike') zoneFx(z);
       if (z.skill === 'thunder' || z.skill === 'tempest') D.crackle(z); // 魔法陣にイナヅマが走る
+      if (z.skill === 'starfall' || z.skill === 'meteorshower') E.meteors(z); // 光る隕石が降る
       else if (z.kind === 'trap') Cx.trapFx(z); // トラバサミ・地雷
     },
 

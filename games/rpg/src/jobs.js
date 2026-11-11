@@ -737,7 +737,8 @@ const GENERIC = {
     }
   },
   shots(game, p, d, local, sk) {
-    startAction(p, 'cast', 0.25);
+    const wind = sk.windup || 0; // 魔剣解放：剣を掲げて魔力を溜めてから撃つ
+    startAction(p, 'cast', 0.25 + wind);
     p.waveT = 0.25;
     const n = sk.count || 1;
     // aim：一番近いボスへ自動で狙う（拳銃使いの必殺技）
@@ -750,7 +751,12 @@ const GENERIC = {
       if (sk.chain) o.onHit = chainHit(game, p, sk.chain, sk.color);
       game.projectiles.playerShot(p, p.pos.x, p.pos.z, a, o);
     };
-    if (sk.every) {
+    if (wind) {
+      game.skillFx?.arcaneStart?.(p, sk, yaw);
+      const go = () => { for (let i = 0; i < n; i++) fire(i); game.sound.se(sk.sound || 'shoot'); };
+      if (local) p.pending.push({ t: wind + 0.08, fn: go });
+      else setTimeout(go, (wind + 0.08) * 1000); // ほかの人の画面（pending は自分のだけ進む）
+    } else if (sk.every) {
       // 連射：少しずつ間をあけて撃つ
       for (let i = 0; i < n; i++) p.pending.push({ t: i * sk.every, fn: () => { fire(i); game.sound.se('shoot'); } });
     } else {
@@ -1083,6 +1089,7 @@ const GENERIC = {
     if (d.pick === undefined) d.pick = Math.floor(Math.random() * sk.pool.length);
     const one = sk.pool[d.pick];
     game.toastOnce(`${sk.name}：${one.name}！`, 1400);
+    if (sk.id === 'card') game.skillFx?.cardFx?.(p, one); // 星のカード：出たマークを画面に散らす
     GENERIC[one.kind](game, p, d, local, one);
   },
 };
