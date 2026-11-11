@@ -102,11 +102,40 @@ export const AREAS = {
     ],
     signs: [{ x: 3.5, z: 42, key: 'castle' }],
   },
+
+  // ステージ3：深淵の回廊。入口通路 → 5つのボスの間（4・5部屋目は2体同時）。作りはステージ2 の城と同じ（world/castle.js）
+  abyss: {
+    name: 'ステージ3　深淵の回廊', stage: 5, bgm: 'castle', dark: true, wallH: 8, castle: true,
+    bounds: { minX: -22, maxX: 22, minZ: -164, maxZ: 50 },
+    sky: 0x0a0306, fog: [12, 64], ground: 0x1f1216,
+    sun: { color: 0xff8a80, intensity: 0.4, hemi: 0.32 },
+    palette: { wall: 0x3b1f24, trim: 0x8d3b3b, rock: 0x2a1418, pillar: 0x4a2228, tileA: 0x2e1a1e, tileB: 0x221215, flame: 0xff5252, flameGlow: 0xd50000, light: 0xff6e6e, carpet: 0x311b92 },
+    carpet: { z: -138, len: 44 },
+    spawn: { x: 0, z: 44 },
+    gates: [],
+    solids: [
+      { minX: -22, maxX: -5, minZ: 30, maxZ: 50 },
+      { minX: 5, maxX: 22, minZ: 30, maxZ: 50 },
+    ],
+    doors: [{ z: 30, gap: 3 }, { z: -4, gap: 3 }, { z: -38, gap: 3 }, { z: -72, gap: 3.5 }, { z: -114, gap: 3.5 }],
+    pillars: [],
+    torches: [[-4.6, 40], [4.6, 40], [-21.5, 13], [21.5, 13], [-21.5, -21], [21.5, -21], [-21.5, -55], [21.5, -55], [-21.5, -86], [21.5, -86], [-21.5, -102], [21.5, -102], [-21.5, -130], [21.5, -130], [-21.5, -150], [21.5, -150]],
+    bosses: [
+      { key: 'golgoth', x: 0, z: 13, triggerZ: 25, door: 0, respawn: { x: 0, z: 44 }, circle: 0x90a4ae, label: '第1の間' },
+      { key: 'sylpha', x: 0, z: -21, triggerZ: -9, door: 1, respawn: { x: 0, z: -0.5 }, circle: 0x26a69a, label: '第2の間' },
+      { key: 'vexis', x: 0, z: -55, triggerZ: -43, door: 2, respawn: { x: 0, z: -34.5 }, circle: 0x7cb342, label: '第3の間' },
+      { x: 0, z: -94, triggerZ: -77, door: 3, respawn: { x: 0, z: -68.5 }, circle: 0xc62828, label: '第4の間（2体同時）',
+        pair: [{ key: 'kain', x: -6, z: -94 }, { key: 'abel', x: 6, z: -98 }] },
+      { x: 0, z: -140, triggerZ: -120, door: 4, respawn: { x: 0, z: -110.5 }, circle: 0x7c4dff, label: '最後の間（2体同時）',
+        pair: [{ key: 'nezal', x: -7, z: -140 }, { key: 'lilith', x: 7, z: -144 }] },
+    ],
+    signs: [{ x: 3.5, z: 42, key: 'abyss' }],
+  },
 };
 
 
 /** ステージの順番（つづきから・移行用） */
-export const AREA_ORDER = ['forest', 'canyon', 'dungeon', 'castle'];
+export const AREA_ORDER = ['forest', 'canyon', 'dungeon', 'castle', 'abyss'];
 
 /** 古いセーブ（version 1）のエリア id → 新しい id */
 export const OLD_AREA_MAP = { village: 'forest', field: 'canyon', dungeon: 'dungeon' };
@@ -123,7 +152,11 @@ export const COURSES = [
   {
     key: 'castle', label: 'ステージ2', name: '冥王の城', start: 'castle', areas: ['castle'], recKey: 'records2',
     desc: '中ボス2連戦のあと冥王と戦う弾幕ボスラッシュ（難しい）', clearMsg: '冥王ザルヴァーンを討ち取った！',
+  },  {
+    key: 'abyss', label: 'ステージ3', name: '深淵の回廊', start: 'abyss', areas: ['abyss'], recKey: 'records3',
+    desc: 'ボス5連戦。4戦目と5戦目は2体同時。ステージ2 より硬く、攻撃も重い', clearMsg: '深淵の王と女王を討ち果たした！',
   },
+
 ];
 
 /** エリア id → そのエリアを含むコース */

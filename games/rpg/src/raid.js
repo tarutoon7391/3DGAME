@@ -65,7 +65,7 @@ export function createRaid(game, net, handlers) {
       if (net.isHost && game.playing) {
         const ws = {
           step: game.state.progress.bossStep || 0,
-          boss: game.boss ? game.boss.snapshot() : null,
+          bosses: game.bosses.map((b) => b.snapshot()),
           enemies: game.enemies.snapshot(),
           allies: game.allies.snapshot(),
           kills: game.state.progress.stats.kills,
@@ -118,7 +118,7 @@ export function createRaid(game, net, handlers) {
   on('dmg', (d) => {
     if (!net.isHost) return;
     withMirror(() => {
-      if (d.kind === 'boss') game.boss?.applyDamage(d.dmg, d.brk);
+      if (d.kind === 'boss') game.bosses.find((b) => b.sub === d.id)?.applyDamage(d.dmg, d.brk);
       else game.enemies.applyDamage(d.id, d.dmg);
     });
   });
@@ -258,7 +258,7 @@ export function createRaid(game, net, handlers) {
       case 'toast': game.toast(a[0], a[1]); break;
       case 'banner': game.hudView.banner(a[0]); break;
       case 'shot': game.projectiles.enemyShot(a[0], a[1], a[2], a[3], a[4], a[5]); break;
-      case 'bfx': game.boss?.playFx(a[0], a[1]); break;
+      case 'bfx': game.bosses[0]?.playFx(a[0], a[1]); break;
       default: handlers.onEvent(type, a);
     }
   }

@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { JOBS } from './data/jobs.js';
 import { makeEnemyModel, animateWalk } from './models.js';
-import { strike } from './combat.js';
+import { strike, radiusHit } from './combat.js';
 import { yawTo, lerpAngle } from './util.js';
 
 export function createAllies(game) {
@@ -57,7 +57,17 @@ export function createAllies(game) {
   }
 
   function update(dt, time) {
-    const b = game.boss;
+    // 一番近い戦闘中のボスを狙う（2体同時の部屋もある）
+    const nearestBoss = (a) => {
+      let best = null;
+      let bd = Infinity;
+      for (const o of game.bosses) {
+        if (!o.active || !o.alive) continue;
+        const d = Math.hypot(o.pos.x - a.pos.x, o.pos.z - a.pos.z);
+        if (d < bd) { bd = d; best = o; }
+      }
+      return best;
+    };
     const S = JOBS.summoner;
     for (let i = list.length - 1; i >= 0; i--) {
       const a = list[i];
@@ -71,7 +81,8 @@ export function createAllies(game) {
           a.pos.z += (n.z - a.pos.z) * k;
           a.yaw = lerpAngle(a.yaw, n.yaw, k);
         }
-        if (a.kind === 'spirit' && b && b.active && b.alive) {
+        const b = nearestBoss(a);
+        if (a.kind === 'spirit' && b) {
           a.cd -= dt;
           if (a.cd <= 0) {
             a.cd = S.q.every;
@@ -86,7 +97,7 @@ export function createAllies(game) {
         remove(i);
         continue;
       }
-      const target = b && b.active && b.alive ? b : null;
+      const target = nearestBoss(a);
       let walking = false;
       if (a.kind === 'spirit') {
         a.cd -= dt;
@@ -137,6 +148,16 @@ export function createAllies(game) {
     taunter: () => list.find((a) => a.kind === 'golem' && a.alive) || null,
     ownedBy: (id) => list.some((a) => a.owner === id),
     count: (id, kind) => list.filter((a) => a.owner === id && a.kind === kind).length,
+    /** 精霊爆破：owner の精霊をすべて爆発させる（ホスト） */
+    detonate(owner, mult, radius) {
+      for (const a of list) {
+        if (a.owner !== owner || a.kind !== 'spirit' || a.puppet) continue;
+        game.fx.burst(a.pos.x, 1.4, a.pos.z, 0x80cbc4, 50, { speed: 9, up: 6, life: 0.7, size: 0.26 });
+        game.fx.shake(0.4);
+        radiusHit(game, attacker(a), mult, radius, { color: 0x80cbc4, gauge: 0, knock: 1.5 }, a.pos.x, a.pos.z);
+        a.life = 0;
+      }
+    },
     /** ボスの攻撃が当たったか調べて岩巨人の HP を減らす */
     hitBy(test, frac) {
       for (const a of list) {

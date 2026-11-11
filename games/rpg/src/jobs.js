@@ -24,7 +24,7 @@ const SKILLS = {
     };
   },
   blade(game, p, d, local) {
-    const e = JOBS.swordsman.e;
+    const e = JOBS.swordsman.r;
     p.waveT = 0.4;
     game.projectiles.playerWave(p, d.yaw, { mult: e.mult, range: e.range, radius: e.radius, scale: 1.8, color: 0xffe082, local, melee: true });
     game.sound.se('wave');
@@ -43,7 +43,7 @@ const SKILLS = {
     }
   },
   aegis(game, p, d) {
-    const e = JOBS.knight.e;
+    const e = JOBS.knight.r;
     game.sound.se('seal');
     addZone(game, { kind: 'aegis', x: d.x, z: d.z, r: e.radius, t: e.dur, owner: p.id });
   },
@@ -57,7 +57,7 @@ const SKILLS = {
     game.sound.se('shoot');
   },
   meteor(game, p, d, local) {
-    const e = JOBS.mage.e;
+    const e = JOBS.mage.r;
     startAction(p, 'cast', 0.5);
     game.sound.se('windup');
     addZone(game, { kind: 'meteor', x: d.tx, z: d.tz, r: e.radius, t: e.delay, delay: e.delay, owner: p.id, local, mult: e.mult, p });
@@ -71,7 +71,7 @@ const SKILLS = {
     if (local) game.teamEffect({ kind: 'heal', x: d.x, z: d.z, r: q.radius, amount: q.amount });
   },
   prayer(game, p, d, local) {
-    const e = JOBS.priest.e;
+    const e = JOBS.priest.r;
     startAction(p, 'cast', 0.6);
     game.sound.se('seal');
     game.fx.burst(p.pos.x, 3, p.pos.z, 0xfff59d, 60, { speed: 8, up: 8, life: 1.2 });
@@ -89,7 +89,7 @@ const SKILLS = {
     game.sound.se('shoot');
   },
   arrowrain(game, p, d, local) {
-    const e = JOBS.archer.e;
+    const e = JOBS.archer.r;
     startAction(p, 'cast', 0.4);
     game.sound.se('shoot');
     addZone(game, { kind: 'arrowrain', x: d.tx, z: d.tz, r: e.radius, t: e.dur, every: e.every, tick: 0, mult: e.mult, owner: p.id, local, p });
@@ -99,7 +99,7 @@ const SKILLS = {
     dashStrike(game, p, d, local, JOBS.ninja.q, 0xb39ddb);
   },
   clone(game, p, d, local) {
-    const e = JOBS.ninja.e;
+    const e = JOBS.ninja.r;
     game.sound.se('seal');
     game.fx.burst(p.pos.x, 1.2, p.pos.z, 0x7e57c2, 40, { speed: 5, up: 3, life: 0.7 });
     if (local) {
@@ -116,7 +116,7 @@ const SKILLS = {
     if (local) game.teamEffect({ kind: 'buff', name: 'courage', dur: q.dur, vals: { mul: q.atkMul }, x: d.x, z: d.z, r: q.radius, msg: '勇気の歌：攻撃力アップ！' });
   },
   gale(game, p, d, local) {
-    const e = JOBS.bard.e;
+    const e = JOBS.bard.r;
     startAction(p, 'cast', 0.5);
     game.sound.se('seal');
     game.fx.burst(p.pos.x, 2, p.pos.z, 0xf48fb1, 50, { speed: 8, up: 4, life: 1 });
@@ -141,7 +141,7 @@ const SKILLS = {
     dashStrike(game, p, d, local, JOBS.lancer.q, 0xffab91);
   },
   skyfall(game, p, d, local) {
-    const e = JOBS.lancer.e;
+    const e = JOBS.lancer.r;
     startAction(p, 'dash', e.time);
     const dx = d.tx - p.pos.x;
     const dz = d.tz - p.pos.z;
@@ -176,7 +176,7 @@ const SKILLS = {
     if (local) meleeArc(game, p, d.yaw, q.mult, q.range, q.arc, { knock: 2.5, gauge: GAUGE.gainSkill });
   },
   barrage(game, p, d, local) {
-    const e = JOBS.monk.e;
+    const e = JOBS.monk.r;
     startAction(p, 'cast', e.dur + 0.3);
     p.yaw = d.yaw;
     let tick = 0;
@@ -201,16 +201,17 @@ const SKILLS = {
     const q = JOBS.alchemist.q;
     startAction(p, 'cast', 0.3);
     game.projectiles.playerShot(p, d.x, d.z, d.yaw, { speed: q.speed, mult: 0.8, color: 0x76ff03, size: 0.4, range: 22, local, gauge: GAUGE.gainSkill,
-      onHit: (t) => { if (t && t === game.boss) game.bossCommand({ type: 'debuff', name: 'vuln', dur: q.dur, mul: q.mul }); } });
+      onHit: (t) => { if (t && game.bosses.includes(t)) game.bossCommand({ type: 'debuff', name: 'vuln', dur: q.dur, mul: q.mul, sub: t.sub }); } });
     game.sound.se('shoot');
   },
   bigflask(game, p, d, local) {
-    const e = JOBS.alchemist.e;
+    const e = JOBS.alchemist.r;
     startAction(p, 'cast', 0.4);
     game.projectiles.playerShot(p, d.x, d.z, d.yaw, { speed: e.speed, mult: e.mult, color: 0x76ff03, size: 0.8, range: 22, explode: e.radius, local,
       onHit: (t, s) => {
-        const b = game.boss;
-        if (b && b.active && b.alive && Math.hypot(b.pos.x - s.x, b.pos.z - s.z) <= e.radius + b.radius) game.bossCommand({ type: 'debuff', name: 'vuln', dur: e.dur, mul: e.mul });
+        for (const b of game.bosses) {
+          if (b.active && b.alive && Math.hypot(b.pos.x - s.x, b.pos.z - s.z) <= e.radius + b.radius) game.bossCommand({ type: 'debuff', name: 'vuln', dur: e.dur, mul: e.mul, sub: b.sub });
+        }
       } });
     game.sound.se('shoot');
   },
@@ -226,7 +227,7 @@ const SKILLS = {
     }
   },
   bloodstorm(game, p, d, local) {
-    const e = JOBS.berserker.e;
+    const e = JOBS.berserker.r;
     startAction(p, 'spin', e.hits * e.every + 0.15);
     let tick = 0;
     let n = 0;
@@ -246,16 +247,15 @@ const SKILLS = {
     const q = JOBS.chrono.q;
     startAction(p, 'cast', 0.4);
     game.sound.se('gate');
-    const b = game.boss;
-    if (b) ringFx(game, b.pos.x, b.pos.z, b.radius + 2, 0xb388ff);
+    for (const b of game.bosses) if (b.alive) ringFx(game, b.pos.x, b.pos.z, b.radius + 2, 0xb388ff);
     if (local) game.bossCommand({ type: 'debuff', name: 'slow', dur: q.dur, mul: q.mul });
   },
   timestop(game, p, d, local) {
-    const e = JOBS.chrono.e;
+    const e = JOBS.chrono.r;
     startAction(p, 'cast', 0.5);
     game.sound.se('gate');
     game.fx.burst(p.pos.x, 2, p.pos.z, 0xb388ff, 50, { speed: 8, up: 4, life: 0.9 });
-    if (local) game.bossCommand({ type: 'freeze', dur: e.dur });
+    if (local) game.bossCommand({ type: 'freeze', dur: e.dur, immune: e.immune });
   },
   // ---- 砲術士 ----
   buckshot(game, p, d, local) {
@@ -270,7 +270,7 @@ const SKILLS = {
     game.sound.se('slam');
   },
   cannon(game, p, d, local) {
-    const e = JOBS.gunner.e;
+    const e = JOBS.gunner.r;
     startAction(p, 'cast', 0.45);
     game.projectiles.playerShot(p, d.x, d.z, d.yaw, { speed: e.speed, mult: e.mult, color: 0xff6f00, size: 0.9, range: 34, explode: e.radius, local });
     game.fx.shake(0.5);
@@ -284,7 +284,7 @@ const SKILLS = {
     game.sound.se('shoot');
   },
   drain(game, p, d, local) {
-    const e = JOBS.warlock.e;
+    const e = JOBS.warlock.r;
     startAction(p, 'cast', e.dur);
     p.yaw = d.yaw;
     let tick = 0;
@@ -312,7 +312,7 @@ const SKILLS = {
     if (local) meleeArc(game, p, d.yaw, q.mult, q.range, q.arc, { gauge: q.gauge });
   },
   verdict(game, p, d, local) {
-    const e = JOBS.reaper.e;
+    const e = JOBS.reaper.r;
     startAction(p, 'cast', 0.5);
     game.sound.se('roar');
     const t = frontTarget(game, p, e.range, 0.9);
@@ -326,6 +326,165 @@ const SKILLS = {
       const missing = t.maxHp ? 1 - t.hp / t.maxHp : 0;
       strike(game, p, t, e.mult + e.missingMult * missing, { melee: true, gauge: 0, crit: true, knock: 2, color: 0xb0bec5 });
     }
+  },
+
+  // ================= E スキル（クールダウン制。職業ごとに Q とも R とも違う技） =================
+  gale(game, p, d, local) {
+    dashStrike(game, p, d, local, JOBS.swordsman.e, 0xcfd8dc);
+  },
+  bash(game, p, d, local) {
+    const e = JOBS.knight.e;
+    dashStrike(game, p, d, local, e, 0x90a4ae, { brkMul: e.brkMul, knock: 2 });
+  },
+  icelance(game, p, d, local) {
+    const e = JOBS.mage.e;
+    startAction(p, 'cast', 0.25);
+    p.waveT = 0.25;
+    game.projectiles.playerShot(p, d.x, d.z, d.yaw, { speed: e.speed, mult: e.mult * (d.still ? JOBS.mage.stillBonus : 1), color: 0x80deea, size: 0.3, range: e.range, pierce: true, local, gauge: GAUGE.gainSkill });
+    game.sound.se('wave');
+  },
+  sanctuary(game, p, d, local) {
+    const e = JOBS.priest.e;
+    startAction(p, 'cast', 0.4);
+    game.sound.se('seal');
+    ringFx(game, d.x, d.z, e.radius, 0x90caf9);
+    if (local) game.teamEffect({ kind: 'buff', name: 'sanctuary', dur: e.dur, vals: { mul: e.mul }, x: d.x, z: d.z, r: e.radius, msg: '聖なる守り：被ダメージ減少！' });
+  },
+  backshot(game, p, d, local) {
+    const e = JOBS.archer.e;
+    startAction(p, 'dash', e.time);
+    p.dodgeX = -Math.sin(d.yaw);
+    p.dodgeZ = -Math.cos(d.yaw);
+    p.yaw = d.yaw;
+    p.dashSpeed = e.dist / e.time;
+    if (local) p.invuln = Math.max(p.invuln, e.time + 0.1);
+    game.projectiles.playerShot(p, d.x, d.z, d.yaw, { ...JOBS.archer.basic, mult: e.mult, size: 0.3, local, gauge: GAUGE.gainSkill });
+    game.sound.se('dodge');
+  },
+  shuriken(game, p, d, local) {
+    const e = JOBS.ninja.e;
+    startAction(p, 'cast', 0.2);
+    for (let i = 0; i < e.count; i++) {
+      const a = d.yaw + (i - (e.count - 1) / 2) * e.spread;
+      game.projectiles.playerShot(p, d.x, d.z, a, { speed: e.speed, mult: e.mult, color: 0xb0bec5, size: 0.25, range: 20, pierce: true, local, gauge: GAUGE.gainSkill });
+    }
+    game.sound.se('shoot');
+  },
+  dissonance(game, p, d, local) {
+    const e = JOBS.bard.e;
+    startAction(p, 'cast', 0.3);
+    game.sound.se('wave');
+    for (let i = 0; i < 16; i++) {
+      const a = d.yaw + (Math.random() - 0.5) * e.arc;
+      const r = Math.random() * e.range;
+      game.fx.burst(p.pos.x + Math.sin(a) * r, 1.2, p.pos.z + Math.cos(a) * r, 0xf48fb1, 2, { speed: 2, up: 1, life: 0.35, grav: 0 });
+    }
+    if (local) meleeArc(game, p, d.yaw, e.mult, e.range, e.arc, { gauge: GAUGE.gainSkill, brkMul: e.brkMul, knock: 1.5 });
+  },
+  detonate(game, p, d, local) {
+    const e = JOBS.summoner.e;
+    startAction(p, 'cast', 0.3);
+    game.sound.se('slam');
+    if (local) {
+      if (game.allies && !game.allies.count(p.id, 'spirit')) game.toastOnce('爆発させる精霊がいない（Q で精霊を出してから）', 1400);
+      game.bossCommand({ type: 'detonate', owner: p.id, mult: e.mult, radius: e.radius });
+    }
+  },
+  whirlspear(game, p, d, local) {
+    const e = JOBS.lancer.e;
+    startAction(p, 'spin', 0.45);
+    game.sound.se('spin');
+    game.fx.burst(p.pos.x, 1, p.pos.z, 0xffab91, 26, { speed: 9, up: 1.2, life: 0.4, size: 0.14, grav: 2 });
+    if (local) radiusHit(game, p, e.mult, e.radius, { melee: true, gauge: GAUGE.gainSkill, color: 0xffab91 });
+  },
+  uppercut(game, p, d, local) {
+    const e = JOBS.monk.e;
+    startAction(p, 'cast', e.time);
+    if (local) p.invuln = Math.max(p.invuln, e.time + 0.1);
+    game.sound.se('swing');
+    p.skillTick = () => {
+      p.model.root.position.y = Math.sin(Math.min(1, p.actT / e.time) * Math.PI) * 1.6;
+      if (p.didSkill || p.actT < e.time * 0.3) return;
+      p.didSkill = true;
+      game.fx.burst(p.pos.x, 1.5, p.pos.z, 0xffcc80, 30, { speed: 4, up: 9, life: 0.6 });
+      if (local) radiusHit(game, p, e.mult, e.radius, { melee: true, gauge: GAUGE.gainSkill, knock: 1.5, color: 0xffcc80 });
+    };
+  },
+  triflask(game, p, d, local) {
+    const e = JOBS.alchemist.e;
+    startAction(p, 'cast', 0.3);
+    for (let i = 0; i < e.count; i++) {
+      const a = d.yaw + (i - (e.count - 1) / 2) * e.spread;
+      game.projectiles.playerShot(p, d.x, d.z, a, { speed: e.speed, mult: e.mult, color: 0xaed581, size: 0.32, range: 16, explode: e.radius, local });
+    }
+    game.sound.se('shoot');
+  },
+  earthsplit(game, p, d, local) {
+    const e = JOBS.berserker.e;
+    startAction(p, 'cast', e.count * e.every + 0.2);
+    let n = 0;
+    let tick = 0;
+    game.sound.se('slam');
+    p.skillTick = (dt) => {
+      tick -= dt;
+      if (n >= e.count || tick > 0) return;
+      tick = e.every;
+      n++;
+      const x = d.x + Math.sin(d.yaw) * (1 + n * e.step);
+      const z = d.z + Math.cos(d.yaw) * (1 + n * e.step);
+      game.fx.burst(x, 0.4, z, 0x8d6e63, 18, { speed: 5, up: 7, life: 0.5, size: 0.22 });
+      game.fx.shake(0.2);
+      if (local) radiusHit(game, p, e.mult, e.radius, { melee: true, gauge: GAUGE.gainSkill, color: 0x8d6e63 }, x, z);
+    };
+  },
+  rewind(game, p, d, local) {
+    const e = JOBS.chrono.e;
+    startAction(p, 'cast', 0.35);
+    game.sound.se('gate');
+    game.fx.burst(p.pos.x, 1.4, p.pos.z, 0xb388ff, 30, { speed: 3, up: 3, life: 0.7 });
+    if (!local) return;
+    // 3秒前の HP（記録が無ければ今の HP）
+    const past = p.hpAgo?.(e.back) ?? p.hp;
+    if (past > p.hp) {
+      game.toastOnce(`巻き戻し！ HP ${Math.round(p.hp)} → ${Math.round(past)}`, 1400);
+      p.hp = Math.min(p.maxHp, past);
+    } else game.toastOnce('巻き戻し：3秒前より HP は減っていない', 1400);
+  },
+  mine(game, p, d, local) {
+    const e = JOBS.gunner.e;
+    startAction(p, 'cast', 0.3);
+    game.sound.se('windup');
+    addZone(game, { kind: 'mine', x: d.x, z: d.z, r: e.radius, trigger: e.trigger, t: e.dur, mult: e.mult, owner: p.id, local, p });
+  },
+  spread(game, p, d, local) {
+    const e = JOBS.warlock.e;
+    startAction(p, 'cast', 0.35);
+    game.sound.se('seal');
+    if (!local) return;
+    // 自分の呪いがかかっている敵に追加ダメージ＋呪いの延長
+    const hit = new Set();
+    for (const o of dots) {
+      if (o.p !== p || !o.target.alive || hit.has(o.target)) continue;
+      hit.add(o.target);
+      o.left += e.extend;
+      strike(game, p, o.target, e.mult, { gauge: GAUGE.gainSkill, color: 0x7b1fa2 });
+      game.fx.burst(o.target.pos.x, (o.target.hpY || 2) * 0.6, o.target.pos.z, 0x7b1fa2, 30, { speed: 5, up: 4, life: 0.6 });
+    }
+    if (!hit.size) game.toastOnce('呪いのかかった敵がいない（通常攻撃や Q で呪ってから）', 1400);
+  },
+  scythethrow(game, p, d, local) {
+    const e = JOBS.reaper.e;
+    startAction(p, 'cast', 0.3);
+    const o = { speed: e.speed, mult: e.mult, color: 0xb0bec5, size: 0.6, range: e.range, pierce: true, local, gauge: GAUGE.gainSkill };
+    game.projectiles.playerShot(p, d.x, d.z, d.yaw, o);
+    // 先まで飛んだら投げた人の方へ戻ってくる
+    const fx = d.x + Math.sin(d.yaw) * (e.range + 0.8);
+    const fz = d.z + Math.cos(d.yaw) * (e.range + 0.8);
+    p.pending.push({ t: e.range / e.speed, fn: () => {
+      const back = Math.atan2(p.pos.x - fx, p.pos.z - fz);
+      game.projectiles.playerShot(p, fx - Math.sin(back) * 0.8, fz - Math.cos(back) * 0.8, back, { ...o, range: Math.hypot(p.pos.x - fx, p.pos.z - fz) });
+    } });
+    game.sound.se('spin');
   },
 };
 
@@ -358,10 +517,16 @@ export function castQ(game, p, intent) {
   return cast(game, p, q.id, skillData(game, p, intent, 2));
 }
 
-/** E 必殺技 */
+/** E スキル（クールダウン制） */
 export function castE(game, p, intent) {
   const e = p.job.e;
-  return cast(game, p, e.id, skillData(game, p, intent, e.dist || 3));
+  return cast(game, p, e.id, skillData(game, p, intent, e.dist || 2));
+}
+
+/** R 必殺技（必殺ゲージ） */
+export function castR(game, p, intent) {
+  const r = p.job.r;
+  return cast(game, p, r.id, skillData(game, p, intent, r.dist || 3));
 }
 
 /** 他の人のスキルを見た目だけ再生する */
@@ -403,7 +568,7 @@ function frontTarget(game, p, range, halfArc) {
 }
 
 /** まっすぐ駆け抜けて通り道を斬る（忍者の瞬影斬・槍兵の突進突き） */
-function dashStrike(game, p, d, local, q, color) {
+function dashStrike(game, p, d, local, q, color, extra = {}) {
   startAction(p, 'dash', q.time);
   p.dodgeX = Math.sin(d.yaw);
   p.dodgeZ = Math.cos(d.yaw);
@@ -419,7 +584,7 @@ function dashStrike(game, p, d, local, q, color) {
       if (hit.has(e)) return;
       if (Math.hypot(e.pos.x - p.pos.x, e.pos.z - p.pos.z) < e.radius + q.width) {
         hit.add(e);
-        strike(game, p, e, q.mult, { melee: true, gauge: GAUGE.gainSkill, color });
+        strike(game, p, e, q.mult, { melee: true, gauge: GAUGE.gainSkill, color, ...extra });
       }
     });
   };
@@ -465,7 +630,12 @@ function addZone(game, z) {
     game.scene.add(zoneGroup);
   }
   z.age = 0;
-  if (z.kind === 'aegis') {
+  if (z.kind === 'mine') {
+    geoCache.mine ||= new THREE.CylinderGeometry(0.45, 0.55, 0.25, 10);
+    z.mat = new THREE.MeshBasicMaterial({ color: 0xff6f00 });
+    z.mesh = new THREE.Mesh(geoCache.mine, z.mat);
+    z.mesh.position.y = 0.13;
+  } else if (z.kind === 'aegis') {
     geoCache.dome ||= new THREE.SphereGeometry(1, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2);
     z.mat = new THREE.MeshBasicMaterial({ color: 0x90caf9, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide });
     z.mesh = new THREE.Mesh(geoCache.dome, z.mat);
@@ -531,6 +701,18 @@ export function updateJobZones(game, dt) {
         if (z.local) radiusHit(game, z.p, z.mult, z.r, { color: 0xc5e1a5, knock: 0.2, gauge: 1 }, z.x, z.z);
       }
       if (z.t <= 0) removeZone(i);
+    } else if (z.kind === 'mine') {
+      z.mat.color.setHex(Math.floor(z.age * 4) % 2 ? 0xff6f00 : 0xffd180);
+      // ボスが近づくか、時間が来たら爆発（当たり判定は置いた本人だけ）
+      let boom = z.t <= 0;
+      for (const b of game.bosses) if (b.active && b.alive && Math.hypot(b.pos.x - z.x, b.pos.z - z.z) < z.trigger + b.radius) boom = true;
+      if (boom) {
+        game.fx.burst(z.x, 0.5, z.z, 0xff6f00, 50, { speed: 10, up: 7, life: 0.7, size: 0.28 });
+        game.fx.shake(0.6);
+        game.sound.se('slam');
+        if (z.local) radiusHit(game, z.p, z.mult, z.r, { color: 0xff6f00, knock: 2, gauge: GAUGE.gainSkill }, z.x, z.z);
+        removeZone(i);
+      }
     } else if (z.kind === 'aegis') {
       z.mat.opacity = 0.18 + 0.06 * Math.sin(z.age * 4) + (z.t < 1.5 ? 0.1 * Math.sin(z.age * 30) : 0);
       if (z.t <= 0) removeZone(i);

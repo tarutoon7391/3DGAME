@@ -6,9 +6,19 @@ import { createBoss } from './boss.js';
 import { RAID_SCALE } from './data/jobs.js';
 import { clearJobZones } from './jobs.js';
 
-/** ボスを作る（参加者のブラウザでは見た目だけの puppet。人数で HP を増やす） */
-export function makeBoss(game, bd, idx) {
-  return createBoss(game, bd.key, bd.x, bd.z, idx, { puppet: !!game.isClient, scale: RAID_SCALE(game.players.length) });
+/**
+ * 部屋のボスを作る（参加者のブラウザでは見た目だけの puppet。人数で HP を増やす）
+ * 部屋の定義 bd に pair（[{ key, x, z }, ...]）があれば2体同時。戻り値はボスの配列
+ */
+export function makeRoom(game, bd, idx) {
+  const o = { puppet: !!game.isClient, scale: RAID_SCALE(game.players.length) };
+  const list = bd.pair || [{ key: bd.key, x: bd.x, z: bd.z }];
+  return list.map((m, sub) => createBoss(game, m.key, m.x, m.z, idx, { ...o, sub }));
+}
+
+function disposeBosses(game) {
+  for (const b of game.bosses) b.dispose();
+  game.bosses = [];
 }
 
 /** シーン共通のライト（エリアごとに色・強さを変える） */
@@ -59,10 +69,7 @@ export function loadArea(game, id) {
   game.hazards?.clear();
   clearJobZones();
   game.fx.clear();
-  if (game.boss) {
-    game.boss.dispose();
-    game.boss = null;
-  }
+  disposeBosses(game);
   if (game.world) game.world.dispose();
 
   const def = AREAS[id];
@@ -77,7 +84,7 @@ export function loadArea(game, id) {
   }
   const bd = def.bosses?.[step];
   if (bd) {
-    game.boss = makeBoss(game, bd, step);
+    game.bosses = makeRoom(game, bd, step);
     // 途中から：その部屋の扉だけ開けておく
     if (step > 0) game.world.extra.doors?.forEach((set, i) => set(i === bd.door, true));
   }
@@ -145,17 +152,18 @@ export function updateAreaLogic(game, intent) {
 
   // ボス部屋に誰かが入ったら戦闘開始（後ろの扉を閉じる）。参加者はホストの合図を待つ
   if (game.isClient) return;
-  const b = game.boss;
+  const b = game.bosses[0];
   const room = b && w.def.bosses?.[b.idx];
-  if (room && b.alive && !b.active && game.players.some((p) => p.alive && p.pos.z < room.triggerZ)) {
-    b.wake();
+  if (room && !b.active && game.bosses.some((o) => o.alive) && game.players.some((p) => p.alive && p.pos.z < room.triggerZ)) {
+    for (const o of game.bosses) o.wake(); // 2体同時の部屋は両方いっぺんに目覚める
     setDoor(game, room.door, false);
     // 扉の外に残っている人は部屋の中へ呼び寄せる
     const dz = w.def.doors?.[room.door]?.z;
     if (dz !== undefined) gather(game, room.triggerZ - 1, dz);
     const last = b.idx === w.def.bosses.length - 1;
+    const names = game.bosses.map((o) => o.name).join(' ＆ ');
     game.sound.bgm(last && w.def.castle ? 'lastboss' : 'boss');
-    game.hudView.banner(last ? b.name : `中ボス　${b.name}`);
+    game.hudView.banner(last ? names : `${room.label || '中ボス'}　${names}`);
   }
 }
 
@@ -172,6 +180,12 @@ function bossDownInner(game, b) {
   const list = def.bosses || [];
   const pr = game.state.progress;
   const next = list[b.idx + 1];
+  // 2体同時の部屋：もう1体が残っていればまだ続く
+  const rest = game.bosses.filter((o) => o.alive);
+  if (rest.length) {
+    game.toast(`${b.name}を倒した！ 残るは ${rest.map((o) => o.name).join('・')}`, 2600);
+    return;
+  }
   game.projectiles.clearEnemyShots(); // 残った弾は消す
   if (next) {
     pr.bossStep = b.idx + 1;
@@ -179,12 +193,12 @@ function bossDownInner(game, b) {
     setDoor(game, next.door, true);
     game.raid?.event('step', pr.bossStep);
     game.onBossStep(pr.bossStep); // 全回復・蘇生（自分）
-    game.boss.dispose();
-    game.boss = makeBoss(game, next, b.idx + 1);
+    disposeBosses(game);
+    game.bosses = makeRoom(game, next, b.idx + 1);
     game.sound.bgm(def.bgm);
     game.sound.se('seal');
     const left = list.length - (b.idx + 1);
-    game.toast(`${b.name}を倒した！ HP が全回復した。奥の扉が開いた（残り ${left} 体）`, 3200);
+    game.toast(`${b.name}を倒した！ HP が全回復した。奥の扉が開いた（残り ${left} 部屋）`, 3200);
     game.autosave();
     return;
   }

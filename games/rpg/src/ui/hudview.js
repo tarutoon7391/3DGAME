@@ -19,13 +19,15 @@ export function createHudView(game) {
   const skills = el('rpg-skills', root);
   const prompt = el('rpg-prompt', root);
   const banner = el('rpg-banner', root);
-  const bossBar = el('rpg-boss', root);
-  bossBar.innerHTML = `<div class="rpg-boss-name"></div><div class="rpg-boss-track"><div class="rpg-boss-fill"></div></div><div class="rpg-brk" title="ブレイク"><div></div></div>`;
-  const bossFill = bossBar.querySelector('.rpg-boss-fill');
-  const brkFill = bossBar.querySelector('.rpg-brk>div');
+  // ボスの HP バー（2体同時の部屋のために2本。2本目は1本目の下に出す）
+  const bossBars = [0, 1].map((i) => {
+    const bar = el('rpg-boss', root);
+    bar.innerHTML = `<div class="rpg-boss-name"></div><div class="rpg-boss-track"><div class="rpg-boss-fill"></div></div><div class="rpg-brk" title="ブレイク"><div></div></div>`;
+    if (i) bar.style.top = '66px';
+    return { bar, fill: bar.querySelector('.rpg-boss-fill'), brk: bar.querySelector('.rpg-brk>div'), name: bar.querySelector('.rpg-boss-name') };
+  });
   const party = el('rpg-party', root);
   let lastParty = '';
-  const bossName = bossBar.querySelector('.rpg-boss-name');
   const hint = el('rpg-hint', root);
   hint.textContent = 'クリックで視点操作（マウスでカメラ）';
   const fade = el('rpg-fade', document.body);
@@ -74,7 +76,8 @@ export function createHudView(game) {
       const bs = game.boss;
       if (!bs) return '';
       const tag = list.length > 1 ? `（${bs.idx + 1}/${list.length}）` : '';
-      if (bs.active) return `${bs.name}を倒せ！${tag}`;
+      const alive = game.bosses.filter((b) => b.alive);
+      if (bs.active) return `${alive.map((b) => b.name).join('・') || bs.name}を倒せ！${tag}`;
       return list.length > 1 ? `奥の部屋へ進め${tag}` : '最深部のボス部屋へ進め';
     }
     const s = nextSeal(game);
@@ -95,12 +98,13 @@ export function createHudView(game) {
     </div>`);
 
     const J = me.job;
-    const cd = me.cd.q;
     const full = me.gauge >= GAUGE.max;
-    const html = `<div class="rpg-skill ${cd > 0 ? 'off' : ''}"><b>Q</b><span>${esc(J.q.name)}</span><small>CD ${J.q.cd}秒</small>${cd > 0 ? `<i>${cd.toFixed(1)}</i>` : ''}</div>
-      ${J.e.oncePerRun && game.state.progress.usedOnce?.[J.e.id]
-        ? `<div class="rpg-skill off"><b>E</b><span>${esc(J.e.name)}</span><small>使用済み</small></div>`
-        : `<div class="rpg-skill ${full ? 'ready' : 'off'}"><b>E</b><span>${esc(J.e.name)}</span><small>${full ? '撃てる！' : `${Math.floor(me.gauge)}%`}</small><div class="rpg-gauge" style="width:${Math.min(100, me.gauge)}%"></div></div>`}
+    const cdSlot = (key, sk, cd) => `<div class="rpg-skill ${cd > 0 ? 'off' : ''}"><b>${key}</b><span>${esc(sk.name)}</span><small>CD ${sk.cd}秒</small>${cd > 0 ? `<i>${cd.toFixed(1)}</i>` : ''}</div>`;
+    const usedR = J.r.oncePerRun && game.state.progress.usedOnce?.[J.r.id];
+    const html = `${cdSlot('Q', J.q, me.cd.q)}${cdSlot('E', J.e, me.cd.e)}
+      ${usedR
+        ? `<div class="rpg-skill off"><b>R</b><span>${esc(J.r.name)}</span><small>使用済み</small></div>`
+        : `<div class="rpg-skill ${full ? 'ready' : 'off'}"><b>R</b><span>${esc(J.r.name)}</span><small>${full ? '撃てる！' : `${Math.floor(me.gauge)}%`}</small><div class="rpg-gauge" style="width:${Math.min(100, me.gauge)}%"></div></div>`}
       <div class="rpg-skill ${me.dodgeCd > 0 || tired ? 'off' : ''}"><b>Space</b><span>回避</span><small>ST${STAMINA.dodgeCost}</small></div>
       <div class="rpg-skill ${tired ? 'off' : ''} ${me.dashing ? 'on' : ''}"><b>Shift</b><span>ダッシュ</span><small>ST消費</small></div>`;
     if (html !== lastSkills) {
@@ -169,8 +173,8 @@ export function createHudView(game) {
       if (!e.alive) continue;
       g2.fillRect(X(e.pos.x) - 1.5, Z(e.pos.z) - 1.5, 3, 3);
     }
-    const bs = game.boss;
-    if (bs && bs.alive) {
+    for (const bs of game.bosses) {
+      if (!bs.alive) continue;
       g2.fillStyle = '#d50000';
       g2.beginPath();
       g2.arc(X(bs.pos.x), Z(bs.pos.z), 5, 0, Math.PI * 2);
@@ -239,16 +243,17 @@ export function createHudView(game) {
         drawHud();
         drawMap();
       }
-      const bs = game.boss;
-      const showBoss = bs && bs.active && bs.alive;
-      bossBar.style.display = showBoss ? 'block' : 'none';
-      if (showBoss) {
-        if (bossName.textContent !== bs.name) bossName.textContent = bs.name;
-        bossFill.style.width = `${(bs.hp / bs.maxHp) * 100}%`;
-        brkFill.style.width = `${bs.state === 'stun' ? 100 : Math.min(100, (bs.brk / bs.brkMax) * 100)}%`;
-        bossBar.classList.toggle('raged', bs.raged);
-        bossBar.classList.toggle('stun', bs.state === 'stun');
-      }
+      const shown = game.bosses.filter((b) => b.active && b.alive);
+      bossBars.forEach((ui, i) => {
+        const bs = shown[i];
+        ui.bar.style.display = bs ? 'block' : 'none';
+        if (!bs) return;
+        if (ui.name.textContent !== bs.name) ui.name.textContent = bs.name;
+        ui.fill.style.width = `${(bs.hp / bs.maxHp) * 100}%`;
+        ui.brk.style.width = `${bs.state === 'stun' ? 100 : Math.min(100, (bs.brk / bs.brkMax) * 100)}%`;
+        ui.bar.classList.toggle('raged', bs.raged);
+        ui.bar.classList.toggle('stun', bs.state === 'stun');
+      });
       hint.style.display = game.input.mouse.locked ? 'none' : 'block';
       // 被弾の縁・方向マーカー・足元の予兆の警告
       hurtT = Math.max(0, hurtT - dt);

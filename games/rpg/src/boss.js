@@ -16,7 +16,7 @@ const BREAK = { ratio: 0.22, stun: 4, dmgMul: 1.5 }; // ブレイク値の上限
  * @param idx エリア内で何番目のボスか（中ボス→ボスの順）
  * @param o { puppet: 参加者側の見た目だけ, scale: 人数による HP 倍率 }
  */
-export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1 } = {}) {
+export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1, sub = 0 } = {}) {
   const C = BOSSES[key];
   const m = makeBossModel(C.color, C.look);
   m.group.position.set(x, 0, z);
@@ -33,7 +33,7 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
   const novaMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide });
 
   const b = {
-    key, idx, puppet,
+    key, idx, sub, puppet, // sub：同じ部屋の何体目か（2体同時の部屋で 0 と 1）
     name: C.name,
     model: m,
     pos: m.group.position,
@@ -69,7 +69,7 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
       if (puppet) {
         // 参加者：ホストへ送る。見た目だけ先に反映
         b.flash = 0.1;
-        game.raid?.sendDamage('boss', 0, dmg, o.brk || 0);
+        game.raid?.sendDamage('boss', sub, dmg, o.brk || 0);
         return;
       }
       // ホスト：ブレイク・怒りの演出も参加者に見せる
@@ -601,6 +601,7 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
       d.t -= rawDt;
       if (d.t <= 0) delete b.debuffs[k];
     }
+    if (b.freezeImmune > 0) b.freezeImmune -= rawDt; // 時間停止の耐性
     // 時魔導士の鈍化：ボスの時間そのものを遅くする（移動・予備動作・弾幕の間隔すべて）
     const dt = b.debuffs.slow ? rawDt * b.debuffs.slow.mul : rawDt;
     b.t += dt;
@@ -948,7 +949,7 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
 
   /** ホスト：参加者へ送る状態 */
   b.snapshot = () => ({
-    key: b.key, idx: b.idx, x: +b.pos.x.toFixed(2), z: +b.pos.z.toFixed(2), y: +b.pos.y.toFixed(2), yaw: +b.yaw.toFixed(3),
+    key: b.key, idx: b.idx, sub: b.sub, x: +b.pos.x.toFixed(2), z: +b.pos.z.toFixed(2), y: +b.pos.y.toFixed(2), yaw: +b.yaw.toFixed(3),
     hp: Math.round(b.hp), maxHp: b.maxHp, brk: Math.round(b.brk), brkMax: b.brkMax,
     state: b.state, pattern: b.pattern, raged: b.raged, active: b.active, alive: b.alive,
     vuln: !!b.debuffs.vuln, slow: !!b.debuffs.slow,
@@ -961,8 +962,13 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
     game.toast(name === 'vuln' ? `${C.name}が腐食した！（被ダメージ ${Math.round((mul - 1) * 100)}% 増・${dur}秒）` : `${C.name}の動きが鈍った！（${dur}秒）`, 2000);
   };
   /** ホスト：時間停止（攻撃を中断して dur 秒 固まる） */
-  b.freeze = (dur) => {
+  b.freeze = (dur, immune = 15) => {
     if (!b.alive || !b.active || b.state === 'dead') return;
+    if (b.freezeImmune > 0) {
+      game.toast(`${C.name}には時間停止がまだ効かない（あと ${Math.ceil(b.freezeImmune)} 秒）`, 1800);
+      return;
+    }
+    b.freezeImmune = dur + immune; // 止まっている間＋その後の耐性
     cancelAll();
     b.state = 'frozen';
     b.t = 0;

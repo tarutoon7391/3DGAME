@@ -7,12 +7,12 @@ import { PLAYER, STAMINA } from './data/player.js';
 import { JOBS, DEFAULT_JOB, GAUGE, REVIVE } from './data/jobs.js';
 import { lerpAngle, lerpAngle as la } from './util.js';
 import { meleeArc } from './combat.js';
-import { castQ, castE, basicShot } from './jobs.js';
+import { castQ, castE, castR, basicShot } from './jobs.js';
 
 /** 空の入力（何も押していない） */
 export function emptyIntent(out = {}) {
   out.moveX = 0; out.moveZ = 0; out.aimYaw = 0;
-  out.attack = false; out.dodge = false; out.dash = false; out.skillQ = false; out.skillE = false; out.interact = false;
+  out.attack = false; out.dodge = false; out.dash = false; out.skillQ = false; out.skillE = false; out.skillR = false; out.interact = false;
   out.lockYaw = false; // true なら体の向きを常に aimYaw（一人称：カメラの水平方向）に合わせる
   return out;
 }
@@ -55,7 +55,9 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
     knockX: 0,
     knockZ: 0,
     shotCd: 0,
-    cd: { q: 0 },
+    cd: { q: 0, e: 0 },
+    hpHist: [], // 時魔導士の巻き戻し用：0.1秒ごとの HP（3秒ぶん）
+    hpHistT: 0,
     gauge: 0, // 必殺ゲージ（0〜GAUGE.max）
     buffs: {}, // 名前 → { t, ...値 }（攻撃力アップ・被ダメ減など）
     critNext: false, // 次の1撃が必ず会心（忍者の回避後）
@@ -86,6 +88,8 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
       p.tired = false;
       p.invuln = 0;
       p.cd.q = 0;
+      p.cd.e = 0;
+      p.hpHist.length = 0;
       p.shotCd = 0;
       p.buffs = {};
       p.pending.length = 0;
@@ -104,10 +108,16 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
     dmgTakenMul() {
       let m = J.dmgTaken ?? 1;
       if (p.buffs.taunt) m *= 0.5;
+      if (p.buffs.sanctuary) m *= p.buffs.sanctuary.mul; // 僧侶の聖なる守り
       if (p.buffs.warcry) m *= p.buffs.warcry.dmgMul;
       if (p.buffs.aegis) m *= 0.5;
       if (J.summonGuard && game.allies?.ownedBy(p.id)) m *= J.summonGuard;
       return m;
+    },
+    /** sec 秒前の HP（記録が無ければ undefined） */
+    hpAgo(sec) {
+      const i = p.hpHist.length - 1 - Math.round(sec / 0.1);
+      return i >= 0 ? p.hpHist[i] : p.hpHist[0];
     },
     /** 必殺ゲージを足す */
     addGauge(n) {
@@ -171,7 +181,16 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
       p.invuln = Math.max(0, p.invuln - dt);
       p.dodgeCd = Math.max(0, p.dodgeCd - dt);
       // Q のクールダウン（吟遊詩人の近くでは速く戻る）
-      p.cd.q = Math.max(0, p.cd.q - dt * (game.bardAura?.(p) || 1));
+      const cdRate = game.bardAura?.(p) || 1; // 吟遊詩人の近くでは速く戻る
+      p.cd.q = Math.max(0, p.cd.q - dt * cdRate);
+      p.cd.e = Math.max(0, p.cd.e - dt * cdRate);
+      // HP の記録（巻き戻し用）
+      p.hpHistT -= dt;
+      if (p.hpHistT <= 0) {
+        p.hpHistT = 0.1;
+        p.hpHist.push(p.hp);
+        if (p.hpHist.length > 40) p.hpHist.shift();
+      }
       p.shotCd = Math.max(0, p.shotCd - dt);
       p.waveT = Math.max(0, p.waveT - dt);
       p.hurtT = Math.max(0, p.hurtT - dt);
@@ -216,22 +235,26 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
         game.fx.burst(p.pos.x, 0.3, p.pos.z, 0xd7ccc8, 8, { speed: 2, up: 1, life: 0.4 });
       } else if (intent.dodge && p.tired && p === game.me()) {
         game.toastOnce('バテていて回避できない！');
-      } else if (intent.skillQ && !busy) {
-        if (p.cd.q > 0) {
-          if (p === game.me()) game.toastOnce(`${J.q.name}はあと ${p.cd.q.toFixed(1)} 秒`, 900);
-        } else if (castQ(game, p, intent)) {
-          p.cd.q = J.q.cd;
+      } else if ((intent.skillQ || intent.skillE) && !busy) {
+        // Q・E：クールダウン制のスキル
+        const slot = intent.skillQ ? 'q' : 'e';
+        const sk = J[slot];
+        if (p.cd[slot] > 0) {
+          if (p === game.me()) game.toastOnce(`${sk.name}はあと ${p.cd[slot].toFixed(1)} 秒`, 900);
+        } else if ((slot === 'q' ? castQ : castE)(game, p, intent)) {
+          p.cd[slot] = sk.cd;
         }
-      } else if (intent.skillE && !busy) {
-        const once = J.e.oncePerRun;
-        const used = once && game.state.progress.usedOnce?.[J.e.id];
+      } else if (intent.skillR && !busy) {
+        // R：必殺技（必殺ゲージ。oncePerRun なら1回の挑戦で1度だけ）
+        const once = J.r.oncePerRun;
+        const used = once && game.state.progress.usedOnce?.[J.r.id];
         if (used) {
-          if (p === game.me()) game.toastOnce(`${J.e.name}はこの挑戦ではもう使った（1度だけ）`, 1600);
+          if (p === game.me()) game.toastOnce(`${J.r.name}はこの挑戦ではもう使った（1度だけ）`, 1600);
         } else if (p.gauge < GAUGE.max) {
           if (p === game.me()) game.toastOnce('必殺ゲージが足りない（通常攻撃を当てて溜める。近接ほど早く溜まる）', 1600);
-        } else if (castE(game, p, intent)) {
+        } else if (castR(game, p, intent)) {
           p.gauge = 0;
-          if (once) game.state.progress.usedOnce = { ...(game.state.progress.usedOnce || {}), [J.e.id]: true };
+          if (once) game.state.progress.usedOnce = { ...(game.state.progress.usedOnce || {}), [J.r.id]: true };
         }
       } else if (intent.attack && !busy) {
         if (J.basic.type === 'melee') {
