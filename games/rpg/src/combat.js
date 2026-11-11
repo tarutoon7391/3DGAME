@@ -39,6 +39,8 @@ export function strike(game, pl, target, mult, opts = {}) {
     const toMe = Math.atan2(pl.pos.x - target.pos.x, pl.pos.z - target.pos.z);
     if (Math.abs(angleDiff(target.yaw, toMe)) > Math.PI * 0.55) mult *= J.backstab;
   }
+  // エクソシスト：怒っている・気絶しているボスに強い
+  if (J.vsRage && (target.raged || target.state === 'stun')) mult *= J.vsRage;
   // 狩人：印を付けた相手には自分のダメージが上がる
   if (pl.mark && pl.mark.t > 0 && pl.mark.target === target) mult *= pl.job.markBonus || 1.5;
   // 職業の特性による倍率：腐食中のボス（錬金術師）・瀕死のボス（処刑人）
@@ -55,11 +57,19 @@ export function strike(game, pl, target, mult, opts = {}) {
     // 吸血（呪術師の特性・狂戦士の血の旋風）
     let ls = (J.lifesteal || 0) + (opts.lifesteal || 0);
     for (const b of Object.values(pl.buffs)) if (b.lifesteal) ls += b.lifesteal; // 吸血鬼の蝙蝠化など
-    if (ls && pl.alive && pl.hp !== undefined) pl.hp = Math.min(pl.maxHp, pl.hp + dmg * ls);
+    if (ls && pl.alive && pl.hp !== undefined) {
+      const gain = J.lifestealCap ? Math.min(dmg * ls, pl.maxHp * J.lifestealCap) : dmg * ls; // 呪術師は1回の回復に上限
+      pl.hp = Math.min(pl.maxHp, pl.hp + gain);
+    }
     // 格闘家：当て続けるほど強くなる
     if (J.chainPer && melee) pl.chain = Math.min(J.chainMax, (pl.chain || 0) + 1);
     if (J.soulPer && !opts.clone) pl.soul = Math.min(J.soulMax, (pl.soul || 0) + J.soulPer); // 魂喰い
     if (J.healPool && melee) pl.healPool = (pl.healPool || 0) + dmg; // 治癒拳士：殴った分を仲間の回復に回す
+    // 鎧砕き：近接で殴るたびにボスの鎧が砕けて、被ダメが重なって上がる（送るのは 0.25 秒に1回まで）
+    if (J.shred && melee && game.bosses.includes(target) && performance.now() - (pl.shredAt || 0) > 250) {
+      pl.shredAt = performance.now();
+      game.bossCommand({ type: 'shred', sub: target.sub, per: J.shred.per, max: J.shred.max });
+    }
   }
   game.fx.text(target.pos.x, target.hpY ?? 2, target.pos.z, crit ? `${dmg}!` : String(dmg), clone ? '#ce93d8' : crit ? '#ffd54f' : '#ffffff', crit);
   game.fx.burst(target.pos.x, 1, target.pos.z, color, crit ? 14 : 8, { speed: 5, up: 3, life: 0.4 });
@@ -169,6 +179,16 @@ export function hurtPlayer(game, pl, frac, fromX, fromZ) {
     }
   }
   pl.hp = Math.max(0, pl.hp - dmg);
+  // 棘の騎士：殴られたら近くの敵にとげで反撃
+  if (pl.job.thorns && pl.hp > 0) {
+    let best = null;
+    let bd = 9;
+    forEachTarget(game, (e) => {
+      const d = Math.hypot(e.pos.x - pl.pos.x, e.pos.z - pl.pos.z) - e.radius;
+      if (d < bd) { bd = d; best = e; }
+    });
+    if (best) strike(game, pl, best, pl.job.thorns, { gauge: 4, knock: 0.3, color: 0x8bc34a });
+  }
   // 修羅：攻撃を受けるほど強くなる（倒れると0に戻る）
   if (pl.job.rageOnHurt) pl.rage = Math.min(pl.job.rageMax, (pl.rage || 0) + pl.job.rageOnHurt);
   const dx = pl.pos.x - fromX;

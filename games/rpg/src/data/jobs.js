@@ -196,9 +196,9 @@ export const JOBS = {
     basic: { type: 'shot', cd: 0.55, speed: 18, mult: 0.6, color: 0xce93d8, size: 0.3, range: 22, dot: { mult: 0.15, every: 0.5, dur: 3 } },
     q: { id: 'hex', name: '呪いの刻印', desc: '当てた敵に8秒間の強い呪い（0.5秒ごとにダメージ）', cd: 9, speed: 20, dot: { mult: 0.4, every: 0.5, dur: 8 } },
     e: { id: 'cursespread', name: '呪いの拡散', desc: '自分の呪いがかかった敵すべてに追加ダメージを与え、呪いを延長する', cd: 9, mult: 1.6, extend: 3 },
-    r: { id: 'drain', name: '生命吸収', desc: '2秒間 前方の敵から命を吸い取り、味方全員を回復し続ける', dur: 2, every: 0.25, mult: 0.7, range: 14, heal: 0.04 },
-    trait: '与えたダメージの 5% だけ HP 回復',
-    lifesteal: 0.05, breakMul: 1,
+    r: { id: 'drain', name: '生命吸収', desc: '2秒間 前方の敵から命を吸い取り、周り10mの味方を少しずつ回復（合計 最大16%）', dur: 2, every: 0.25, mult: 0.7, range: 14, heal: 0.02, healRadius: 10 },
+    trait: '与えたダメージの 3% だけ HP 回復（1回の回復は最大 HP の 1.5% まで）',
+    lifesteal: 0.03, lifestealCap: 0.015, breakMul: 1,
     look: { armorColor: 0x311b92, swordColor: 0xce93d8, swordLen: 0.9, cape: 0x1a0026, weapon: 'staff', hat: 0x1a0026 },
   },
   reaper: {
@@ -937,10 +937,10 @@ export const JOBS = {
     stats: { hp: 125, atk: 13, speed: 6.8 },
     basic: { type: 'melee', combo: [{ dur: 0.24, hit: 0.08, mult: 0.8 }, { dur: 0.24, hit: 0.08, mult: 0.85 }, { dur: 0.24, hit: 0.08, mult: 0.85 }, { dur: 0.4, hit: 0.15, mult: 1.4 }], range: 2.4, arc: 2.2, heavyBonus: 0.2 },
     q: { id: 'chipalm', kind: 'cone', name: '気功掌', desc: '前方を打つ（与えたダメージも仲間の回復に回る）', cd: 5, mult: 2.0, range: 3.4, arc: 1.4, color: 0xa5d6a7 },
-    e: { id: 'chiwave', kind: 'teamheal', name: '気の波', desc: '周囲8mの味方の HP を 20% 回復', cd: 10, radius: 8, amount: 0.2, color: 0xa5d6a7 },
+    e: { id: 'chiwave', kind: 'teamheal', name: '気の波', desc: '周囲8mの味方の HP を 12% 回復', cd: 12, radius: 8, amount: 0.12, color: 0xa5d6a7 },
     r: { id: 'chiburst', kind: 'burst', name: '気功乱打', desc: '周りを8回 打つ（すべて仲間の回復に回る）', ticks: 8, every: 0.12, mult: 1.1, radius: 3.8, color: 0x69f0ae },
     trait: '近接で与えたダメージの一部が、1.2秒ごとに周り8mの仲間の回復になる',
-    healPool: { rate: 0.0012, max: 0.08, radius: 8 }, breakMul: 1,
+    healPool: { rate: 0.0004, max: 0.025, radius: 8 }, // 1.2秒ごとに最大 2.5%（僧侶を上回らない） breakMul: 1,
     look: { armorColor: 0x2e7d32, swordColor: 0xa5d6a7, swordLen: 0.5, cape: 0x1b5e20, weapon: 'fist' },
   },
   sage: {
@@ -976,6 +976,184 @@ export const JOBS = {
     breakMul: 1.3,
     look: { armorColor: 0x616161, swordColor: 0xbdbdbd, swordLen: 0.8, cape: 0xffa000, weapon: 'spear' },
   },
+  // ================= 追加の16職（第6弾：独特なしくみ） =================
+  absorber: {
+    name: '吸収術士', role: '敵弾を吸ってゲージに', color: '#80cbc4',
+    stats: { hp: 110, atk: 13, speed: 6.6 },
+    basic: { type: 'shot', cd: 0.45, speed: 24, mult: 0.8, color: 0x80cbc4, size: 0.26, range: 22 },
+    q: { id: 'devour', kind: 'absorb', name: '弾喰らい', desc: '周り5mの敵弾を吸い込む。1発ごとに必殺ゲージ +4・HP 1% 回復', cd: 7, radius: 5, gaugePer: 4, healPer: 0.01, color: 0x80cbc4 },
+    e: { id: 'releasebolt', kind: 'shots', name: '放出弾', desc: '吸った力を3発の大きな弾にして撃ち出す（貫通）', cd: 6, count: 3, spread: 0.15, speed: 26, mult: 1.4, size: 0.4, range: 24, pierce: true, color: 0x4db6ac },
+    r: { id: 'blackmaw', kind: 'absorb', name: '大口', desc: '周り12mの敵弾をすべて吸い込む。1発ごとに必殺ゲージ +2・HP 1% 回復', radius: 12, gaugePer: 2, healPer: 0.01, color: 0x26a69a },
+    trait: '弾を吸うたびに強くなる（吸った弾でゲージが溜まる）',
+    breakMul: 1,
+    look: { armorColor: 0x00695c, swordColor: 0x80cbc4, swordLen: 0.9, cape: 0x004d40, weapon: 'staff', hat: 0x004d40 },
+  },
+  reflector: {
+    name: '反射術士', role: '敵弾をはね返す', color: '#b3e5fc',
+    stats: { hp: 115, atk: 13, speed: 6.5 },
+    basic: { type: 'shot', cd: 0.45, speed: 26, mult: 0.8, color: 0xb3e5fc, size: 0.24, range: 22 },
+    q: { id: 'reflectwall', kind: 'reflect', name: '鏡返し', desc: '周り5mの敵弾をはね返す。返した数だけ一番近い敵に大ダメージ', cd: 7, radius: 5, base: 1.0, per: 0.4, cap: 15, color: 0xb3e5fc },
+    e: { id: 'prismguard', kind: 'selfbuff', name: 'プリズムの盾', desc: '4秒間 被ダメージ -50%', cd: 12, buff: 'prism', dur: 4, vals: { dmgMul: 0.5 }, color: 0x81d4fa, msg: 'プリズムの盾！' },
+    r: { id: 'grandmirror', kind: 'reflect', name: '大鏡', desc: '周り14mの敵弾をすべてはね返し、数に応じた超大ダメージ', radius: 14, base: 3, per: 0.5, cap: 30, color: 0x4fc3f7 },
+    trait: '弾幕が濃いほど強い',
+    breakMul: 1,
+    look: { armorColor: 0x0277bd, swordColor: 0xe1f5fe, swordLen: 0.9, cape: 0x01579b, weapon: 'staff', hat: 0xe1f5fe },
+  },
+  drummer: {
+    name: '太鼓叩き', role: 'リズムで殴る', color: '#ffeb3b',
+    stats: { hp: 125, atk: 13, speed: 6.6 },
+    basic: { type: 'melee', combo: [{ dur: 0.3, hit: 0.1, mult: 1.0 }, { dur: 0.3, hit: 0.1, mult: 1.0 }, { dur: 0.42, hit: 0.15, mult: 1.4 }], range: 2.6, arc: 2.4, heavyBonus: 0.3 },
+    q: { id: 'warbeat', kind: 'teambuff', name: '戦太鼓', desc: '周り10mの味方 8秒間 攻撃力 +20%', cd: 14, radius: 10, buff: 'warbeat', dur: 8, vals: { atkMul: 1.2 }, color: 0xffeb3b, msg: '戦太鼓！ 攻撃力アップ' },
+    e: { id: 'thunderdrum', kind: 'burst', name: '轟き打ち', desc: '太鼓を強く叩き、周りを4回 衝撃で打つ', cd: 7, ticks: 4, every: 0.2, mult: 1.3, radius: 4.2, color: 0xfff176 },
+    r: { id: 'festival', kind: 'teambuff', name: '大祭り', desc: '全員 12秒間 攻撃力 +30%・移動 +20%', buff: 'festival', dur: 12, vals: { atkMul: 1.3, speedMul: 1.2 }, color: 0xffd600, msg: '大祭り！ みんな攻撃力・移動アップ' },
+    trait: '1秒ごとの拍に合わせて通常攻撃を当てると 2倍（拍で頭上が光る）',
+    beat: { period: 1.0, window: 0.12, mult: 2 }, breakMul: 1,
+    look: { armorColor: 0xc62828, swordColor: 0x8d6e63, swordLen: 0.7, cape: 0xffeb3b, weapon: 'mace' },
+  },
+  charger: {
+    name: '溜め斬り士', role: '待つほど重い一撃', color: '#ffab40',
+    stats: { hp: 130, atk: 14, speed: 6.5 },
+    basic: { type: 'melee', combo: [{ dur: 0.45, hit: 0.18, mult: 1.3 }, { dur: 0.6, hit: 0.26, mult: 2.0 }], range: 3.0, arc: 2.6, heavyBonus: 0.4 },
+    q: { id: 'iaidash', kind: 'dash', name: '踏み込み斬り', desc: '前へ6m 踏み込んで斬る（無敵）', cd: 6, mult: 2.4, dist: 6, time: 0.24, width: 1.8, color: 0xffab40 },
+    e: { id: 'waitstance', kind: 'counter', name: '待ちの構え', desc: '1.2秒 構える。攻撃されると受け流して強烈に反撃', cd: 9, dur: 1.2, mult: 4.5, range: 6 },
+    r: { id: 'meteorcut', kind: 'cone', name: '天割り', desc: '前方を巨大な一太刀で斬る', mult: 9, range: 6, arc: 1.6, color: 0xff6d00, brkMul: 2 },
+    trait: '通常攻撃を当てていない時間が長いほど強い（最大 3倍）',
+    idleCharge: { per: 0.5, max: 3 }, breakMul: 1,
+    look: { armorColor: 0x4e342e, swordColor: 0xffcc80, swordLen: 1.4, cape: 0xbf360c, weapon: 'sword' },
+  },
+  thornknight: {
+    name: '棘の騎士', role: '殴られて反撃', color: '#8bc34a',
+    stats: { hp: 150, atk: 12, speed: 6.2 },
+    dmgTaken: 0.85,
+    basic: { type: 'melee', combo: [{ dur: 0.32, hit: 0.12, mult: 1.0 }, { dur: 0.32, hit: 0.12, mult: 1.05 }, { dur: 0.48, hit: 0.18, mult: 1.6 }], range: 2.6, arc: 2.4, heavyBonus: 0.3 },
+    q: { id: 'briarbash', kind: 'burst', name: '茨払い', desc: '周りを茨で2回 打つ', cd: 6, ticks: 2, every: 0.2, mult: 1.6, radius: 3.6, color: 0x8bc34a },
+    e: { id: 'thornarmor', kind: 'selfbuff', name: '茨の鎧', desc: '6秒間 被ダメージ -40%・挑発（ボスに狙われる）', cd: 14, buff: 'thornarmor', dur: 6, vals: { dmgMul: 0.6 }, taunt: 6, color: 0x689f38, msg: '茨の鎧！' },
+    r: { id: 'briarstorm', kind: 'burst', name: '茨の嵐', desc: '周りに茨を8回 巻き起こす', ticks: 8, every: 0.15, mult: 1.5, radius: 5, color: 0x558b2f },
+    trait: '攻撃を受けるたびに、近くの敵へとげで反撃する（攻撃力の 1.5倍）',
+    thorns: 1.5, breakMul: 1,
+    look: { armorColor: 0x33691e, swordColor: 0x8bc34a, swordLen: 1.0, cape: 0x1b5e20, weapon: 'sword', bigShield: true },
+  },
+  splitter: {
+    name: '分裂射手', role: '当たると弾が割れる', color: '#ff80ab',
+    stats: { hp: 105, atk: 13, speed: 6.8 },
+    basic: { type: 'shot', cd: 0.5, speed: 26, mult: 0.7, color: 0xff80ab, size: 0.26, range: 22, split: { count: 3, mult: 0.3, spread: 0.7 } },
+    q: { id: 'clusterbolt', kind: 'shots', name: '分裂弾', desc: '当たると5つに割れる大きな弾を撃つ', cd: 5, count: 1, speed: 22, mult: 1.6, size: 0.45, range: 24, color: 0xff4081, split: { count: 5, mult: 0.6, spread: 0.5 } },
+    e: { id: 'fanburst', kind: 'shots', name: '扇撃ち', desc: '扇状に5発（それぞれ当たると割れる）', cd: 7, count: 5, spread: 0.2, speed: 24, mult: 0.8, size: 0.28, range: 20, color: 0xff80ab, split: { count: 2, mult: 0.4, spread: 0.8 } },
+    r: { id: 'fractal', kind: 'shots', name: 'フラクタル', desc: '大きく割れる弾を12発 連射', count: 12, every: 0.1, jitter: 0.25, speed: 26, mult: 1.2, size: 0.38, range: 26, color: 0xf50057, split: { count: 4, mult: 0.5, spread: 0.6 } },
+    trait: '通常攻撃が当たると3つの小さな弾に分かれる',
+    breakMul: 1,
+    look: { armorColor: 0x880e4f, swordColor: 0xff80ab, swordLen: 0.9, cape: 0x4a148c, weapon: 'gun' },
+  },
+  boomeranger: {
+    name: 'ブーメラン使い', role: '行って帰って2回当てる', color: '#ffcc80',
+    stats: { hp: 110, atk: 13, speed: 7.0 },
+    basic: { type: 'shot', cd: 0.55, speed: 22, mult: 0.75, color: 0xffcc80, size: 0.32, range: 13, pierce: true, boomerang: true },
+    q: { id: 'tripleboom', kind: 'shots', name: '三連ブーメラン', desc: '3本のブーメランを投げる（行きと帰りで当たる）', cd: 5, count: 3, spread: 0.3, speed: 22, mult: 1.0, size: 0.34, range: 14, pierce: true, boomerang: true, color: 0xffb74d },
+    e: { id: 'boomroll', kind: 'dash', name: '転がり投げ', desc: '前へ転がって6m 進む（無敵）', cd: 6, mult: 1.0, dist: 6, time: 0.25, width: 1.4, color: 0xffcc80 },
+    r: { id: 'boomstorm', kind: 'shots', name: 'ブーメラン乱舞', desc: '全方向に12本 ブーメランを投げる', count: 12, spread: 0.524, speed: 22, mult: 1.6, size: 0.4, range: 15, pierce: true, boomerang: true, color: 0xff9800 },
+    trait: '通常攻撃のブーメランは戻ってくる（貫通・往復で当たる）',
+    breakMul: 1,
+    look: { armorColor: 0x6d4c41, swordColor: 0xffcc80, swordLen: 0.6, cape: 0xe65100, weapon: 'dagger' },
+  },
+  shredder: {
+    name: '鎧砕き', role: '殴るほどボスがもろく', color: '#90a4ae',
+    stats: { hp: 140, atk: 13, speed: 6.3 },
+    basic: { type: 'melee', combo: [{ dur: 0.36, hit: 0.14, mult: 1.1 }, { dur: 0.36, hit: 0.14, mult: 1.1 }, { dur: 0.55, hit: 0.22, mult: 1.8 }], range: 2.7, arc: 2.4, heavyBonus: 0.3 },
+    q: { id: 'armorbreak', kind: 'cone', name: '鎧割り', desc: '前方を叩き割る（ブレイク大）', cd: 6, mult: 2.6, range: 3.6, arc: 1.4, color: 0x90a4ae, brkMul: 2.5 },
+    e: { id: 'quakeleap', kind: 'leap', name: '地割り跳び', desc: '跳んで狙った場所に叩きつける', cd: 8, dist: 6, time: 0.45, radius: 3.6, mult: 2.4, color: 0x78909c },
+    r: { id: 'crusher', kind: 'burst', name: '粉砕連撃', desc: '周りを6回 叩き潰す', ticks: 6, every: 0.18, mult: 2.0, radius: 4, color: 0x607d8b, brkMul: 2 },
+    trait: '近接が当たるたびにボスの被ダメージ +2%（最大 +20%・しばらく残る。全員に効く）',
+    shred: { per: 0.02, max: 10 }, breakMul: 1.2,
+    look: { armorColor: 0x455a64, swordColor: 0x90a4ae, swordLen: 1.1, cape: 0x263238, weapon: 'axe' },
+  },
+  exorcist: {
+    name: 'エクソシスト', role: '怒ったボスに強い', color: '#fffde7',
+    stats: { hp: 110, atk: 13, speed: 6.5 },
+    basic: { type: 'shot', cd: 0.45, speed: 26, mult: 0.8, color: 0xfffde7, size: 0.26, range: 22 },
+    q: { id: 'holybind', kind: 'debuff', name: '聖なる縛り', desc: 'ボスを6秒間 鈍らせる', cd: 12, color: 0xfff9c4, debuffs: [{ name: 'slow', dur: 6, mul: 0.65 }] },
+    e: { id: 'purgelight', kind: 'cleanse', name: '祓いの光', desc: '周り6mの敵弾を消し、周りの敵を打つ', cd: 9, radius: 6, mult: 1.4, color: 0xfff59d },
+    r: { id: 'exorcism', kind: 'beam', name: '大祓', desc: '前方に聖なる光線を2秒間 浴びせ続ける', len: 18, width: 2.4, mult: 0.9, ticks: 14, every: 0.14, color: 0xffffff },
+    trait: '怒り状態・気絶中のボスへのダメージ 1.6倍',
+    vsRage: 1.6, breakMul: 1,
+    look: { armorColor: 0xfafafa, swordColor: 0xffd54f, swordLen: 0.9, cape: 0x212121, weapon: 'staff', hat: 0x212121 },
+  },
+  stickybomber: {
+    name: '吸着爆弾魔', role: '貼り付けて時間差で爆破', color: '#ff7043',
+    stats: { hp: 105, atk: 14, speed: 6.7 },
+    basic: { type: 'shot', cd: 0.45, speed: 24, mult: 0.8, color: 0xff8a65, size: 0.24, range: 22 },
+    q: { id: 'stickybomb', kind: 'sticky', name: '吸着爆弾', desc: '一番近いボスに爆弾を貼り付ける。2秒後に大爆発', cd: 6, range: 18, delay: 2, radius: 3, mult: 4, color: 0xff7043 },
+    e: { id: 'stickytrio', kind: 'sticky', name: '三連吸着', desc: '爆弾を3つ貼り付けて順番に爆発', cd: 10, count: 3, range: 18, delay: 1.5, radius: 3, mult: 2.4, color: 0xff5722 },
+    r: { id: 'stickyparty', kind: 'sticky', name: '爆弾まつり', desc: '爆弾を8つ貼り付けて連続で大爆発', count: 8, range: 22, delay: 1.5, radius: 3.6, mult: 3.2, color: 0xdd2c00 },
+    trait: '貼り付けた爆弾はボスが動いてもついていく',
+    breakMul: 1,
+    look: { armorColor: 0x3e2723, swordColor: 0xff7043, swordLen: 0.6, cape: 0xbf360c, weapon: 'flask' },
+  },
+  bellringer: {
+    name: '鐘撞き', role: '弾幕を遅くする', color: '#ffe082',
+    stats: { hp: 135, atk: 13, speed: 6.3 },
+    basic: { type: 'melee', combo: [{ dur: 0.38, hit: 0.15, mult: 1.1 }, { dur: 0.38, hit: 0.15, mult: 1.1 }, { dur: 0.55, hit: 0.22, mult: 1.7 }], range: 2.7, arc: 2.6, heavyBonus: 0.3 },
+    q: { id: 'slowbell', kind: 'bell', name: '眠りの鐘', desc: '鐘を鳴らして4秒間 敵弾を半分の速さにする', cd: 12, mul: 0.5, dur: 4, mult: 1.2, radius: 4, color: 0xffe082 },
+    e: { id: 'bellslam', kind: 'burst', name: '鐘打ち', desc: '鐘を振り回して周りを3回 打つ', cd: 7, ticks: 3, every: 0.22, mult: 1.6, radius: 4, color: 0xffd54f },
+    r: { id: 'grandbell', kind: 'bell', name: '大鐘', desc: '8秒間 敵弾を 30% の速さにし、周りに大きな衝撃', mul: 0.3, dur: 8, mult: 4, radius: 6, color: 0xffca28 },
+    trait: '鐘の音は自分の周りだけでなく、画面中の敵弾を遅くする',
+    breakMul: 1.1,
+    look: { armorColor: 0x5d4037, swordColor: 0xffe082, swordLen: 1.0, cape: 0x8d6e63, weapon: 'mace' },
+  },
+  gardener: {
+    name: '庭師', role: '花を植えて咲かせる', color: '#f8bbd0',
+    stats: { hp: 110, atk: 13, speed: 6.6 },
+    basic: { type: 'shot', cd: 0.45, speed: 22, mult: 0.8, color: 0xf8bbd0, size: 0.26, range: 22 },
+    q: { id: 'flowerbed', kind: 'zone', zone: 'field', name: '花壇', desc: '狙った場所に5秒の花壇（敵に継続ダメージ・味方を少し回復）。咲き終わると爆発', cd: 8, at: 'aim', dist: 5, radius: 3.5, dur: 5, every: 0.5, mult: 0.3, heal: 0.005, endBurst: 3, color: 0xf48fb1 },
+    e: { id: 'vinewhip', kind: 'cone', name: 'つる打ち', desc: '前方をつるで打つ', cd: 5, mult: 1.8, range: 4.5, arc: 1.2, color: 0x66bb6a, melee: false },
+    r: { id: 'blossom', kind: 'zone', zone: 'field', name: '満開', desc: '足元に大きな花畑（8秒）。咲き終わると大爆発', radius: 7, dur: 8, every: 0.5, mult: 0.5, heal: 0.008, endBurst: 6, color: 0xec407a },
+    trait: '花は咲き終わると爆発する',
+    breakMul: 1,
+    look: { armorColor: 0x558b2f, swordColor: 0xf8bbd0, swordLen: 0.9, cape: 0xad1457, weapon: 'staff', hat: 0x8bc34a },
+  },
+  echomage: {
+    name: '残響術士', role: '技がもう一度響く', color: '#b388ff',
+    stats: { hp: 100, atk: 13, speed: 6.5 },
+    basic: { type: 'shot', cd: 0.5, speed: 24, mult: 0.8, color: 0xb388ff, size: 0.26, range: 22 },
+    q: { id: 'echobolt', kind: 'shots', name: '響きの矢', desc: '3本の矢を撃つ（1秒後にもう一度）', cd: 5, count: 3, spread: 0.14, speed: 26, mult: 1.1, size: 0.28, range: 24, color: 0xb388ff },
+    e: { id: 'echopulse', kind: 'burst', name: '共鳴波', desc: '周りに音の波（1秒後にもう一度）', cd: 7, ticks: 2, every: 0.2, mult: 1.4, radius: 4.5, color: 0x7c4dff, melee: false },
+    r: { id: 'resonance', kind: 'beam', name: '大共鳴', desc: '前方に音の光線を浴びせる（1秒後にもう一度）', len: 16, width: 2.2, mult: 1.0, ticks: 10, every: 0.12, color: 0x651fff },
+    trait: 'Q・E・R が1秒後にもう一度発動する（威力は半分）',
+    echo: { delay: 1, mult: 0.5 }, breakMul: 1,
+    look: { armorColor: 0x311b92, swordColor: 0xb388ff, swordLen: 0.9, cape: 0x4527a0, weapon: 'lute' },
+  },
+  vanguard: {
+    name: '先駆け', role: 'ボス戦の出だしに強い', color: '#ef5350',
+    stats: { hp: 135, atk: 14, speed: 6.9 },
+    basic: { type: 'melee', combo: [{ dur: 0.3, hit: 0.1, mult: 1.0 }, { dur: 0.3, hit: 0.1, mult: 1.05 }, { dur: 0.48, hit: 0.18, mult: 1.6 }], range: 3.2, arc: 1.8, heavyBonus: 0.4 },
+    q: { id: 'spearcharge', kind: 'dash', name: '一番槍', desc: '前へ8m 突撃する（無敵）', cd: 6, mult: 2.2, dist: 8, time: 0.26, width: 1.6, color: 0xef5350 },
+    e: { id: 'sweepspear', kind: 'cone', name: '薙ぎ払い', desc: '槍で前方を大きく薙ぐ', cd: 5, mult: 2.0, range: 4.2, arc: 2.6, color: 0xe57373 },
+    r: { id: 'tokinokoe', kind: 'teambuff', name: '鬨の声', desc: '全員 10秒間 攻撃力 +25%', buff: 'warcry', dur: 10, vals: { atkMul: 1.25 }, color: 0xd50000, msg: '鬨の声！ 攻撃力アップ' },
+    trait: 'ボスが出てから15秒間 攻撃力 +40%（ボスごとに）',
+    vanguard: { dur: 15, atkMul: 1.4 }, breakMul: 1,
+    look: { armorColor: 0xb71c1c, swordColor: 0xeceff1, swordLen: 1.3, cape: 0xffd600, weapon: 'spear' },
+  },
+  conductor: {
+    name: '指揮者', role: 'みんなの技を回す', color: '#ce93d8',
+    stats: { hp: 105, atk: 12, speed: 6.6 },
+    basic: { type: 'shot', cd: 0.45, speed: 24, mult: 0.75, color: 0xe1bee7, size: 0.24, range: 22 },
+    q: { id: 'tempoup', kind: 'teambuff', name: 'アッチェレランド', desc: '周り10mの味方 8秒間 移動 +25%・攻撃力 +10%', cd: 13, radius: 10, buff: 'tempo', dur: 8, vals: { speedMul: 1.25, atkMul: 1.1 }, color: 0xce93d8, msg: 'テンポアップ！' },
+    e: { id: 'crescendo', kind: 'teamgauge', name: 'クレッシェンド', desc: '周り10mの味方の必殺ゲージ +12', cd: 14, radius: 10, amount: 12, color: 0xba68c8 },
+    r: { id: 'dacapo', kind: 'cdreset', name: 'ダ・カーポ', desc: '全員の Q・E のクールダウンをすぐ終わらせる', color: 0xab47bc },
+    trait: '味方を支えるほど戦いが回る',
+    breakMul: 1,
+    look: { armorColor: 0x212121, swordColor: 0xfafafa, swordLen: 0.6, cape: 0x6a1b9a, weapon: 'staff' },
+  },
+  sacrifice: {
+    name: '献身者', role: '身を削って仲間を起こす', color: '#ef9a9a',
+    stats: { hp: 125, atk: 12, speed: 6.5 },
+    basic: { type: 'shot', cd: 0.5, speed: 22, mult: 0.8, color: 0xef9a9a, size: 0.26, range: 22 },
+    q: { id: 'bloodward', kind: 'teambuff', name: '血の盾', desc: '周り8mの味方にバリア（最大 HP の 20%・6秒）', cd: 14, radius: 8, buff: 'barrier', dur: 6, vals: { shield: 0.2 }, color: 0xe57373, msg: '血の盾が張られた！' },
+    e: { id: 'offering', kind: 'teamgauge', name: '捧げもの', desc: '周り10mの味方の必殺ゲージ +10', cd: 14, radius: 10, amount: 10, color: 0xef5350 },
+    r: { id: 'lastrites', kind: 'reviveall', name: '身代わりの儀', desc: '自分の HP が 1 になる代わりに、倒れた仲間を全員 HP 30% で起こす（1回の挑戦で1度だけ）', hp: 0.3, oncePerRun: true, color: 0xd32f2f },
+    trait: '回復はできないが、仲間を起こせる',
+    breakMul: 1,
+    look: { armorColor: 0x7f0000, swordColor: 0xef9a9a, swordLen: 0.9, cape: 0x3e0000, weapon: 'staff', hat: 0x7f0000 },
+  },
 };
 
 export const JOB_ORDER = ['swordsman', 'knight', 'mage', 'priest', 'archer', 'ninja', 'bard', 'summoner',
@@ -987,23 +1165,27 @@ export const JOB_ORDER = ['swordsman', 'knight', 'mage', 'priest', 'archer', 'ni
   'machinegunner', 'flamer', 'rocketeer', 'medic', 'hammer', 'dualblade', 'shielder', 'knifer',
   'laser', 'cryo', 'asura', 'falconer', 'vampire', 'gunblade', 'javelin', 'maid',
   'mimic', 'phoenix', 'weather', 'assassin', 'engineer', 'dimension', 'onmyoji', 'hunter',
-  'gladiator', 'elementalist', 'werewolf', 'fortress', 'healfist', 'sage', 'acrobat', 'driller'];
+  'gladiator', 'elementalist', 'werewolf', 'fortress', 'healfist', 'sage', 'acrobat', 'driller',
+  'absorber', 'reflector', 'drummer', 'charger', 'thornknight', 'splitter', 'boomeranger', 'shredder',
+  'exorcist', 'stickybomber', 'bellringer', 'gardener', 'echomage', 'vanguard', 'conductor', 'sacrifice'];
 
 /**
  * 近接職の底上げ（被弾しやすいのに火力が出ていなかったので）：通常攻撃が近接の職業は HP・攻撃力を一括で上げる
  * 職業データを書いた後に掛けるので、準備画面の数字にも反映される
  */
-export const MELEE_BUFF = { hp: 1.8, atk: 2.5 }; // 2026-11-11：近接の火力を2倍（1.25→2.5）、HP を 1.3→1.8 に
+export const MELEE_BUFF = { hp: 2.3, atk: 3.5, dmgTaken: 0.8, stamina: 100 }; // 近接はまだ弱かったので火力 3.5倍・HP 2.3倍・被ダメ -20%・スタミナ +100
 for (const id of JOB_ORDER) {
   const J = JOBS[id];
   if (J.basic.type !== 'melee') continue;
   J.stats.hp = Math.round(J.stats.hp * MELEE_BUFF.hp);
   J.stats.atk = Math.round(J.stats.atk * MELEE_BUFF.atk);
+  J.dmgTaken = (J.dmgTaken ?? 1) * MELEE_BUFF.dmgTaken;
+  J.staminaBonus = MELEE_BUFF.stamina; // スタミナの最大値に足す
 }
 export const DEFAULT_JOB = 'swordsman';
 
-/** レイドの人数補正：ボスの HP・ブレイク値の上限に掛ける（1人 1.0 → 4人 2.65 → 8人 4.85） */
-export const RAID_SCALE = (n) => 1 + 0.55 * (Math.max(1, n) - 1);
+/** 人数補正：敵（ボス・雑魚）の HP とブレイク値の上限に掛ける。人数 × 1.5 で固定（1人 1.5 → 4人 6 → 8人 12） */
+export const RAID_SCALE = (n) => Math.max(1, n) * 1.5;
 
 /** 1ルームの最大人数（ルーム中継の上限も 8） */
 export const MAX_RAID_PLAYERS = 8;

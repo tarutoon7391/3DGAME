@@ -159,11 +159,39 @@ export const AREAS = {
     ],
     signs: [{ x: 3.5, z: 42, key: 'wilds' }],
   },
+
+  // ステージ5：黄昏の古戦場（屋外・夕方）。広さと部屋の区切りはステージ3・4 と同じ。夕日を低く横から当てる
+  dusk: {
+    name: 'ステージ5　黄昏の古戦場', stage: 7, bgm: 'field', wallH: 3.2, castle: true, outdoor: true,
+    bounds: { minX: -22, maxX: 22, minZ: -164, maxZ: 50 },
+    sky: 0xff8a50, fog: [60, 190], ground: 0x8d6e3f,
+    sun: { color: 0xffa040, intensity: 2.6, hemi: 0.95, sky: 0xffcc99, ground: 0x5d4037, offset: { x: 40, y: 9, z: 18 } },
+    palette: { wall: 0x6d4c41, trim: 0x8d6e63, rock: 0x5d4037, pillar: 0x6d4c41, tileA: 0xa1887f, tileB: 0x8d7a4f, flame: 0xffab40, flameGlow: 0xff6d00, light: 0xffcc80, carpet: 0x8d6e63 },
+    carpet: false,
+    spawn: { x: 0, z: 44 },
+    gates: [],
+    solids: [
+      { minX: -22, maxX: -5, minZ: 30, maxZ: 50 },
+      { minX: 5, maxX: 22, minZ: 30, maxZ: 50 },
+    ],
+    doors: [{ z: 30, gap: 3 }, { z: -4, gap: 3 }, { z: -38, gap: 3 }, { z: -72, gap: 3.5 }, { z: -114, gap: 3.5 }],
+    pillars: [],
+    torches: [],
+    bosses: [
+      { key: 'cerberus', x: 0, z: 12, triggerZ: 25, door: 0, respawn: { x: 0, z: 44 }, circle: 0xff3d00, label: '第1の戦場' },
+      { key: 'basilisk', x: 0, z: -22, triggerZ: -9, door: 1, respawn: { x: 0, z: -0.5 }, circle: 0x689f38, label: '第2の戦場' },
+      { key: 'firebird', x: 0, z: -56, triggerZ: -43, door: 2, respawn: { x: 0, z: -34.5 }, circle: 0xff6d00, label: '第3の戦場' },
+      { x: 0, z: -94, triggerZ: -77, door: 3, respawn: { x: 0, z: -68.5 }, circle: 0xbf360c, label: '第4の戦場（2体同時）',
+        pair: [{ key: 'minotaur', x: -7, z: -94 }, { key: 'harpy', x: 7, z: -98 }] },
+      { key: 'ragna', x: 0, z: -142, triggerZ: -120, door: 4, respawn: { x: 0, z: -110.5 }, circle: 0xd84315, label: '黄昏の玉座' },
+    ],
+    signs: [{ x: 3.5, z: 42, key: 'dusk' }],
+  },
 };
 
 
 /** ステージの順番（つづきから・移行用） */
-export const AREA_ORDER = ['forest', 'canyon', 'dungeon', 'castle', 'abyss', 'wilds'];
+export const AREA_ORDER = ['forest', 'canyon', 'dungeon', 'castle', 'abyss', 'wilds', 'dusk'];
 
 /** 古いセーブ（version 1）のエリア id → 新しい id */
 export const OLD_AREA_MAP = { village: 'forest', field: 'canyon', dungeon: 'dungeon' };
@@ -186,7 +214,11 @@ export const COURSES = [
   },  {
     key: 'wilds', label: 'ステージ4', name: '竜の高原', start: 'wilds', areas: ['wilds'], recKey: 'records4',
     desc: '屋外でドラゴンや魔獣と5連戦。4戦目は2体同時、最後は古竜', clearMsg: '古竜エルドラードを打ち倒した！',
+  },  {
+    key: 'dusk', label: 'ステージ5', name: '黄昏の古戦場', start: 'dusk', areas: ['dusk'], recKey: 'records5',
+    desc: '夕暮れの戦場で魔獣と5連戦。4戦目は2体同時、最後は黄昏竜ラグナ', clearMsg: '黄昏竜ラグナを打ち倒した！',
   },
+
 
 
 ];

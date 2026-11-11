@@ -9,7 +9,9 @@ import { angleDiff, lerpAngle, yawTo, rand } from './util.js';
 import { hurtPlayer, bossTarget } from './combat.js';
 import { HIT } from './data/player.js';
 
-const BREAK = { ratio: 0.22, stun: 4, dmgMul: 1.5 }; // ブレイク値の上限＝最大HP×ratio、気絶秒数、気絶中の被ダメ倍率
+const BREAK = { ratio: 0.22, stun: 4, dmgMul: 1.5 };
+/** 気絶系の効き目の減り方：かかるたびに ×0.7（最低 25%）。ブレイク気絶と時間停止で回数を共有 */
+const CC_DECAY = { per: 0.7, min: 0.25 }; // ブレイク値の上限＝最大HP×ratio、気絶秒数、気絶中の被ダメ倍率
 
 /**
  * @param key BOSSES のキー
@@ -141,6 +143,7 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
     if (b.state === 'rage') dmg = 0; // 怒りの咆哮中は無敵
     if (b.state === 'stun') dmg = Math.round(dmg * BREAK.dmgMul);
     if (b.debuffs.vuln) dmg = Math.round(dmg * b.debuffs.vuln.mul); // 腐食：被ダメージ増
+    if (b.shred) dmg = Math.round(dmg * (1 + b.shred.n * b.shred.per)); // 鎧砕き
     b.hp = Math.max(0, b.hp - dmg);
     b.flash = 0.1;
     if (b.state !== 'stun' && b.active && b.state !== 'rage' && b.state !== 'intro') {
@@ -201,15 +204,23 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
     }
   }
 
+  /** 気絶系の効き目（かかった回数が多いほど短い） */
+  function ccMul() {
+    const k = Math.max(CC_DECAY.min, Math.pow(CC_DECAY.per, b.ccCount || 0));
+    b.ccCount = (b.ccCount || 0) + 1;
+    return k;
+  }
   function breakDown() {
     cancelAll();
     b.brk = 0;
+    const k = ccMul();
+    b.stunFor = BREAK.stun * k;
     b.state = 'stun';
     b.t = 0;
     game.sound.se('slam');
     game.fx.shake(0.8);
     game.fx.burst(b.pos.x, C.hpY * 0.8, b.pos.z, 0xffee58, 50, { speed: 6, up: 5, life: 0.9 });
-    game.toast(`ブレイク！ ${C.name}が気絶した！ 今がチャンス（被ダメージ ${BREAK.dmgMul}倍）`, 2600);
+    game.toast(`ブレイク！ ${C.name}が${b.stunFor.toFixed(1)}秒 気絶した！ 今がチャンス（被ダメージ ${BREAK.dmgMul}倍）${k < 1 ? '　※慣れてきて気絶が短くなっている' : ''}`, 2600);
   }
 
   function enrage() {
@@ -602,6 +613,7 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
       if (d.t <= 0) delete b.debuffs[k];
     }
     if (b.freezeImmune > 0) b.freezeImmune -= rawDt; // 時間停止の耐性
+    if (b.shred && (b.shred.t -= rawDt) <= 0) b.shred = null; // 鎧砕きは殴られないと戻る
     // 時魔導士の鈍化：ボスの時間そのものを遅くする（移動・予備動作・弾幕の間隔すべて）
     const dt = b.debuffs.slow ? rawDt * b.debuffs.slow.mul : rawDt;
     b.t += dt;
@@ -634,7 +646,7 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
       case 'stun':
         poseStun();
         if (Math.random() < 0.3) game.fx.burst(b.pos.x + rand(-1, 1), C.hpY * 0.9, b.pos.z + rand(-1, 1), 0xffee58, 1, { speed: 1, up: 1, life: 0.5, grav: 0 });
-        if (b.t > BREAK.stun) { b.state = 'rest'; b.t = 0; m.root.position.y = 0; m.root.rotation.x = 0; }
+        if (b.t > (b.stunFor ?? BREAK.stun)) { b.state = 'rest'; b.t = 0; m.root.position.y = 0; m.root.rotation.x = 0; }
         break;
       case 'frozen':
         // 時間停止：その場で固まる（被ダメの増加はない）
@@ -954,12 +966,21 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
     state: b.state, pattern: b.pattern, raged: b.raged, active: b.active, alive: b.alive,
     vuln: !!b.debuffs.vuln, slow: !!b.debuffs.slow,
   });
+  /** ホスト：鎧砕き（重ねるほど被ダメ増。6秒殴られないと戻る） */
+  b.addShred = (per, max) => {
+    const n = Math.min(max, (b.shred?.n || 0) + 1);
+    b.shred = { n, per, t: 6 };
+  };
   /** ホスト：挑発 */
   b.setTaunt = (id, dur) => { b.taunt = { id, t: dur }; };
   /** ホスト：弱体化（vuln：被ダメ倍率、slow：時間の倍率） */
   b.setDebuff = (name, dur, mul) => {
-    b.debuffs[name] = { t: dur, mul };
-    game.toast(name === 'vuln' ? `${C.name}が腐食した！（被ダメージ ${Math.round((mul - 1) * 100)}% 増・${dur}秒）` : `${C.name}の動きが鈍った！（${dur}秒）`, 2000);
+    const had = b.debuffs[name];
+    // 強い方・長い方を残す（弱い鈍化で強い鈍化を上書きしない）
+    const better = !had || (name === 'slow' ? mul <= had.mul : mul >= had.mul);
+    b.debuffs[name] = better ? { t: Math.max(dur, had?.t || 0), mul } : { ...had, t: Math.max(had.t, dur) };
+    // お知らせは新しくかかったときだけ（連射・多段で毎回出ると画面が埋まる）
+    if (!had) game.toastOnce(name === 'vuln' ? `${C.name}が腐食した！（被ダメージ増）` : `${C.name}の動きが鈍った！`, 1600);
   };
   /** ホスト：時間停止（攻撃を中断して dur 秒 固まる） */
   b.freeze = (dur, immune = 15) => {
@@ -968,13 +989,15 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
       game.toast(`${C.name}には時間停止がまだ効かない（あと ${Math.ceil(b.freezeImmune)} 秒）`, 1800);
       return;
     }
+    const k = ccMul();
+    dur = Math.round(dur * k * 10) / 10;
     b.freezeImmune = dur + immune; // 止まっている間＋その後の耐性
     cancelAll();
     b.state = 'frozen';
     b.t = 0;
     b.frozenFor = dur;
     game.sound.se('gate');
-    game.toast(`時間停止！ ${C.name}が${dur}秒 止まった`, 2000);
+    game.toast(`時間停止！ ${C.name}が${dur}秒 止まった${k < 1 ? '（慣れてきて短くなっている）' : ''}`, 2000);
   };
 
   return b;

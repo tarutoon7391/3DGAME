@@ -81,6 +81,7 @@ export function createProjectiles(game) {
       range: o.range || 24, size: o.size || 0.3, color: o.color || 0xffffff, mult: o.mult || 1,
       pierce: !!o.pierce, explode: o.explode || 0, wobble: !!o.wobble, local: o.local !== false,
       gauge: o.gauge, hit: new Set(), onHit: o.onHit || null, dot: o.dot || null,
+      split: o.split || null, boomerang: !!o.boomerang, back: false,
     });
   }
 
@@ -101,6 +102,18 @@ export function createProjectiles(game) {
       s.x += s.vx * dt;
       s.z += s.vz * dt;
       s.dist += Math.hypot(s.vx, s.vz) * dt;
+      // ブーメラン：届く距離まで行ったら、投げた人の方へ戻ってくる（帰りも当たる）
+      if (s.boomerang && !s.back && s.dist > s.range) {
+        s.back = true;
+        s.dist = 0;
+        s.hit.clear();
+        const ow = s.owner.pos;
+        const len = Math.hypot(ow.x - s.x, ow.z - s.z) || 1;
+        const sp = Math.hypot(s.vx, s.vz);
+        s.vx = ((ow.x - s.x) / len) * sp;
+        s.vz = ((ow.z - s.z) / len) * sp;
+        s.range = len;
+      }
       let dead = s.dist > s.range || game.world.blocked(s.x, s.z, true);
       if (!dead) {
         forEachTarget(game, (e) => {
@@ -115,6 +128,15 @@ export function createProjectiles(game) {
               strike(game, s.owner, e, shotMult(s.owner, e, s.mult), { color: s.color, knock: 0.3, gauge: s.gauge });
               if (s.dot) addDot(game, s.owner, e, s.dot);
               s.onHit?.(e, s);
+            }
+            // 分裂術士：当たったところから小さな弾が放射状に分かれる（分かれた弾はもう分かれない）
+            if (s.split) {
+              const n = s.split.count;
+              const base = Math.atan2(s.vx, s.vz);
+              for (let k = 0; k < n; k++) {
+                const a = base + (k - (n - 1) / 2) * (s.split.spread || 0.6);
+                playerShot(s.owner, s.x - Math.sin(a) * 0.8, s.z - Math.cos(a) * 0.8, a, { speed: 22, mult: s.split.mult, color: s.color, size: s.size * 0.7, range: 9, local: s.local, gauge: 1 });
+              }
             }
             else game.fx.burst(s.x, 1, s.z, s.color, 4, { speed: 2, life: 0.25 });
             if (!s.pierce) dead = true;
@@ -160,11 +182,14 @@ export function createProjectiles(game) {
   }
 
   function update(dt) {
+    // 鐘撞き：鐘が鳴っている間は敵弾が遅くなる
+    if (slowT > 0) slowT -= dt;
+    const sdt = slowT > 0 ? dt * slowMul : dt;
     for (let i = 0; i < shots.length; i++) {
       const s = shots[i];
       if (!s.active) continue;
-      s.x += s.vx * dt;
-      s.z += s.vz * dt;
+      s.x += s.vx * sdt;
+      s.z += s.vz * sdt;
       s.life -= dt;
       s.spin += dt * 8;
       let dead = s.life <= 0 || game.world.blocked(s.x, s.z, true) || (game.inAegis && game.inAegis(s.x, s.z));
@@ -221,6 +246,14 @@ export function createProjectiles(game) {
     waves.length = 0;
   }
 
+  let slowT = 0;
+  let slowMul = 1;
+  /** 鐘撞き：dur 秒間、敵弾の速さを mul 倍に */
+  function slowShots(mul, dur) {
+    slowMul = mul;
+    slowT = Math.max(slowT, dur);
+  }
+
   /** (x,z) から r 以内の敵弾を消して、消した数を返す（メイドのお掃除） */
   function clearShotsNear(x, z, r) {
     let n = 0;
@@ -240,5 +273,5 @@ export function createProjectiles(game) {
     drawShots();
   }
 
-  return { enemyShot, playerShot, playerWave, update, clear, clearEnemyShots, clearShotsNear, activeEnemyShots: () => MAX_SHOTS - free.length };
+  return { enemyShot, playerShot, playerWave, update, clear, clearEnemyShots, clearShotsNear, slowShots, activeEnemyShots: () => MAX_SHOTS - free.length };
 }
