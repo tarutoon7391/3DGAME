@@ -14,8 +14,7 @@ export function calcDamage(atk, mult, def) {
 /** 生きている攻撃対象（雑魚＋戦闘中のボス）に fn を呼ぶ */
 export function forEachTarget(game, fn) {
   for (const e of game.enemies.list) if (e.alive) fn(e);
-  const b = game.boss;
-  if (b && b.active && b.alive) fn(b);
+  for (const b of game.bosses) if (b.active && b.alive) fn(b);
 }
 
 /**
@@ -34,7 +33,7 @@ export function strike(game, pl, target, mult, opts = {}) {
   const dx = target.pos.x - pl.pos.x;
   const dz = target.pos.z - pl.pos.z;
   const len = Math.hypot(dx, dz) || 1;
-  const brk = dmg * (melee ? 1 : GAUGE.breakShot) * (J.breakMul ?? 1);
+  const brk = dmg * (melee ? 1 : GAUGE.breakShot) * (J.breakMul ?? 1) * (opts.brkMul ?? 1);
   target.takeHit(game, dmg, dx / len, dz / len, knock, { brk, from: pl.id });
   pl.addGauge(opts.gauge ?? (melee ? GAUGE.gainMelee : GAUGE.gainShot));
   if (!pl.remote) {

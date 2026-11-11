@@ -9,9 +9,10 @@ const MAX_PLAYERS = MAX_RAID_PLAYERS;
 /**
  * @param {object} o
  *   settings: セーブの settings（name・job を読み書き）, save(): 設定を保存
- *   onSolo({job,name}), onStart({net, roster, step}), onBack()
+ *   onSolo({job,name}), onStart({net, roster, step, area}), onBack()
+ *   area: 挑むエリア（castle / abyss）。参加者はホストの 'start' に入っている area に従う
  */
-export function openLobby({ settings, save, onSolo, onStart, onBack }) {
+export function openLobby({ settings, save, onSolo, onStart, onBack, area = 'castle', heading = 'ステージ2　冥王の城' }) {
   let job = JOBS[settings.job] ? settings.job : 'swordsman';
   let name = settings.name || `ぼうけんしゃ${Math.floor(Math.random() * 900 + 100)}`;
   let net = null;
@@ -31,6 +32,7 @@ export function openLobby({ settings, save, onSolo, onStart, onBack }) {
         <span>HP ${J.stats.hp}・攻 ${J.stats.atk}・${J.basic.type === 'melee' ? '近接' : '飛び道具'}</span>
         <span><em>Q</em>${esc(J.q.name)}：${esc(J.q.desc)}</span>
         <span><em>E</em>${esc(J.e.name)}：${esc(J.e.desc)}</span>
+        <span><em>R</em>${esc(J.r.name)}：${esc(J.r.desc)}</span>
         <span class="trait">特性：${esc(J.trait)}</span>
       </button>`;
     }).join('')}</div>`;
@@ -70,13 +72,19 @@ export function openLobby({ settings, save, onSolo, onStart, onBack }) {
           <button type="button" class="g3-btn sub" data-act="leave">ルームを出る</button>
         </div>`;
     }
+    // 描き直してもスクロール位置が先頭に戻らないようにする（職業を選ぶたびに飛ばされないように）
+    const oldPanel = el.querySelector('.rpg-lobby-panel');
+    const keepPanel = oldPanel ? oldPanel.scrollTop : 0;
+    const keepEl = el.scrollTop;
     el.innerHTML = `<div class="rpg-lobby-panel">
-      <h2>ステージ2　冥王の城　―　レイド（1〜${MAX_PLAYERS}人）</h2>
-      <p class="rpg-small">職業を選んでください。左クリック：通常攻撃　Q：スキル　E：必殺技（攻撃を当てて溜める。近接ほど早く溜まる）<br>
+      <h2>${esc(heading)}　―　レイド（1〜${MAX_PLAYERS}人）</h2>
+      <p class="rpg-small">職業を選んでください。左クリック：通常攻撃　Q・E：スキル　R：必殺技（攻撃を当てて溜める。近接ほど早く溜まる）<br>
       ボスは近接で殴るとブレイク値が溜まり、満タンで気絶（被ダメージ1.5倍）。倒れた味方はそばに立つと蘇生できる。</p>
       ${msg ? `<p class="rpg-lobby-msg">${esc(msg)}</p>` : ''}
       ${body}
     </div>`;
+    el.querySelector('.rpg-lobby-panel').scrollTop = keepPanel;
+    el.scrollTop = keepEl;
   }
 
   el.addEventListener('input', (e) => {
@@ -128,8 +136,8 @@ export function openLobby({ settings, save, onSolo, onStart, onBack }) {
       } else if (act === 'go') {
         if (!net?.isHost) return;
         const roster = net.players.map((p) => ({ id: p.id, name: info.get(p.id)?.name || p.name, job: info.get(p.id)?.job || 'swordsman' }));
-        net.send('start', { roster, step: 0 });
-        startWith({ roster, step: 0 });
+        net.send('start', { roster, step: 0, area });
+        startWith({ roster, step: 0, area });
       }
     } catch (err) {
       leave();
@@ -159,7 +167,7 @@ export function openLobby({ settings, save, onSolo, onStart, onBack }) {
     if (closed) return;
     const n = net;
     close(false);
-    onStart({ net: n, roster: d.roster, step: d.step || 0 });
+    onStart({ net: n, roster: d.roster, step: d.step || 0, area: d.area || area });
   }
 
   function leave() {

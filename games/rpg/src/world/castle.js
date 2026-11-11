@@ -1,13 +1,19 @@
-// 冥王の城（ステージ2）：入口通路 → 中ボス1の間 → 中ボス2の間 → 冥王の間。部屋どうしは扉で区切る
+// ボス連戦の城（ステージ2 冥王の城・ステージ3 深淵の回廊）：入口通路 → ボスの間が扉で区切られて一直線に並ぶ
 import * as THREE from 'three';
 
-const WALL = 0x3a2d48;
-const TRIM = 0x6a4f80;
+// 色はエリア定義の palette で変えられる（ステージ2 の冥王の城が既定）
+const DEFAULT_PALETTE = {
+  wall: 0x3a2d48, trim: 0x6a4f80, rock: 0x2b2236, pillar: 0x4a3b5a, tileA: 0x352a40, tileB: 0x2a2233,
+  flame: 0xe040fb, flameGlow: 0xaa00ff, light: 0xc77dff, carpet: 0x6d0f1f,
+};
 
 export function buildCastle(ctx) {
   const { def, group } = ctx;
   const b = def.bounds;
   const H = def.wallH;
+  const C = { ...DEFAULT_PALETTE, ...(def.palette || {}) };
+  const WALL = C.wall;
+  const TRIM = C.trim;
 
   // 外壁
   ctx.box(0, 0, b.minZ - 0.5, b.maxX - b.minX + 2, H, 1, WALL);
@@ -16,11 +22,11 @@ export function buildCastle(ctx) {
   ctx.box(0, 0, b.maxZ + 0.5, b.maxX - b.minX + 2, H, 1, WALL);
   // 入口通路の両脇
   for (const s of def.solids) {
-    ctx.box((s.minX + s.maxX) / 2, 0, (s.minZ + s.maxZ) / 2, s.maxX - s.minX, H, s.maxZ - s.minZ, 0x2b2236, { collide: true });
+    ctx.box((s.minX + s.maxX) / 2, 0, (s.minZ + s.maxZ) / 2, s.maxX - s.minX, H, s.maxZ - s.minZ, C.rock, { collide: true });
   }
   // 柱
   for (const [x, z] of def.pillars) {
-    ctx.box(x, 0, z, 1.8, H, 1.8, 0x4a3b5a, { collide: true });
+    ctx.box(x, 0, z, 1.8, H, 1.8, C.pillar, { collide: true });
     ctx.box(x, 0, z, 2.4, 0.4, 2.4, TRIM);
     ctx.box(x, H - 0.4, z, 2.4, 0.4, 2.4, TRIM);
   }
@@ -32,12 +38,14 @@ export function buildCastle(ctx) {
   }
   const tileGeo = new THREE.PlaneGeometry(3.9, 3.9);
   tileGeo.rotateX(-Math.PI / 2);
-  ctx.instanced(tileGeo, ctx.mat(0x352a40), tilesA, { cast: false, receive: true });
-  ctx.instanced(tileGeo.clone(), ctx.mat(0x2a2233), tilesB, { cast: false, receive: true });
+  ctx.instanced(tileGeo, ctx.mat(C.tileA), tilesA, { cast: false, receive: true });
+  ctx.instanced(tileGeo.clone(), ctx.mat(C.tileB), tilesB, { cast: false, receive: true });
   // 冥王の間への赤い絨毯
-  const carpet = new THREE.Mesh(new THREE.PlaneGeometry(4, 40), ctx.mat(0x6d0f1f));
+  // 最後の部屋への絨毯（def.carpet { z, len } で位置と長さ）
+  const cp = def.carpet || { z: -56, len: 40 };
+  const carpet = new THREE.Mesh(new THREE.PlaneGeometry(4, cp.len), ctx.mat(C.carpet));
   carpet.rotation.x = -Math.PI / 2;
-  carpet.position.set(0, 0.01, -56);
+  carpet.position.set(0, 0.01, cp.z);
   carpet.receiveShadow = true;
   group.add(carpet);
 
@@ -89,14 +97,14 @@ export function buildCastle(ctx) {
   });
 
   // 松明（紫の炎。影は落とさない）
-  const flameMat = ctx.mat(0xe040fb, { emissive: 0xaa00ff, emissiveIntensity: 2 });
+  const flameMat = ctx.mat(C.flame, { emissive: C.flameGlow, emissiveIntensity: 2 });
   const lights = [];
   for (const [x, z] of def.torches) {
     ctx.box(x, 0, z, 0.25, 2.2, 0.25, 0x37273f);
     const f = new THREE.Mesh(new THREE.OctahedronGeometry(0.22, 0), flameMat);
     f.position.set(x, 2.45, z);
     group.add(f);
-    const l = new THREE.PointLight(0xc77dff, 24, 16, 1.4);
+    const l = new THREE.PointLight(C.light, 24, 16, 1.4);
     l.position.set(x, 2.8, z);
     group.add(l);
     lights.push({ l, f, p: Math.random() * 10 });
