@@ -11,7 +11,7 @@ const blink = (color, dist = 6) => [flashAt('self', color, 5), flashAt('front', 
 /** C の技の名前（試作の画像のラベル用） */
 export const C_NAMES = {
   swordsman: '受け流し', knight: '鉄壁', mage: '瞬間移動', priest: '清めの光', archer: '足止め矢', ninja: '変わり身', bard: '子守唄', summoner: '精霊強化',
-  lancer: '棒高跳び', monk: '受け身', alchemist: '回復薬の瓶', berserker: '狂化', chrono: '加速', gunner: '反動跳び', warlock: '身代わり人形', reaper: '首狩りの構え',
+  lancer: '棒高跳び', monk: '追撃', alchemist: '回復薬の瓶', berserker: '狂化', chrono: '加速', gunner: '反動跳び', warlock: '身代わり人形', reaper: '首狩りの構え',
   trapper: '落とし穴', samurai: '納刀ステップ', dancer: 'ターン', storm: '雷化', barrier: '転送結界', thief: 'すり抜け', astrologer: '星の加護', spellblade: '魔力の壁',
   dragonkin: '竜鱗', jester: 'びっくり箱', paladin: '聖なる行進', gunslinger: '早撃ち', chainer: '鎖の盾', darkknight: '闇の吸収', shaman: 'トーテム呼び寄せ', whip: '鞭渡り',
   shifter: '変化の固定', gambler: 'ダブルアップ', bomber: '爆風ジャンプ', souleater: '魂の灯', mirror: '鏡移し', gravity: '浮遊', speedster: '急停止', cursed: '呪いの移し',
@@ -34,7 +34,7 @@ const R = {
   bard: [vm('dance', 0.9), ['song', { r: 8, mood: 'lonely' }], ['orbit', { where: 'target', glyph: 'z', color: 0xb3e5fc, n: 4, r: 1.5, h: 2, top: true, dur: 4, size: 0.7, rise: 0.3 }]],
   summoner: [vm('raise', 0.5), ['orbit', { glyph: '✦', color: 0x81d4fa, n: 8, r: 1.4, h: 1.6, spin: 4, size: 0.5, dur: 1.2 }], ['ring', { glyph: '»', color: 0x81d4fa, r: 3, n: 10 }]],
   lancer: [vm('plant', 0.5, { hit: 0.25 }), ['burst', { color: 0xbcaaa4, n: 30, speed: 5, y: 0.3 }], ['streak', { where: 'front', dist: -14, color: 0xffe0b2, w: 0.5 }]],
-  monk: [vm('kiblast', 0.4), ['burst', { color: 0xffab40, n: 20 }], ['orbit', { color: 0xffab40, n: 6, r: 0.6, h: 1.4, dur: 2, size: 0.4 }]],
+  monk: [['burst', { color: 0xffab40, n: 20 }]], // 追撃の動きは技ごとに jobs.js の followup
   alchemist: [vm('toss4', 0.38), ['lob', { glyph: '⚗', color: 0x69f0ae, to: 'front', time: 0.4 }], ['ring', { glyph: '✚', color: 0x69f0ae, r: 4, at: 0.4 }], ['burst', { where: 'front', dist: 2.5, color: 0x69f0ae, n: 30, at: 0.4 }]],
   berserker: [vm('cheer', 0.8), aura(0xd50000, { opacity: 0.8 }), ['whiteout', { css: '#d50000', max: 0.35 }], shake(0.5)],
   chrono: [vm('raise', 0.6), ring('◷', 0xb388ff, 6, { n: 12 }), ['orbit', { glyph: '»', color: 0xb388ff, n: 8, r: 1.4, h: 0.6, spin: 6, size: 0.5, dur: 2 }]],
