@@ -314,6 +314,41 @@ const SKILLS = {
       }
     };
   },
+  // ---- 魔剣士 ----
+  manablade(game, p, d, local) {
+    // 魔刃一閃：魔力を込めた斬撃を飛ばす。魔力付与中は2倍で、紫に強く光る
+    const e = JOBS.spellblade.e;
+    const boosted = !!p.buffs.enchant;
+    startAction(p, 'cast', 0.3);
+    p.waveT = 0.4;
+    p.vmAnim = { kind: 'iai', t: 0, dur: 0.35 };
+    game.projectiles.playerWave(p, d.yaw, { mult: e.mult * (boosted ? e.enchantMul : 1), range: e.range, radius: e.radius, scale: e.scale * (boosted ? 1.35 : 1), color: boosted ? 0xb388ff : e.color, local, melee: false });
+    game.fx.burst(p.pos.x + Math.sin(d.yaw) * 1.5, 1.3, p.pos.z + Math.cos(d.yaw) * 1.5, boosted ? 0xb388ff : e.color, boosted ? 40 : 20, { speed: 7, up: 3, life: 0.5 });
+    game.sound.se('wave');
+    game.fx.shake(boosted ? 0.4 : 0.2);
+  },
+  arcanewave(game, p, d, local) {
+    // 魔剣解放：使える技（d.n 個）を待ち状態にするかわりに、その数だけ強く派手な魔力の刃
+    const r = JOBS.spellblade.r;
+    const n = Math.max(0, Math.min(3, d.n || 0));
+    const col = [0x7c4dff, 0x651fff, 0xd500f9, 0xff4081][n];
+    startAction(p, 'cast', 0.25 + r.windup);
+    p.waveT = 0.25;
+    game.skillFx?.arcaneStart?.(p, { windup: r.windup, color: col }, d.yaw);
+    if (local) game.toastOnce(`魔剣解放！ 技を ${n} 個つぎ込んだ`, 1400);
+    later(p, r.windup + 0.08, () => {
+      game.projectiles.playerWave(p, d.yaw, { mult: r.mults[n], range: r.range, radius: 2.2 + n * 0.5, scale: 2.4 + n * 0.8, color: col, local, melee: false });
+      // つぎ込んだ数だけ、左右に見た目だけの刃と光
+      for (let i = 1; i <= n; i++) {
+        for (const s of [-1, 1]) game.projectiles.playerWave(p, d.yaw + s * 0.12 * i, { mult: 0, range: r.range * 0.8, radius: 0, scale: 1.4 + n * 0.3, color: [0xb388ff, 0xea80fc, 0xffffff][i - 1], local: false });
+      }
+      game.fx.burst(p.pos.x + Math.sin(d.yaw) * 2, 1.6, p.pos.z + Math.cos(d.yaw) * 2, col, 40 + n * 30, { speed: 8 + n * 2, up: 4, life: 0.7 });
+      if (n >= 2) game.bossVfx?.play('flash', { color: col, dur: 0.4 + n * 0.1, peak: 0.2 + n * 0.1 });
+      game.fx.shake(0.5 + n * 0.2);
+      game.sound.se(n >= 2 ? 'roar' : 'wave');
+      game.sound.se('wave');
+    });
+  },
   // ---- 錬金術師 ----
   corrode(game, p, d, local) {
     const q = JOBS.alchemist.q;
@@ -785,6 +820,16 @@ function cast(game, p, id, d) {
     }
     p.chainFrom = null;
     Object.assign(d, { fu: f.id, yaw: f.yaw, x: +p.pos.x.toFixed(2), z: +p.pos.z.toFixed(2), fy: +(p.model.root.position.y || 0).toFixed(2) });
+  }
+  // 魔剣士の魔剣解放：いま使える Q・E・C の数を数え、すべて待ち状態にする（数だけ強くなる）
+  if (id === 'arcanewave') {
+    let n = 0;
+    for (const k of ['q', 'e', 'c']) {
+      if (!p.job[k] || p.cd[k] > 0) continue;
+      n++;
+      p.cd[k] = p.job[k].cd * (p.job.cdMul || 1);
+    }
+    d.n = n;
   }
   // 暗黒騎士：HP を払って撃つ技（足りなければ撃てない）
   if (sk?.hpCost) {

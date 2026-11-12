@@ -12,7 +12,7 @@ const blink = (color, dist = 6) => [flashAt('self', color, 5), flashAt('front', 
 export const C_NAMES = {
   swordsman: '受け流し', knight: '鉄壁', mage: '瞬間移動', priest: '清めの光', archer: '足止め矢', ninja: '変わり身', bard: '子守唄', summoner: '精霊強化',
   lancer: '棒高跳び', monk: '追撃', alchemist: '回復薬の瓶', berserker: '狂化', chrono: '加速', gunner: '反動跳び', warlock: '身代わり人形', reaper: '首狩りの構え',
-  trapper: '落とし穴', samurai: '納刀ステップ', dancer: 'ターン', storm: '雷化', barrier: '転送結界', thief: 'すり抜け', astrologer: '星の加護', spellblade: '魔力の壁',
+  trapper: '落とし穴', samurai: '納刀ステップ', dancer: 'ターン', storm: '雷化', barrier: '転送結界', thief: 'すり抜け', astrologer: '星の加護', spellblade: '魔力展開',
   dragonkin: '竜鱗', jester: 'びっくり箱', paladin: '聖なる行進', gunslinger: '早撃ち', chainer: '鎖の盾', darkknight: '闇の吸収', shaman: 'トーテム呼び寄せ', whip: '鞭渡り',
   shifter: '変化の固定', gambler: 'ダブルアップ', bomber: '爆風ジャンプ', souleater: '魂の灯', mirror: '鏡移し', gravity: '浮遊', speedster: '急停止', cursed: '呪いの移し',
   desperado: '踏みとどまり', cook: 'つまみ食い', drunkard: '千鳥足', sniper: '照準', prophet: '運命の書き換え', oni: '鬼の踏ん張り', ghost: '憑りつき移動', twins: 'ハート爆破',

@@ -30,7 +30,7 @@ export const C_SKILLS = {
   barrier: { id: 'c_barrier', kind: 'recall', name: '転送結界', desc: '1回目で結界を置き、2回目でそこへ戻る（20秒以内）', cd: 14, color: 0x80d8ff },
   thief: { id: 'c_thief', kind: 'blinkbehind', name: 'すり抜け', desc: '一番近いボスの背後へすり抜ける', cd: 8, color: 0x9e9e9e, after: { invuln: 0.4 } },
   astrologer: sb('c_astrologer', '星の加護', '3秒間 被ダメ -50%', 14, 0xfff59d, 'starguard', 3, { dmgMul: 0.5 }),
-  spellblade: { id: 'c_spellblade', kind: 'cleanse', name: '魔力の壁', desc: '魔力の壁で周りの敵弾を消す', cd: 12, radius: 4, color: 0x7c4dff },
+  spellblade: { id: 'c_spellblade', kind: 'zone', zone: 'totem', name: '魔力展開', desc: '足元に8秒間、中にいる味方の攻撃力 +50% の魔力の陣を広げる', cd: 20, radius: 6, dur: 8, color: 0x7c4dff, buff: { name: 'manafield', vals: { atkMul: 1.5 } } },
   dragonkin: sb('c_dragonkin', '竜鱗', '3秒間 被ダメ -40%、必殺ゲージ +10', 16, 0xff5722, 'scale', 3, { dmgMul: 0.6 }, { after: { gauge: 10 } }),
   jester: sb('c_jester', 'びっくり箱', '箱で気を引いて、2秒間 敵に気づかれない', 16, 0xffeb3b, 'jackbox', 2, {}, { after: { unseen: 2 } }),
   paladin: sb('c_paladin', '聖なる行進', '3秒間 被ダメ -50%・移動 +10%', 15, 0xffd54f, 'march', 3, { dmgMul: 0.5, speedMul: 1.1 }),
