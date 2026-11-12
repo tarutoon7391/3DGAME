@@ -3,7 +3,7 @@
 // 入力は直接読まず、game.js が作る intent（データ）を受け取って状態を更新する
 // remote: true のプレイヤーは「他の人の分身」。自分では動かさず、届いた位置へなめらかに寄せて描くだけ
 import { makeHero, animateWalk } from './models.js';
-import { PLAYER, STAMINA } from './data/player.js';
+import { PLAYER, STAMINA, CLOSE } from './data/player.js';
 import { JOBS, DEFAULT_JOB, GAUGE, REVIVE } from './data/jobs.js';
 import { lerpAngle, lerpAngle as la } from './util.js';
 import { meleeArc, strike, forEachTarget, radiusHit } from './combat.js';
@@ -117,6 +117,7 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
       }
       if (J.chainPer) a *= 1 + (p.chain || 0) * J.chainPer; // 格闘家の連打
       if (J.lowHpBonus) a *= 1 + J.lowHpBonus * (1 - p.hp / p.maxHp); // 狂戦士：HP が減るほど強い
+      if (p.closeIn()) a *= CLOSE.atkMul; // 近接職の肉薄ボーナス
       return a;
     },
     /** 被ダメージの倍率（職業の特性・バフ込み） */
@@ -130,7 +131,16 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
       if (J.stillGuard && p.still > 0.5) m *= J.stillGuard; // 要塞兵：止まっていると硬い
       if (p.buffs.aegis) m *= 0.5;
       if (J.summonGuard && game.allies?.ownedBy(p.id)) m *= J.summonGuard;
+      if (p.closeIn()) m *= CLOSE.dmgMul; // 近接職の肉薄ボーナス
       return m;
+    },
+    /** 近接職（タンク以外）がボスのすぐ近くにいるか（肉薄ボーナス） */
+    closeIn() {
+      if (!J.closeFighter || !p.alive) return false;
+      for (const b of game.bosses) {
+        if (b.active && b.alive && !b.hidden && Math.hypot(b.pos.x - p.pos.x, b.pos.z - p.pos.z) - b.radius < CLOSE.near) return true;
+      }
+      return false;
     },
     /** sec 秒前の HP（記録が無ければ undefined） */
     hpAgo(sec) {
@@ -368,6 +378,13 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
         const last = p.combo === J.basic.combo.length - 1;
         p.actT += dt;
         speedMul = 0.2;
+        if (p.lunge && p.lunge.t > 0) {
+          const s = Math.min(dt, p.lunge.t);
+          p.lunge.t -= s;
+          p.pos.x += p.lunge.vx * s;
+          p.pos.z += p.lunge.vz * s;
+          game.world.collide(p.pos, p.radius);
+        }
         if (!p.didHit && p.actT >= c.hit) {
           p.didHit = true;
           const crit = p.critNext || (last && J === JOBS.swordsman);
@@ -541,6 +558,26 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
     p.actId = (p.actId || 0) + 1;
     // 一人称は視点の向き、三人称は入力方向（無ければカメラの向き）へ振る
     p.yaw = !intent.lockYaw && Math.hypot(intent.moveX, intent.moveZ) > 0.01 ? Math.atan2(intent.moveX, intent.moveZ) : intent.aimYaw;
+    p.lunge = null;
+    if (J.closeFighter && !p.remote) {
+      // 踏み込み：前方の一番近い敵へ、届く距離まで少し寄る（三人称なら向きも合わせる）
+      let best = null;
+      let bd = Infinity;
+      forEachTarget(game, (e) => {
+        const d = Math.hypot(e.pos.x - p.pos.x, e.pos.z - p.pos.z) - e.radius;
+        if (d >= bd || d > J.basic.range + CLOSE.lungeMax + 1) return;
+        const a = Math.atan2(e.pos.x - p.pos.x, e.pos.z - p.pos.z);
+        if (Math.abs(Math.atan2(Math.sin(a - p.yaw), Math.cos(a - p.yaw))) > CLOSE.lungeArc) return;
+        bd = d;
+        best = { e, a };
+      });
+      if (best) {
+        if (!intent.lockYaw) p.yaw = best.a;
+        const gap = Math.min(CLOSE.lungeMax, bd - J.basic.range * 0.6);
+        const t = Math.max(0.06, J.basic.combo[i].hit);
+        if (gap > 0.05) p.lunge = { vx: (Math.sin(best.a) * gap) / t, vz: (Math.cos(best.a) * gap) / t, t };
+      }
+    }
     game.sound.se('swing');
   }
 

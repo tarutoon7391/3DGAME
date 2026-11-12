@@ -1192,6 +1192,7 @@ for (const id of JOB_ORDER) {
   if (!ROLES[id]) throw new Error(`職業 ${id} のロールが data/roles.js にない`);
   const rs = roleStats(id, J.basic.type);
   J.roleKey = ROLES[id];
+  J.closeFighter = J.basic.type === 'melee' && J.roleKey !== 'tank'; // 近接職（タンク以外）：肉薄ボーナスと踏み込み（data/player.js の CLOSE）
   J.stats = { hp: rs.hp, atk: rs.atk, speed: rs.speed };
   if (rs.dmgTaken !== 1) J.dmgTaken = (J.dmgTaken ?? 1) * rs.dmgTaken;
 }
