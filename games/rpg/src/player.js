@@ -8,7 +8,7 @@ import { PLAYER, STAMINA, CLOSE } from './data/player.js';
 import { JOBS, DEFAULT_JOB, GAUGE, REVIVE } from './data/jobs.js';
 import { lerpAngle, lerpAngle as la } from './util.js';
 import { meleeArc, strike, forEachTarget, radiusHit } from './combat.js';
-import { castQ, castE, castC, castR, basicShot } from './jobs.js';
+import { castQ, castE, castC, castR, basicShot, fireDeadeye } from './jobs.js';
 
 /** 空の入力（何も押していない） */
 export function emptyIntent(out = {}) {
@@ -112,6 +112,7 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
       p.mark = null;
       p.shotCd = 0;
       p.buffs = {};
+      p.deadeye = null;
       p.pending.length = 0;
       if (p.net) Object.assign(p.net, { x, z, yaw });
     },
@@ -226,6 +227,7 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
       }
       p.invuln = Math.max(0, p.invuln - dt);
       p.dodgeCd = Math.max(0, p.dodgeCd - dt);
+      if (p.deadeye) intent = updateDeadeye(dt, intent); // 構えている間は撃つ以外の操作を止める
       // Q のクールダウン（吟遊詩人の近くでは速く戻る）
       const cdRate = game.bardAura?.(p) || 1; // 吟遊詩人の近くでは速く戻る
       p.cd.q = Math.max(0, p.cd.q - dt * cdRate);
@@ -333,6 +335,7 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
         if (p === game.me()) game.toastOnce('鬼は回避できない！（そのかわり硬い）', 1200);
       } else if (intent.dodge && p.dodgeCd <= 0 && p.action !== 'dodge' && p.action !== 'dash' && canStamina) {
         const y = moving ? moveYaw : p.yaw + Math.PI;
+        p.rollMul = 1;
         p.action = 'dodge';
         p.actT = 0;
         p.dodgeX = Math.sin(y);
@@ -478,12 +481,13 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
       // 汎用：バフの speedMul（疾風の旋律・影分身・雷速・竜化など）
       for (const b of Object.values(p.buffs)) if (b.speedMul) speedMul *= b.speedMul;
       if (p.guarding) speedMul *= J.guard.speedMul; // 盾を構えている間は遅い
+      if (p.deadeye) speedMul *= J.r.speedMul ?? 0.5; // デッドアイの構え中は遅い
 
       // ---- 移動 ----
       let vx = 0;
       let vz = 0;
       if (p.action === 'dodge') {
-        const ds = PLAYER.dodgeSpeed * (J.dodgeDistMul ?? (J.closeFighter ? CLOSE.dodgeSpeedMul : 1)); // 近接職は遠くまで転がる（踊り子はさらに遠く）
+        const ds = PLAYER.dodgeSpeed * (J.dodgeDistMul ?? (J.closeFighter ? CLOSE.dodgeSpeedMul : 1)) * (p.rollMul || 1); // 近接職は遠くまで転がる（踊り子はさらに遠く・ローリングは 1.5倍）
         vx = p.dodgeX * ds;
         vz = p.dodgeZ * ds;
       } else if (p.action === 'dash') {
@@ -587,6 +591,29 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
       m *= k;
     }
     return m;
+  }
+
+  /** デッドアイの構え：溜め続け、左クリック（か auto 秒）で撃つ。ほかの技・回避・ダッシュは使えない */
+  const deadIntent = emptyIntent();
+  function updateDeadeye(dt, intent) {
+    const r = J.r;
+    const de = p.deadeye;
+    if (!p.alive || p.downed) {
+      p.deadeye = null;
+      delete p.buffs.deadeye;
+      return intent;
+    }
+    de.t += dt;
+    if (!intent.attack) de.ready = true; // 押しっぱなしのまま構えたときは、一度離してから
+    if ((de.ready && intent.attack) || de.t >= r.auto) {
+      fireDeadeye(game, p, Math.min(1, de.t / r.full));
+      p.deadeye = null;
+      delete p.buffs.deadeye;
+      p.shotCd = 0.6; // 撃った直後に通常攻撃が出ないように
+    } else p.buff('deadeye', 99);
+    // 移動と向きだけ通す
+    Object.assign(deadIntent, { moveX: intent.moveX, moveZ: intent.moveZ, aimYaw: intent.aimYaw, lockYaw: intent.lockYaw });
+    return deadIntent;
   }
 
   /** 重騎士の盾構え：E 押しっぱなしで構える。耐久が尽きると壊れ、しまって満タンに戻るまで構えられない */
