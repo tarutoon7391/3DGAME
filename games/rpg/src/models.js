@@ -3,6 +3,7 @@
 // 個体ごとに色を変える material（被弾フラッシュ・予備動作の発光用）は ownMat で作り、消すときに dispose する。
 import * as THREE from 'three';
 import { buildWeapon, WEAPONS } from './weaponmodel.js';
+import { COSTUMES } from './costumes.js';
 
 const WEAPON_SCALE = 1.45; // 一人称の武器の大きさ → 体に持たせる大きさ
 
@@ -103,23 +104,28 @@ export function animateWalk(m, phase, amount, withRightArm = true) {
  */
 export function makeHero(look) {
   const swordMat = new THREE.MeshStandardMaterial({ color: look.swordColor, metalness: 0.5, roughness: 0.35, flatShading: true, emissive: 0x000000 });
-  const armorMat = new THREE.MeshStandardMaterial({ color: look.armorColor, roughness: 0.7, flatShading: true, emissive: 0x000000 });
+  // 衣装スキン（costumes.js）がある職業は、服の色・髪・マントを衣装側に任せる
+  const costume = COSTUMES[look.jobId] || null;
+  const armorMat = new THREE.MeshStandardMaterial({ color: costume?.body ?? look.armorColor, roughness: 0.7, flatShading: true, emissive: 0x000000 });
   const h = humanoid({ clothMat: armorMat, pants: 0x3e2f23 });
   const hair = mat(0x5a3a1a);
-  const cape = look.cape ?? 0xb71c1c;
+  const cape = costume ? costume.cape : look.cape ?? 0xb71c1c;
   const weapon = look.weapon || 'sword';
-  part(box(0.56, 0.16, 0.56), hair, 0, 2.13, -0.02, h.root);
-  part(box(0.56, 0.32, 0.12), hair, 0, 1.96, -0.24, h.root);
-  if (look.hat) {
-    // とんがり帽子（魔法使い・僧侶など）
-    part(box(0.7, 0.06, 0.7), mat(look.hat), 0, 2.2, 0, h.root);
-    part(cone(0.3, 0.6, 6), mat(look.hat), 0, 2.52, 0, h.root);
-  } else {
-    part(box(0.5, 0.06, 0.3), mat(cape), 0, 2.02, 0.05, h.root); // はちまき
+  if (costume) costume.build(h); // 髪・鎧・小物は衣装側
+  else {
+    part(box(0.56, 0.16, 0.56), hair, 0, 2.13, -0.02, h.root);
+    part(box(0.56, 0.32, 0.12), hair, 0, 1.96, -0.24, h.root);
+    if (look.hat) {
+      // とんがり帽子（魔法使い・僧侶など）
+      part(box(0.7, 0.06, 0.7), mat(look.hat), 0, 2.2, 0, h.root);
+      part(cone(0.3, 0.6, 6), mat(look.hat), 0, 2.52, 0, h.root);
+    } else {
+      part(box(0.5, 0.06, 0.3), mat(cape), 0, 2.02, 0.05, h.root); // はちまき
+    }
   }
   if (look.mask) part(box(0.52, 0.18, 0.06), mat(0x212121), 0, 1.78, 0.25, h.root); // 忍者の覆面
   // マント
-  part(box(0.66, 0.9, 0.06), mat(cape), 0, 1.1, -0.26, h.root);
+  if (cape != null) part(box(0.66, 0.9, 0.06), mat(cape), 0, 1.1, -0.26, h.root);
   // 腕の左右：前を向いた体の右手は -X 側。武器を持つ armR を体の右側へ置く
   h.armR.position.x = -0.47;
   h.armL.position.x = 0.47;
@@ -195,9 +201,11 @@ export function makeHero(look) {
     blade.position.y = -0.2 - 0.5 * look.swordLen;
   }
   // 盾（重騎士は大盾。飛び道具の職業は持たない）
+  // 衣装スキンで服の色が変わっても、盾は元の色のまま（持ち物は変えない）
   let shield = null;
-  if (look.bigShield) shield = part(box(0.1, 1.0, 0.7), armorMat, 0.16, -0.5, 0.05, h.armL);
-  else if (weapon === 'sword' || weapon === 'mace' || weapon === 'spear') shield = part(box(0.08, 0.55, 0.46), armorMat, 0.14, -0.42, 0.05, h.armL);
+  const shieldMat = costume ? mat(look.armorColor) : armorMat;
+  if (look.bigShield) shield = part(box(0.1, 1.0, 0.7), shieldMat, 0.16, -0.5, 0.05, h.armL);
+  else if (weapon === 'sword' || weapon === 'mace' || weapon === 'spear') shield = part(box(0.08, 0.55, 0.46), shieldMat, 0.14, -0.42, 0.05, h.armL);
   h.armR.rotation.x = -0.9;
   return { ...h, sword, blade, swordMat, armorMat, shield }; // shield：盾（聖騎士の神の盾で大きくなる）
 }
