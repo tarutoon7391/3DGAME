@@ -2,6 +2,7 @@
 // 職業（data/jobs.js）で能力と攻撃が変わる。スキルの中身は src/jobs.js
 // 入力は直接読まず、game.js が作る intent（データ）を受け取って状態を更新する
 // remote: true のプレイヤーは「他の人の分身」。自分では動かさず、届いた位置へなめらかに寄せて描くだけ
+import * as THREE from 'three';
 import { makeHero, animateWalk } from './models.js';
 import { PLAYER, STAMINA, CLOSE } from './data/player.js';
 import { JOBS, DEFAULT_JOB, GAUGE, REVIVE } from './data/jobs.js';
@@ -12,6 +13,7 @@ import { castQ, castE, castC, castR, basicShot } from './jobs.js';
 /** 空の入力（何も押していない） */
 export function emptyIntent(out = {}) {
   out.moveX = 0; out.moveZ = 0; out.aimYaw = 0;
+  out.holdE = false; // E を押しっぱなし（重騎士の盾構え）
   out.attack = false; out.dodge = false; out.dash = false; out.skillQ = false; out.skillE = false; out.skillC = false; out.skillR = false; out.interact = false;
   out.lockYaw = false; // true なら体の向きを常に aimYaw（一人称：カメラの水平方向）に合わせる
   return out;
@@ -23,6 +25,15 @@ export function emptyIntent(out = {}) {
 export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = false, id = 'local', name = '' } = {}) {
   const J = JOBS[job] || JOBS[DEFAULT_JOB];
   const model = makeHero({ ...J.look, jobId: job in JOBS ? job : DEFAULT_JOB, accent: parseInt(String(J.color || '#ffd54f').replace('#', ''), 16) }); // 一人称と同じ武器を右手に
+  // 重騎士の盾構え：体の前に半透明の光の盾（体の子なので向きは体と同じ。一人称の自分は画面の縁で見せる）
+  let guardMesh = null;
+  if (J.guard) {
+    const gm = new THREE.MeshBasicMaterial({ color: 0x80d8ff, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
+    guardMesh = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.15, 2.0, 20, 1, true, -0.95, 1.9), gm);
+    guardMesh.position.y = 1.05;
+    guardMesh.visible = false;
+    model.group.add(guardMesh);
+  }
   model.group.traverse((o) => { if (o.isMesh) o.castShadow = true; });
   game.scene.add(model.group);
 
@@ -39,6 +50,10 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
     stamina: (STAMINA.max + (J.staminaBonus || 0)) * (J.closeFighter ? CLOSE.staminaMul : 1),
     tired: false, // バテ状態（満タンに戻るまで回避・ダッシュ不可、足が遅い）
     staminaWait: 0, // 回復が始まるまでの残り秒
+    guardHp: J.guard ? J.stats.hp * J.guard.max : 0, // 重騎士の盾の耐久
+    guardBroken: false,
+    guardIdle: 9,
+    guarding: false,
     fight: { d: 0, h: 0 }, // いまのボス戦で与えたダメージ・回復した量（撃破後の順位表）
     dashing: false,
     yaw: Math.PI,
@@ -310,6 +325,7 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
       const moveYaw = moving ? Math.atan2(intent.moveX, intent.moveZ) : p.yaw;
       const canStamina = (!p.tired && p.stamina > 0) || !!p.buffs.gale;
       const busy = p.action === 'dodge' || p.action === 'spin' || p.action === 'cast' || p.action === 'dash';
+      if (J.guard) updateGuard(dt, intent, busy);
 
       // ---- 行動の開始 ----
       if (intent.dodge && J.noDodge) {
@@ -336,7 +352,14 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
         game.fx.burst(p.pos.x, 0.3, p.pos.z, 0xd7ccc8, 8, { speed: 2, up: 1, life: 0.4 });
       } else if (intent.dodge && p.tired && p === game.me()) {
         game.toastOnce('バテていて回避できない！');
-      } else if ((intent.skillQ || intent.skillE || (intent.skillC && J.c)) && !busy) {
+      } else if (J.guard && p.guarding && intent.attack && !busy) {
+        // 重騎士：盾を構えている間の左クリックはシールドバッシュ
+        if (p.cd.e > 0) {
+          if (p === game.me()) game.toastOnce(`シールドバッシュはあと ${p.cd.e.toFixed(1)} 秒`, 900);
+        } else if (castE(game, p, intent)) {
+          p.cd.e = J.e.cd;
+        }
+      } else if ((intent.skillQ || (intent.skillE && !J.guard) || (intent.skillC && J.c)) && !busy) {
         // Q・E・C：クールダウン制のスキル
         const slot = intent.skillQ ? 'q' : intent.skillE ? 'e' : 'c';
         const sk = J[slot];
@@ -446,6 +469,7 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
       if (p.tired && !p.buffs.gale) speedMul *= PLAYER.tiredMul;
       // 汎用：バフの speedMul（疾風の旋律・影分身・雷速・竜化など）
       for (const b of Object.values(p.buffs)) if (b.speedMul) speedMul *= b.speedMul;
+      if (p.guarding) speedMul *= J.guard.speedMul; // 盾を構えている間は遅い
 
       // ---- 移動 ----
       let vx = 0;
@@ -464,6 +488,7 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
         if (p.action === 'none' && !intent.lockYaw) p.yaw = lerpAngle(p.yaw, moveYaw, Math.min(1, dt * 14));
       }
       if (intent.lockYaw && p.action !== 'dash') p.yaw = intent.aimYaw; // 一人称：攻撃も移動も視点の向きが基準
+      if (p.guarding) p.yaw = intent.aimYaw; // 盾は視点の向きに構える（三人称でも）
       vx += p.knockX;
       vz += p.knockZ;
       p.knockX *= Math.max(0, 1 - dt * 8);
@@ -524,6 +549,10 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
     const flick = p.remote ? Math.floor(performance.now() / 50) : Math.floor(p.invuln * 20);
     const blink = p.invuln > 0 && p.action !== 'dodge' && p.action !== 'dash' && flick % 2 === 0;
     model.group.visible = !blink && !p.hideBody; // 一人称では自分の体を描かない
+    if (guardMesh) {
+      guardMesh.visible = !!p.buffs.guard && p.alive;
+      if (guardMesh.visible) guardMesh.material.opacity = 0.28 + 0.1 * Math.sin(performance.now() / 90);
+    }
     let glow = p.buffs.courage ? 0x332200 : p.buffs.clone ? 0x220033 : 0x000000;
     // 回復ができる職業で遊んでいる人の画面では、HP が少ない（35% 以下）か倒れた仲間を赤く点滅させる
     if (p.remote && game.me()?.job.healer && (p.downed || p.hp / p.maxHp <= 0.35)) {
@@ -550,6 +579,27 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
       m *= k;
     }
     return m;
+  }
+
+  /** 重騎士の盾構え：E 押しっぱなしで構える。耐久が尽きると壊れ、しまって満タンに戻るまで構えられない */
+  function updateGuard(dt, intent, busy) {
+    const G = J.guard;
+    const max = p.maxHp * G.max;
+    if (intent.skillE && p.guardBroken && p === game.me()) game.toastOnce(`盾が壊れている（直るまで ${Math.ceil((max - p.guardHp) / (max * G.regen) + Math.max(0, G.delay - p.guardIdle))} 秒）`, 1200);
+    const want = intent.holdE && p.alive && !p.downed && !p.guardBroken && !busy && p.action !== 'attack';
+    if (want && !p.guarding) game.sound.se('seal');
+    p.guarding = want;
+    if (want) {
+      p.guardIdle = 0;
+      p.buff('guard', 0.2); // ほかの人の画面にも盾を見せる（バフの名前は 'ps' で届く）
+      return;
+    }
+    p.guardIdle += dt;
+    if (p.guardIdle >= G.delay && p.guardHp < max) p.guardHp = Math.min(max, p.guardHp + max * G.regen * dt);
+    if (p.guardBroken && p.guardHp >= max) {
+      p.guardBroken = false;
+      if (p === game.me()) game.toastOnce('盾が直った！', 1200);
+    }
   }
 
   function startCombo(i, intent) {

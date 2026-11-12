@@ -44,7 +44,7 @@ export function createTouch({ onPause, onView, allowMouse = false }) {
   rotate.innerHTML = '<div>📱↻<br>スマホを<b>横向き</b>にしてください</div>';
   document.body.appendChild(rotate);
 
-  const st = { mx: 0, my: 0, dash: false, attack: false, lookDx: 0, lookDy: 0, pressed: new Set() };
+  const st = { mx: 0, my: 0, dash: false, attack: false, lookDx: 0, lookDy: 0, pressed: new Set(), held: new Set() }; // held：押している間（盾構え）
   const stick = root.querySelector('.rt-stick');
   const base = root.querySelector('.rt-base');
   const knob = root.querySelector('.rt-knob');
@@ -130,6 +130,7 @@ export function createTouch({ onPause, onView, allowMouse = false }) {
       try { el.setPointerCapture(e.pointerId); } catch { /* 取れなくても動く */ }
       el.classList.add('down');
       st.pressed.add(k);
+      st.held.add(k);
       if (k === 'attack') {
         st.attack = true;
         lookStart(e); // 押したままドラッグで狙いを動かせる
@@ -138,6 +139,7 @@ export function createTouch({ onPause, onView, allowMouse = false }) {
     el.addEventListener('pointermove', (e) => { if (k === 'attack') lookMove(e); });
     const up = (e) => {
       el.classList.remove('down');
+      st.held.delete(k);
       if (k === 'attack') {
         st.attack = false;
         looks.delete(e.pointerId);

@@ -21,6 +21,11 @@ const smashTick = (color, r, big = false) => () => [vm('bigchop', 0.32), ['slam'
 import { SKILL_VIS_C, C_FRAMES } from './skillvis_c.js';
 
 export const SKILL_VIS = {
+  // ---- 剣士 ----
+  // 隼斬り：右・左に高速で斬って、縦の一撃で締める（一人称の腕は燕返しの動きを短く）
+  hayabusa: { cast: [vm('tsubame', 0.5, { w: 0.04, n: 2, every: 0.13, gap: 0.07 }), ['streak', { where: 'front', dist: 2, color: 0x80d8ff, at: 0.3 }]] },
+  // 奥義・乱れ桜：画面が淡い桜色に光り、刀を超高速で振り続ける
+  sakura: { cast: [vm('xstorm', 1.2, { every: 0.11 }), ['whiteout', { css: '#f8bbd0', max: 0.35, dur: 0.4 }], ['orbit', { glyph: '❀', color: 0xf8bbd0, n: 12, r: 1.6, h: 2, dur: 1.3, spin: 5, size: 0.45 }]] },
   // ---- 暗黒騎士 ----
   darkblade: { cast: [vm('iai', 0.4, { glow: 0x5a1a8a }), ['orbit', { color: 0xb388ff, n: 14, r: 0.7, h: 2.2, dur: 0.45, spin: 6, size: 0.3 }], vert({ r: 5, color: 0x9c27b0, at: 0.14 }), vert({ r: 5.4, color: 0x6a1b9a, white: false, at: 0.18, dur: 0.4 }), ['flash', { where: 'front', dist: 3, color: 0xb388ff, size: 5, at: 0.16 }], ['shake', { amt: 0.4, at: 0.14 }]] },
   darkveil: { cast: [vm('raise', 0.7), ['orbit', { tex: 'smoke', color: 0x6a1b9a, n: 12, r: 1, h: 2.4, rise: 0.5, size: 1.2, opacity: 0.7 }], ['dome', { color: 0x4a148c, r: 1.6, dur: 0.8 }]] },

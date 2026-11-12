@@ -43,9 +43,9 @@ export const JOBS = {
     name: '剣士', role: '近接アタッカー', color: '#ffd54f',
     power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: SWORD_COMBO, range: 2.8, arc: 2.2, heavyBonus: 0.4 },
-    q: { id: 'spin', name: '回転斬り', desc: '周囲をまとめて斬る', cd: 5, mult: 1.8, radius: 3.8 },
+    q: { id: 'hayabusa', name: '隼斬り', desc: '前へ踏み込みながら高速の3連撃（3撃目は強い）', cd: 5, mult: 0.85, last: 1.3, range: 3.4, arc: 1.7, step: 0.6, every: 0.13 },
     e: { id: 'galethrust', name: '疾風突き', desc: '前方へ5m 踏み込んで突く', cd: 6, mult: 1.9, dist: 5, time: 0.18, width: 1.3 },
-    r: { id: 'blade', name: '剣聖の一閃', desc: '前方へ巨大な斬撃を飛ばし、当たった敵をひるませる', mult: 4.5, range: 16, radius: 1.8 },
+    r: { id: 'sakura', name: '奥義・乱れ桜', desc: '一番近いボスへ一瞬で詰め寄り、桜吹雪の8連撃（最後は必ず会心）。使っている間は無敵', mult: 0.75, last: 2.6, hits: 8, every: 0.11, reach: 18, color: 0xf8bbd0 },
     trait: 'コンボ3段目が必ず会心。ブレイク値 1.3倍',
     breakMul: 1.3,
     look: { armorColor: 0x5d7fa8, swordColor: 0xcfd8dc, swordLen: 1.0, cape: 0xb71c1c, weapon: 'sword' },
@@ -55,9 +55,12 @@ export const JOBS = {
     power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.45, hit: 0.16, mult: 1.2 }, { dur: 0.6, hit: 0.25, mult: 2.0 }], range: 2.6, arc: 2.4, heavyBonus: 0.3 },
     q: { id: 'taunt', name: '挑発の雄叫び', desc: 'ボスの狙いを自分に集め、6秒間 被ダメージ半減', cd: 14, dur: 6 },
-    e: { id: 'bash', name: 'シールドバッシュ', desc: '盾を構えて4m 突進。ブレイク値が大きく溜まる', cd: 8, mult: 1.6, dist: 4, time: 0.22, width: 1.6, brkMul: 3 },
+    e: { id: 'bash', name: '盾構え／バッシュ', desc: 'E 押しっぱなしで盾を構え、前からの攻撃を完全に防ぐ（盾の耐久が尽きると壊れ、しまって回復するまで出せない）。構え中に左クリックでシールドバッシュ：前へ6m 突撃し、ぶつかったボスの動きと攻撃力を下げる', cd: 10, mult: 1.8, dist: 6, time: 0.28, width: 1.8, brkMul: 3,
+      hitDebuffs: [{ name: 'slow', dur: 4, mul: 0.7 }, { name: 'weak', dur: 6, mul: 0.7 }] }, // ぶつかったボスにだけ
+    // 盾構え：max は最大 HP に対する耐久、arc は防げる前方の角度（片側）。しまって delay 秒後から毎秒 regen（耐久の割合）ずつ戻る
+    guard: { max: 0.9, arc: 1.75, speedMul: 0.45, delay: 1.5, regen: 0.35 },
     r: { id: 'aegis', name: '守護結界', desc: '足元に7秒間の結界。中に入った敵弾を消し、中の味方の被ダメージ半減', dur: 7, radius: 5.5 },
-    trait: '被ダメージ -25%、ノックバックしない。ブレイク値 2倍',
+    trait: '被ダメージ -25%、ノックバックしない。ブレイク値 2倍。E は押しっぱなしの盾構え（クールダウンなし）',
     dmgTaken: 0.75, noKnock: true, breakMul: 2.0,
     look: { armorColor: 0x78909c, swordColor: 0xb0bec5, swordLen: 0.8, cape: 0x37474f, weapon: 'mace', bigShield: true },
   },

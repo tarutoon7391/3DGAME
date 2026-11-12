@@ -38,25 +38,69 @@ export function scaleSupport(eff, s = 1) {
 /** スキル本体。run(game, p, d, local)。d はデータ（位置・向きなど。ネットで送れる形） */
 const SKILLS = {
   // ---- 剣士 ----
-  spin(game, p, d, local) {
+  hayabusa(game, p, d, local) {
+    // 隼斬り：前へ少しずつ踏み込みながら、右・左・縦の高速3連撃
     const q = JOBS.swordsman.q;
-    startAction(p, 'spin', 0.5);
-    game.sound.se('spin');
-    p.skillTick = () => {
-      if (p.didSkill || p.actT < 0.15) return;
-      p.didSkill = true;
-      if (local) radiusHit(game, p, q.mult, q.radius, { melee: true, gauge: GAUGE.gainSkill });
-      game.fx.burst(p.pos.x, 1, p.pos.z, 0x80d8ff, 30, { speed: 9, up: 1.5, life: 0.45, size: 0.14, grav: 2 });
-      game.skillFx?.spin(p.pos.x, p.pos.z, q.radius, 0x80d8ff); // 技エフェクト（src/skillfx.js）
-      game.fx.shake(0.25);
-    };
+    startAction(p, 'cast', q.every * 3 + 0.12);
+    p.yaw = d.yaw;
+    for (let i = 0; i < 3; i++) {
+      later(p, 0.05 + i * q.every, () => {
+        const last = i === 2;
+        if (local) {
+          p.pos.x += Math.sin(d.yaw) * q.step;
+          p.pos.z += Math.cos(d.yaw) * q.step;
+          game.world.collide(p.pos, p.radius);
+          meleeArc(game, p, d.yaw, last ? q.last : q.mult, q.range + (last ? 0.4 : 0), q.arc, { gauge: GAUGE.gainSkill, knock: last ? 1.5 : 0.6, color: 0x80d8ff });
+        }
+        p.yaw = d.yaw;
+        game.skillFx?.swing(p, i, last, q.range + (last ? 0.4 : 0), q.arc, last ? 0xffffff : 0x80d8ff);
+        const fx = p.pos.x + Math.sin(d.yaw) * 2;
+        const fz = p.pos.z + Math.cos(d.yaw) * 2;
+        game.fx.burst(fx, 1.2, fz, 0x80d8ff, last ? 22 : 10, { speed: last ? 9 : 6, up: 2, life: 0.35, size: 0.12, grav: 1 });
+        game.sound.se(last ? 'crit' : 'swing');
+        game.fx.shake(last ? 0.35 : 0.15);
+      });
+    }
   },
-  blade(game, p, d, local) {
-    const e = JOBS.swordsman.r;
-    p.waveT = 0.4;
-    game.projectiles.playerWave(p, d.yaw, { mult: e.mult, range: e.range, radius: e.radius, scale: 1.8, color: 0xffe082, local, melee: true });
-    game.sound.se('wave');
-    game.fx.shake(0.3);
+  sakura(game, p, d, local) {
+    // 奥義・乱れ桜：一番近いボスへ一瞬で詰め寄り、桜吹雪の中で8連撃。最後の一撃は必ず会心
+    const r = JOBS.swordsman.r;
+    const hasBoss = d.bx !== undefined && Math.hypot(d.bx - d.x, d.bz - d.z) < r.reach + (d.br || 0);
+    const yaw = hasBoss ? Math.atan2(d.bx - d.x, d.bz - d.z) : d.yaw;
+    const gap = hasBoss ? Math.max(0, Math.hypot(d.bx - d.x, d.bz - d.z) - (d.br || 1) - 1.6) : 4;
+    const dashT = 0.16;
+    const flurry = r.every * r.hits + 0.25;
+    if (local) p.invuln = Math.max(p.invuln, dashT + flurry + 0.3);
+    p.yaw = yaw;
+    if (gap > 0.3) {
+      startAction(p, 'dash', dashT);
+      p.dodgeX = Math.sin(yaw);
+      p.dodgeZ = Math.cos(yaw);
+      p.dashSpeed = gap / dashT;
+      game.skillFx?.dash(p, yaw, gap, 1.6, r.color);
+    }
+    game.sound.se('spin');
+    game.fx.burst(p.pos.x, 1.4, p.pos.z, r.color, 40, { speed: 6, up: 4, life: 0.8, size: 0.16, grav: 1 });
+    const start = gap > 0.3 ? dashT : 0.02;
+    later(p, start, () => startAction(p, 'cast', flurry));
+    for (let i = 0; i < r.hits; i++) {
+      later(p, start + 0.05 + i * r.every, () => {
+        const last = i === r.hits - 1;
+        p.yaw = yaw;
+        const cx = p.pos.x + Math.sin(yaw) * 1.8;
+        const cz = p.pos.z + Math.cos(yaw) * 1.8;
+        if (local) meleeArc(game, p, yaw, last ? r.last : r.mult, 4.2, 2.6, { gauge: 0, crit: last, knock: last ? 2 : 0.3, color: r.color });
+        game.skillFx?.swing(p, i, last, last ? 4.6 : 3.6, 2.4, last ? 0xffffff : i % 2 ? 0xf48fb1 : 0xffffff);
+        // 桜の花びら
+        game.fx.burst(cx, 1.6, cz, i % 2 ? 0xf8bbd0 : 0xfce4ec, last ? 60 : 14, { speed: last ? 10 : 5, up: 3, life: last ? 1.4 : 0.9, size: 0.16, grav: 1.2 });
+        game.sound.se(last ? 'crit' : 'swing');
+        game.fx.shake(last ? 0.9 : 0.18);
+        if (last) {
+          game.enemyFx?.impact(cx, cz, 5, r.color, 'default');
+          if (local) game.fx.hitstop(0.18); // ひとりのときだけ一瞬止まる（協力プレイでは止めない）
+        }
+      });
+    }
   },
   // ---- 重騎士 ----
   taunt(game, p, d, local) {
@@ -400,9 +444,33 @@ const SKILLS = {
     dashStrike(game, p, d, local, JOBS.swordsman.e, 0xcfd8dc);
   },
   bash(game, p, d, local) {
+    // シールドバッシュ（盾を構えている間だけ）：前へ突撃し、最初にぶつかった相手で止まる。ボスなら動きと攻撃力を下げる
     const e = JOBS.knight.e;
-    dashStrike(game, p, d, local, e, 0x90a4ae, { brkMul: e.brkMul, knock: 2 });
+    startAction(p, 'dash', e.time);
+    p.dodgeX = Math.sin(d.yaw);
+    p.dodgeZ = Math.cos(d.yaw);
+    p.yaw = d.yaw;
+    p.dashSpeed = e.dist / e.time;
+    game.skillFx?.dash(p, d.yaw, e.dist, e.width, 0x80d8ff);
     game.skillFx?.shieldWall(p, e.time, 0x80d8ff); // 盾を構えて水色の壁ごと突撃
+    if (local) p.invuln = Math.max(p.invuln, e.time + 0.1);
+    game.sound.se('spin');
+    let done = false;
+    p.skillTick = () => {
+      game.fx.burst(p.pos.x, 1, p.pos.z, 0x80d8ff, 3, { speed: 2, up: 1, life: 0.3 });
+      if (done || !local) return;
+      forEachTarget(game, (t) => {
+        if (done || Math.hypot(t.pos.x - p.pos.x, t.pos.z - p.pos.z) > t.radius + e.width) return;
+        done = true;
+        strike(game, p, t, e.mult, { melee: true, gauge: GAUGE.gainSkill, brkMul: e.brkMul, knock: 2, color: 0x80d8ff });
+        if (game.bosses.includes(t)) for (const db of e.hitDebuffs) game.bossCommand({ type: 'debuff', ...db, sub: t.sub });
+        p.actT = p.actDur; // ぶつかったら止まる
+        game.fx.burst(t.pos.x, 1.5, t.pos.z, 0xffffff, 40, { speed: 8, up: 4, life: 0.5 });
+        game.fx.shake(0.6);
+        game.sound.se('slam');
+        game.raid?.sendSkill(p, '_bashhit', { x: +t.pos.x.toFixed(2), z: +t.pos.z.toFixed(2) });
+      });
+    };
   },
   icelance(game, p, d, local) {
     const e = JOBS.mage.e;
@@ -565,6 +633,11 @@ const SKILLS = {
     game.sound.se('spin');
   },
 };
+
+/** sec 秒後に fn（他の人の分身でも動く。倒れていたらやめる） */
+function later(p, sec, fn) {
+  setTimeout(() => { if (p.alive !== false) fn(); }, sec * 1000);
+}
 
 function startAction(p, action, dur) {
   p.action = action;
@@ -1414,6 +1487,10 @@ function shoot(game, p, d, local) {
   }
   game.sound.se('shoot');
 }
+SKILLS._bashhit = (game, p, d) => {
+  game.fx.burst(d.x, 1.5, d.z, 0xffffff, 40, { speed: 8, up: 4, life: 0.5 });
+  game.sound.se('slam');
+};
 SKILLS._dodgeblast = (game, p, d) => {
   game.fx.burst(d.x, 0.8, d.z, 0xffd54f, 24, { speed: 6, up: 4, life: 0.5 });
 };
