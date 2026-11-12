@@ -6,6 +6,8 @@
 
 /** ボスの HP にかける倍率（調整中の一時的なもの。1 で元どおり） */
 export const BOSS_HP_MUL = 0.5;
+/** 敵（ボス・雑魚）がプレイヤーに与えるダメージの倍率（調整中の一時的なもの。1 で元どおり） */
+export const ENEMY_DMG_MUL = 2;
 
 export const ENEMIES = {
   // ---- 1-1・1-2 ----
