@@ -483,7 +483,7 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
       let vx = 0;
       let vz = 0;
       if (p.action === 'dodge') {
-        const ds = PLAYER.dodgeSpeed * (J.closeFighter ? CLOSE.dodgeSpeedMul : 1); // 近接職は遠くまで転がる
+        const ds = PLAYER.dodgeSpeed * (J.dodgeDistMul ?? (J.closeFighter ? CLOSE.dodgeSpeedMul : 1)); // 近接職は遠くまで転がる（踊り子はさらに遠く）
         vx = p.dodgeX * ds;
         vz = p.dodgeZ * ds;
       } else if (p.action === 'dash') {
