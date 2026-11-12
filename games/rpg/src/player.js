@@ -496,7 +496,10 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
 
   function drawCommon(dt) {
     p.flash = Math.max(0, p.flash - dt);
-    const blink = p.invuln > 0 && p.action !== 'dodge' && Math.floor(p.invuln * 20) % 2 === 0;
+    // 被弾後の無敵は点滅させる（回避・突進・跳ぶ技の無敵は点滅させない）。
+    // ほかの人の分身は無敵の残り時間が届かない（invuln は 0.1 で固定）ので、時計で点滅させる
+    const flick = p.remote ? Math.floor(performance.now() / 50) : Math.floor(p.invuln * 20);
+    const blink = p.invuln > 0 && p.action !== 'dodge' && p.action !== 'dash' && flick % 2 === 0;
     model.group.visible = !blink && !p.hideBody; // 一人称では自分の体を描かない
     let glow = p.buffs.courage ? 0x332200 : p.buffs.clone ? 0x220033 : 0x000000;
     // 回復ができる職業で遊んでいる人の画面では、HP が少ない（35% 以下）か倒れた仲間を赤く点滅させる
