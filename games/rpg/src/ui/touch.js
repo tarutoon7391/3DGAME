@@ -3,6 +3,7 @@
 // 右：ドラッグで視点。ボタン：攻撃（長押しで出し続ける・押したままドラッグで視点も動く）・回避・Q・E・R・調べる
 // 上：ポーズ・視点切り替え・全画面
 // shared/input.js（共通の契約）は触らず、ここで「押された」をまとめて game.js の readIntent に渡す
+import { supportBadge } from './supportinfo.js';
 import { esc } from '../util.js';
 import { GAUGE } from '../data/jobs.js';
 
@@ -190,7 +191,7 @@ export function createTouch({ onPause, onView, allowMouse = false }) {
       const cdBtn = (k, key, sk, cd) => {
         const el = btn(k);
         el.classList.toggle('off', cd > 0);
-        setHtml(el, k, `<b>${key}</b><span>${esc(sk.name)}</span>${cd > 0 ? `<i>${Math.ceil(cd)}</i>` : ''}`);
+        setHtml(el, k, `<b>${key}</b><span>${esc(sk.name)}</span>${cd > 0 ? `<i>${Math.ceil(cd)}</i>` : ''}${supportBadge(game, me, sk)}`);
       };
       cdBtn('skillQ', 'Q', J.q, me.cd.q);
       cdBtn('skillE', 'E', J.e, me.cd.e);
@@ -200,7 +201,7 @@ export function createTouch({ onPause, onView, allowMouse = false }) {
       const full = !used && me.gauge >= GAUGE.max;
       r.classList.toggle('off', !full);
       r.classList.toggle('ready', full);
-      setHtml(r, 'skillR', `<b>R</b><span>${esc(J.r.name)}</span>${used ? '<i>済</i>' : ''}<u style="height:${used ? 0 : Math.min(100, me.gauge)}%"></u>`);
+      setHtml(r, 'skillR', `<b>R</b><span>${esc(J.r.name)}</span>${used ? '<i>済</i>' : ''}<u style="height:${used ? 0 : Math.min(100, me.gauge)}%"></u>${supportBadge(game, me, J.r)}`);
       btn('dodge').classList.toggle('off', me.dodgeCd > 0 || me.tired);
       const prompt = document.querySelector('.rpg-prompt');
       btn('interact').style.display = prompt && prompt.style.display === 'block' ? '' : 'none';

@@ -1,4 +1,5 @@
-// 召喚士の召喚物：精霊（その場からボスを撃つ水色のおばけ）と岩巨人（ボスの狙いを引きつけ、地面から岩を引き抜いて投げる）
+// 召喚士の召喚物：精霊（その場からボスを撃つ水色のおばけ）・癒しの精霊（HP の減った味方へ回復の球を飛ばす緑のおばけ）・
+// 岩巨人（ボスの狙いを引きつけ、地面から岩を引き抜いて投げる）。召喚士が精霊強化（C）中は精霊の攻撃・回復が 1.5倍速
 // ホストが動かし、参加者には位置を配る（参加者のブラウザでは puppet：見た目と演出だけ）
 import * as THREE from 'three';
 import { JOBS } from './data/jobs.js';
@@ -20,7 +21,7 @@ export function createAllies(game) {
     glow: new THREE.SphereGeometry(0.75, 14, 10),
     rock: new THREE.DodecahedronGeometry(0.32, 0),
   };
-  const M = {
+  const MAT = {
     body: new THREE.MeshLambertMaterial({ color: 0x9be7f0, emissive: 0x2a8a96, transparent: true, opacity: 0.92 }),
     eye: new THREE.MeshBasicMaterial({ color: 0x102027 }),
     shine: new THREE.MeshBasicMaterial({ color: 0xffffff }),
@@ -28,7 +29,16 @@ export function createAllies(game) {
     glow: new THREE.MeshBasicMaterial({ color: 0x80deea, transparent: true, opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending }),
     rock: new THREE.MeshLambertMaterial({ color: 0x8d6e63, flatShading: true }),
   };
-  function makeSpirit() {
+  // 癒しの精霊は緑
+  const MH = {
+    ...MAT,
+    body: new THREE.MeshLambertMaterial({ color: 0xa5f5c0, emissive: 0x1f8a4c, transparent: true, opacity: 0.92 }),
+    glow: new THREE.MeshBasicMaterial({ color: 0x69f0ae, transparent: true, opacity: 0.25, depthWrite: false, blending: THREE.AdditiveBlending }),
+  };
+  const orbGeo = new THREE.SphereGeometry(0.28, 12, 8);
+  const orbMat = new THREE.MeshBasicMaterial({ color: 0x69f0ae, transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending });
+  const orbs = []; // 回復の球 { mesh, target, local, owner }
+  function makeSpirit(M = MAT) {
     const group = new THREE.Group();
     const core = new THREE.Group();
     core.position.y = 1.5;
@@ -69,7 +79,7 @@ export function createAllies(game) {
       m.group.scale.multiplyScalar(1.3);
       return m;
     }
-    return makeSpirit();
+    return makeSpirit(kind === 'healspirit' ? MH : MAT);
   }
 
   function spawn(kind, x, z, owner, id = nextId++, puppet = false) {
@@ -79,14 +89,14 @@ export function createAllies(game) {
     game.scene.add(m.group);
     const a = {
       id, kind, owner, model: m, pos: m.group.position, yaw: 0, puppet,
-      life: kind === 'golem' ? S.r.dur : S.q.dur,
-      maxLife: kind === 'golem' ? S.r.dur : S.q.dur,
+      life: kind === 'golem' ? S.r.dur : kind === 'healspirit' ? S.e.dur : S.q.dur,
+      maxLife: kind === 'golem' ? S.r.dur : kind === 'healspirit' ? S.e.dur : S.q.dur,
       hp: kind === 'golem' ? S.r.hp : 1,
       throwT: -1, thrown: false, held: null, // 岩巨人の投げ（throwT：投げ始めてからの秒、-1 で投げていない）
       cd: 0.5, t: 0, alive: true, radius: kind === 'golem' ? 1.2 : 0.5, net: null,
     };
     list.push(a);
-    game.fx.burst(x, 1, z, kind === 'golem' ? 0xa1887f : 0x80cbc4, 25, { speed: 5, up: 5, life: 0.7 });
+    game.fx.burst(x, 1, z, kind === 'golem' ? 0xa1887f : kind === 'healspirit' ? 0x69f0ae : 0x80cbc4, 25, { speed: 5, up: 5, life: 0.7 });
     return a;
   }
 
@@ -108,7 +118,7 @@ export function createAllies(game) {
     a.throwT += dt;
     // 地面から岩を引き抜く（少しかがんだところで土が飛ぶ）
     if (a.throwT >= 0.12 && !a.held && !a.thrown) {
-      a.held = new THREE.Mesh(G.rock, M.rock);
+      a.held = new THREE.Mesh(G.rock, MAT.rock);
       a.held.scale.setScalar(1.2);
       a.model.group.add(a.held);
       game.fx.burst(a.pos.x + Math.sin(a.yaw) * 1.2, 0.3, a.pos.z + Math.cos(a.yaw) * 1.2, 0x8d6e63, 22, { speed: 4, up: 6, life: 0.6, size: 0.2 });
@@ -128,7 +138,7 @@ export function createAllies(game) {
         a.model.group.remove(a.held);
         a.held = null;
       }
-      const mesh = new THREE.Mesh(G.rock, M.rock);
+      const mesh = new THREE.Mesh(G.rock, MAT.rock);
       mesh.scale.setScalar(2.4);
       game.scene.add(mesh);
       rocks.push({ mesh, x0: a.pos.x, z0: a.pos.z, y0: 5, target, tx: target.pos.x, tz: target.pos.z, t: 0, local, from: a });
@@ -166,8 +176,60 @@ export function createAllies(game) {
     }
   }
 
+  /** 召喚した人が精霊強化（C）中なら精霊の速さ 1.5倍 */
+  const rateOf = (a) => {
+    const o = game.players.find((p) => p.id === a.owner);
+    return o?.buffs?.spiritboost ? JOBS.summoner.c?.vals?.spiritRate ?? 1.5 : 1;
+  };
+  /** 癒しの精霊の回復先：届く範囲で一番 HP の割合が低い味方（満タンなら無し） */
+  function healTarget(a) {
+    let best = null;
+    let br = 0.999;
+    for (const p of game.players) {
+      if (!p.alive || p.downed) continue;
+      if (Math.hypot(p.pos.x - a.pos.x, p.pos.z - a.pos.z) > JOBS.summoner.e.range) continue;
+      const r = p.hp / p.maxHp;
+      if (r < br) { br = r; best = p; }
+    }
+    return best;
+  }
+  function launchOrb(a, target, local) {
+    const mesh = new THREE.Mesh(orbGeo, orbMat);
+    mesh.position.set(a.pos.x, 1.6, a.pos.z);
+    game.scene.add(mesh);
+    orbs.push({ mesh, target, local, owner: a.owner, t: 0 });
+    game.sound.se('seal');
+  }
+  function updateOrbs(dt) {
+    for (let i = orbs.length - 1; i >= 0; i--) {
+      const o = orbs[i];
+      o.t += dt;
+      const m = o.mesh.position;
+      const tx = o.target.pos.x;
+      const tz = o.target.pos.z;
+      const dx = tx - m.x;
+      const dy = 1.3 - m.y + Math.sin(o.t * 8) * 0.02;
+      const dz = tz - m.z;
+      const d = Math.hypot(dx, dy, dz);
+      const step = 13 * dt;
+      if (Math.random() < 0.6) game.fx.burst(m.x, m.y, m.z, 0x69f0ae, 1, { speed: 0.5, up: 0.5, life: 0.4, grav: 0 });
+      if (d > step && o.t < 2.5 && o.target.alive) {
+        m.x += (dx / d) * step;
+        m.y += (dy / d) * step + Math.sin(o.t * 10) * 0.02;
+        m.z += (dz / d) * step;
+        continue;
+      }
+      // 届いた：回復（ホストだけが配る。回復量の順位表は召喚した人に付ける）
+      game.fx.burst(tx, 1.3, tz, 0x69f0ae, 18, { speed: 3, up: 3, life: 0.6 });
+      if (o.local && o.target.alive) game.teamEffectRaw?.({ kind: 'heal', x: +tx.toFixed(1), z: +tz.toFixed(1), r: 1.6, amount: JOBS.summoner.e.amount * (JOBS.summoner.support ?? 1), quiet: true, credit: o.owner });
+      game.scene.remove(o.mesh);
+      orbs.splice(i, 1);
+    }
+  }
+
   function update(dt, time) {
     updateRocks(dt);
+    updateOrbs(dt);
     // 一番近い戦闘中のボスを狙う（2体同時の部屋もある）
     const nearestBoss = (a) => {
       let best = null;
@@ -193,8 +255,16 @@ export function createAllies(game) {
           a.yaw = lerpAngle(a.yaw, n.yaw, k);
         }
         const b = nearestBoss(a);
+        if (a.kind === 'healspirit') {
+          a.cd -= dt * rateOf(a);
+          if (a.cd <= 0) {
+            a.cd = S.e.every;
+            const t = healTarget(a);
+            if (t) launchOrb(a, t, false); // 見た目だけ
+          }
+        }
         if (a.kind === 'spirit' && b) {
-          a.cd -= dt;
+          a.cd -= dt * rateOf(a);
           if (a.cd <= 0) {
             a.cd = S.q.every;
             game.projectiles.playerShot(attacker(a), a.pos.x, a.pos.z, yawTo(a.pos.x, a.pos.z, b.pos.x, b.pos.z), { speed: 24, mult: 0, color: 0x80cbc4, size: 0.22, range: 30, local: false });
@@ -220,8 +290,18 @@ export function createAllies(game) {
       }
       const target = nearestBoss(a);
       let walking = false;
-      if (a.kind === 'spirit') {
-        a.cd -= dt;
+      if (a.kind === 'healspirit') {
+        a.cd -= dt * rateOf(a);
+        if (a.cd <= 0) {
+          const t = healTarget(a);
+          if (t) {
+            a.cd = S.e.every;
+            a.yaw = yawTo(a.pos.x, a.pos.z, t.pos.x, t.pos.z);
+            launchOrb(a, t, true);
+          }
+        }
+      } else if (a.kind === 'spirit') {
+        a.cd -= dt * rateOf(a);
         if (target && a.cd <= 0) {
           a.cd = S.q.every;
           a.yaw = yawTo(a.pos.x, a.pos.z, target.pos.x, target.pos.z);
@@ -251,7 +331,7 @@ export function createAllies(game) {
   function draw(a, time, walking) {
     const m = a.model;
     m.group.rotation.y = a.yaw;
-    if (a.kind === 'spirit') {
+    if (a.kind === 'spirit' || a.kind === 'healspirit') {
       // ふわふわ浮いて、左右にゆらゆら
       m.core.position.y = 1.5 + Math.sin(a.t * 3) * 0.18;
       m.core.rotation.z = Math.sin(a.t * 2.2) * 0.15;
@@ -319,6 +399,8 @@ export function createAllies(game) {
       for (let i = list.length - 1; i >= 0; i--) remove(i);
       for (const r of rocks) game.scene.remove(r.mesh);
       rocks.length = 0;
+      for (const o of orbs) game.scene.remove(o.mesh);
+      orbs.length = 0;
     },
   };
 }

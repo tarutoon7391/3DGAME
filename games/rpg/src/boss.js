@@ -145,7 +145,8 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
   const kindOf = (name) => P[name].kind || name;
 
   function applyDamage(dmg, brk) {
-    if (!b.alive) return;
+    if (!b.alive || !Number.isFinite(dmg)) return; // 壊れた値（威力の書き忘れなど）で HP を壊さない
+    if (!Number.isFinite(brk)) brk = 0;
     if (b.state === 'rage') dmg = 0; // 怒りの咆哮中は無敵
     if (b.state === 'stun') dmg = Math.round(dmg * BREAK.dmgMul);
     if (b.debuffs.vuln) dmg = Math.round(dmg * b.debuffs.vuln.mul); // 腐食：被ダメージ増
