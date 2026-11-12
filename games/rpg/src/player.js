@@ -35,10 +35,11 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
     radius: PLAYER.radius,
     maxHp: J.stats.hp,
     hp: J.stats.hp,
-    staminaMax: STAMINA.max + (J.staminaBonus || 0), // 特性でスタミナが多い職だけ（いまは無し）
-    stamina: STAMINA.max + (J.staminaBonus || 0),
+    staminaMax: (STAMINA.max + (J.staminaBonus || 0)) * (J.closeFighter ? CLOSE.staminaMul : 1), // 近接職（タンク以外）は 2倍
+    stamina: (STAMINA.max + (J.staminaBonus || 0)) * (J.closeFighter ? CLOSE.staminaMul : 1),
     tired: false, // バテ状態（満タンに戻るまで回避・ダッシュ不可、足が遅い）
     staminaWait: 0, // 回復が始まるまでの残り秒
+    fight: { d: 0, h: 0 }, // いまのボス戦で与えたダメージ・回復した量（撃破後の順位表）
     dashing: false,
     yaw: Math.PI,
     alive: true,
@@ -319,7 +320,7 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
         p.actT = 0;
         p.dodgeX = Math.sin(y);
         p.dodgeZ = Math.cos(y);
-        p.invuln = Math.max(p.invuln, PLAYER.dodgeInvuln + (J.dodgeInvulnBonus || 0));
+        p.invuln = Math.max(p.invuln, PLAYER.dodgeInvuln + (J.dodgeInvulnBonus || 0) + (J.closeFighter ? CLOSE.dodgeInvulnAdd : 0));
         p.dodgeCd = PLAYER.dodgeCd + PLAYER.dodgeTime;
         if (moving && !intent.lockYaw) p.yaw = y;
         p.useStamina(STAMINA.dodgeCost * (J.dodgeCostMul ?? 1));
@@ -437,7 +438,8 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
       } else if (p.action !== 'dodge') {
         p.staminaWait = Math.max(0, p.staminaWait - dt);
         if (p.staminaWait <= 0) {
-          p.stamina = Math.min(p.staminaMax, p.stamina + (p.tired ? STAMINA.tiredRegenPerSec : STAMINA.regenPerSec) * dt);
+          const rm = J.closeFighter ? (p.tired ? CLOSE.tiredRegenMul : CLOSE.regenMul) : 1;
+          p.stamina = Math.min(p.staminaMax, p.stamina + (p.tired ? STAMINA.tiredRegenPerSec : STAMINA.regenPerSec) * rm * dt);
           if (p.tired && p.stamina >= p.staminaMax) p.tired = false;
         }
       }
@@ -449,8 +451,9 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
       let vx = 0;
       let vz = 0;
       if (p.action === 'dodge') {
-        vx = p.dodgeX * PLAYER.dodgeSpeed;
-        vz = p.dodgeZ * PLAYER.dodgeSpeed;
+        const ds = PLAYER.dodgeSpeed * (J.closeFighter ? CLOSE.dodgeSpeedMul : 1); // 近接職は遠くまで転がる
+        vx = p.dodgeX * ds;
+        vz = p.dodgeZ * ds;
       } else if (p.action === 'dash') {
         vx = p.dodgeX * p.dashSpeed;
         vz = p.dodgeZ * p.dashSpeed;

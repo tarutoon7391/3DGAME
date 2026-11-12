@@ -210,6 +210,7 @@ function bossDownInner(game, b) {
     return;
   }
   game.projectiles.clearEnemyShots(); // 残った弾は消す
+  showRanking(game, game.bosses.map((o) => o.name).join('・'));
   if (next) {
     pr.bossStep = b.idx + 1;
     for (const e of game.enemies.list) if (e.alive) e.takeHit(game, 9999, 0, 0, 0); // 手下も消える
@@ -231,6 +232,21 @@ function bossDownInner(game, b) {
     return;
   }
   game.onBossDefeated();
+}
+
+/**
+ * 撃破後の順位表：与えたダメージと回復量の上位3人（ホストが作って参加者にも出す）
+ * 自分の分は手元の集計、ほかの人の分は 'ps' で届いた値（sd・sh）
+ */
+function showRanking(game, title) {
+  const rows = game.players.map((p) => {
+    const f = p.remote ? { d: p.net?.sd || 0, h: p.net?.sh || 0 } : p.fight || { d: 0, h: 0 };
+    return { name: p.name || p.job.name, job: p.name ? p.job.name : '', d: Math.round(f.d), h: Math.round(f.h) }; // 名前が無ければ職業名だけ
+  });
+  const top = (k) => rows.filter((r) => r[k] > 0).sort((a, b) => b[k] - a[k]).slice(0, 3).map((r) => [r.name, r.job, r[k]]);
+  const data = { title, dmg: top('d'), heal: top('h') };
+  game.hudView.ranking(data);
+  game.raid?.event('rank', data);
 }
 
 /** 扉の開け閉め（ホスト。参加者にも伝える） */

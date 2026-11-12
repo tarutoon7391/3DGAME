@@ -41,6 +41,9 @@ export function createHudView(game) {
   const closeTag = el('rpg-closein', root);
   closeTag.textContent = '肉薄 与ダメ+15%・被ダメ-25%';
   let closeOn = false;
+  // 撃破後の順位表（与ダメージ・回復量の上位3人）
+  const rankEl = el('rpg-rank', root);
+  let rankT = 0;
   const ultWarn = el('rpg-ultwarn', root);
   ultWarn.innerHTML = '<div class="rpg-ultwarn-box"><b></b><big></big><small></small></div>';
   const uw = { b: ultWarn.querySelector('b'), big: ultWarn.querySelector('big'), small: ultWarn.querySelector('small'), t: 0 };
@@ -279,6 +282,11 @@ export function createHudView(game) {
         closeOn = near;
         closeTag.style.display = near ? 'block' : 'none';
       }
+      if (rankT > 0) {
+        rankT -= dt;
+        rankEl.style.opacity = String(Math.min(1, rankT / 0.6));
+        if (rankT <= 0) rankEl.style.display = 'none';
+      }
       if (uw.t > 0) {
         uw.t -= dt;
         if (uw.t <= 0) ultWarn.style.display = 'none';
@@ -301,6 +309,18 @@ export function createHudView(game) {
       banner.textContent = text;
       bannerT = 2.5;
       banner.style.opacity = '1';
+    },
+    /** 撃破後の順位表。d：{ title, dmg: [[名前, 職業, 値]…], heal: [...] } */
+    ranking(d) {
+      const medal = ['🥇', '🥈', '🥉'];
+      const list = (rows, unit) => (rows.length
+        ? rows.map((r, i) => `<li><span>${medal[i]} ${esc(r[0])}${r[1] ? `<small>${esc(r[1])}</small>` : ''}</span><b>${r[2].toLocaleString()}${unit}</b></li>`).join('')
+        : '<li class="none">なし</li>');
+      rankEl.innerHTML = `<h4>${esc(d.title)} 撃破！</h4>
+        <div class="rk"><div><h5>与えたダメージ</h5><ol>${list(d.dmg, '')}</ol></div><div><h5>回復量</h5><ol>${list(d.heal, '')}</ol></div></div>`;
+      rankEl.style.display = 'block';
+      rankEl.style.opacity = '1';
+      rankT = 7;
     },
     /** 必殺技の警告。boss が null なら消す。dur 秒（溜めの長さ）だけ出す */
     ultWarn(boss, name, hint, dur = 2.5) {

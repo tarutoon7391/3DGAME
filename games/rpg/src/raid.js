@@ -93,6 +93,7 @@ export function createRaid(game, net, handlers) {
       hp: Math.round(p.hp), maxHp: p.maxHp, alive: p.alive, downed: p.downed,
       action: p.action, actId: p.actId || 0, combo: p.combo, actDur: p.actDur || 0,
       dashing: p.dashing, tired: p.tired, invuln: p.invuln > 0, buffs,
+      sd: Math.round(p.fight?.d || 0), sh: Math.round(p.fight?.h || 0), // 撃破後の順位表
     };
   }
 
