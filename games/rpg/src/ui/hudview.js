@@ -314,7 +314,7 @@ export function createHudView(game) {
     ranking(d) {
       const medal = ['🥇', '🥈', '🥉'];
       const list = (rows, unit) => (rows.length
-        ? rows.map((r, i) => `<li><span>${medal[i]} ${esc(r[0])}<small>${esc(r[1])}</small></span><b>${r[2].toLocaleString()}${unit}</b></li>`).join('')
+        ? rows.map((r, i) => `<li><span>${medal[i]} ${esc(r[0])}${r[1] ? `<small>${esc(r[1])}</small>` : ''}</span><b>${r[2].toLocaleString()}${unit}</b></li>`).join('')
         : '<li class="none">なし</li>');
       rankEl.innerHTML = `<h4>${esc(d.title)} 撃破！</h4>
         <div class="rk"><div><h5>与えたダメージ</h5><ol>${list(d.dmg, '')}</ol></div><div><h5>回復量</h5><ol>${list(d.heal, '')}</ol></div></div>`;

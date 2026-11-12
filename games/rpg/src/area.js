@@ -241,7 +241,7 @@ function bossDownInner(game, b) {
 function showRanking(game, title) {
   const rows = game.players.map((p) => {
     const f = p.remote ? { d: p.net?.sd || 0, h: p.net?.sh || 0 } : p.fight || { d: 0, h: 0 };
-    return { name: p.name || p.job.name, job: p.job.name, d: Math.round(f.d), h: Math.round(f.h) };
+    return { name: p.name || p.job.name, job: p.name ? p.job.name : '', d: Math.round(f.d), h: Math.round(f.h) }; // 名前が無ければ職業名だけ
   });
   const top = (k) => rows.filter((r) => r[k] > 0).sort((a, b) => b[k] - a[k]).slice(0, 3).map((r) => [r.name, r.job, r[k]]);
   const data = { title, dmg: top('d'), heal: top('h') };
