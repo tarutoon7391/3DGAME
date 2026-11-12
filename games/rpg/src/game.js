@@ -214,6 +214,11 @@ export function createGame() {
     applyTeamEffect(eff);
     game.raid?.sendTeam(eff);
   };
+  /** 召喚物などの回復：支援係数も自分の集計も通さずに配る（credit：順位表で回復量を付ける人の id） */
+  game.teamEffectRaw = (eff) => {
+    applyTeamEffect(eff);
+    game.raid?.sendTeam(eff);
+  };
   /** 撃破後の順位表用：自分の出した回復で、みんなが実際に回復しそうな量を足す */
   function countHeal(eff) {
     const me = game.me();
@@ -232,6 +237,8 @@ export function createGame() {
   function applyTeamEffect(eff) {
     const me = game.me();
     if (!me) return;
+    // 自分の召喚物（癒しの精霊）の回復は、自分の回復量として数える
+    if (eff.credit && eff.credit === me.id) countHeal({ ...eff, credit: undefined });
     const near = eff.r ? Math.hypot(me.pos.x - eff.x, me.pos.z - eff.z) <= eff.r : true;
     switch (eff.kind) {
       case 'heal':
@@ -328,6 +335,10 @@ export function createGame() {
         // 上限を超えたら古い精霊から消える
         const mine = game.allies.list.filter((a) => a.owner === cmd.owner && a.kind === 'spirit');
         if (mine.length >= JOBS.summoner.q.max) mine[0].life = 0;
+      }
+      if (cmd.kind === 'healspirit') {
+        // 癒しの精霊は1人1体まで（出し直すと古い方が消える）
+        for (const a of game.allies.list) if (a.owner === cmd.owner && a.kind === 'healspirit') a.life = 0;
       }
       game.allies.spawn(cmd.kind, cmd.x, cmd.z, cmd.owner);
     }

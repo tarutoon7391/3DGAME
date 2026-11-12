@@ -6,6 +6,7 @@ import { GAUGE } from '../data/jobs.js';
 import { nextSeal } from '../area.js';
 import { VIEW } from '../data/view.js';
 import { esc, angleDiff } from '../util.js';
+import { supportBadge, createSupportMarks } from './supportinfo.js';
 
 function el(cls, parent = document.body, tag = 'div') {
   const e = document.createElement(tag);
@@ -39,6 +40,7 @@ export function createHudView(game) {
   // 必殺技の警告：画面の縁が赤く点滅して、大きな文字
   // 近接職の肉薄ボーナス中の札
   const guardView = el('rpg-guardview', root);
+  const supportMarks = createSupportMarks(game); // 回復・強化が届く仲間の足元の輪
   const closeTag = el('rpg-closein', root);
   closeTag.textContent = '肉薄 与ダメ+15%・被ダメ-25%';
   let closeOn = false;
@@ -119,12 +121,12 @@ export function createHudView(game) {
 
     const J = me.job;
     const full = me.gauge >= GAUGE.max;
-    const cdSlot = (key, sk, cd) => `<div class="rpg-skill ${cd > 0 ? 'off' : ''}"><b>${key}</b><span>${esc(sk.name)}</span><small>CD ${sk.cd}秒</small>${cd > 0 ? `<i>${cd.toFixed(1)}</i>` : ''}</div>`;
+    const cdSlot = (key, sk, cd) => `<div class="rpg-skill ${cd > 0 ? 'off' : ''}"><b>${key}</b><span>${esc(sk.name)}</span><small>CD ${sk.cd}秒</small>${cd > 0 ? `<i>${cd.toFixed(1)}</i>` : ''}${supportBadge(game, me, sk)}</div>`;
     const usedR = J.r.oncePerRun && game.state.progress.usedOnce?.[J.r.id];
     const html = `${cdSlot('Q', J.q, me.cd.q)}${cdSlot('E', J.e, me.cd.e)}${J.c ? cdSlot('C', J.c, me.cd.c) : ''}
       ${usedR
         ? `<div class="rpg-skill off"><b>R</b><span>${esc(J.r.name)}</span><small>使用済み</small></div>`
-        : `<div class="rpg-skill ${full ? 'ready' : 'off'}"><b>R</b><span>${esc(J.r.name)}</span><small>${full ? '撃てる！' : `${Math.floor(me.gauge)}%`}</small><div class="rpg-gauge" style="width:${Math.min(100, me.gauge)}%"></div></div>`}
+        : `<div class="rpg-skill ${full ? 'ready' : 'off'}"><b>R</b><span>${esc(J.r.name)}</span><small>${full ? '撃てる！' : `${Math.floor(me.gauge)}%`}</small><div class="rpg-gauge" style="width:${Math.min(100, me.gauge)}%"></div>${supportBadge(game, me, J.r)}</div>`}
       <div class="rpg-skill ${me.dodgeCd > 0 || tired ? 'off' : ''}"><b>Space</b><span>回避</span><small>ST${STAMINA.dodgeCost}</small></div>
       <div class="rpg-skill ${tired ? 'off' : ''} ${me.dashing ? 'on' : ''}"><b>Shift</b><span>ダッシュ</span><small>ST消費</small></div>`;
     if (html !== lastSkills) {
@@ -286,6 +288,7 @@ export function createHudView(game) {
       }
       const me = game.me();
       danger.style.display = fps && me.alive && game.fx.danger(me.pos.x, me.pos.z) ? 'flex' : 'none';
+      supportMarks.update();
       guardView.style.display = fps && me.guarding ? 'block' : 'none'; // 一人称で盾を構えている間は画面の下に盾の縁
       const near = !!(me.alive && me.closeIn?.());
       if (near !== closeOn) {

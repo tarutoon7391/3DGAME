@@ -152,14 +152,13 @@ const SKILLS = {
     if (local) game.teamEffect({ kind: 'prayer', invuln: e.invuln });
   },
   // ---- 弓使い ----
-  spread(game, p, d, local) {
+  poisonarrow(game, p, d, local) {
+    // 毒矢：貫通する緑の矢。当たった敵は毒で削れ続ける
     const q = JOBS.archer.q;
     p.waveT = 0.25;
     startAction(p, 'cast', 0.2);
-    for (let i = 0; i < q.count; i++) {
-      const a = d.yaw + (i - (q.count - 1) / 2) * q.spread;
-      game.projectiles.playerShot(p, d.x, d.z, a, { ...JOBS.archer.basic, mult: q.mult, local, gauge: GAUGE.gainSkill });
-    }
+    game.projectiles.playerShot(p, d.x, d.z, d.yaw, { ...JOBS.archer.basic, speed: q.speed, mult: q.mult, size: q.size, range: q.range, color: q.color, dot: q.dot, local, gauge: GAUGE.gainSkill });
+    game.fx.burst(p.pos.x + Math.sin(d.yaw) * 1.2, 1.4, p.pos.z + Math.cos(d.yaw) * 1.2, q.color, 12, { speed: 3, up: 2, life: 0.5 });
     game.sound.se('shoot');
   },
   arrowrain(game, p, d, local) {
@@ -222,38 +221,56 @@ const SKILLS = {
     dashStrike(game, p, d, local, JOBS.lancer.q, 0xffab91);
   },
   skyfall(game, p, d, local) {
+    // 天穿ち：真上へ跳び、空中で周りを8連撃（槍の閃光が四方へ走る）。最後はその場へ叩きつけて着地
     const e = JOBS.lancer.r;
-    startAction(p, 'dash', e.time);
-    const dx = d.tx - p.pos.x;
-    const dz = d.tz - p.pos.z;
-    const len = Math.hypot(dx, dz) || 1;
-    p.dodgeX = dx / len;
-    p.dodgeZ = dz / len;
+    const total = e.rise + e.hits * e.every + 0.35;
+    startAction(p, 'cast', total);
     p.yaw = d.yaw;
-    p.dashSpeed = 0;
-    if (local) p.invuln = Math.max(p.invuln, e.time + 0.2);
+    if (local) p.invuln = Math.max(p.invuln, total + 0.2);
     game.sound.se('dodge');
-    game.skillFx?.mark(d.tx, d.tz, e.radius, 0x69f0ae, e.time); // 着地点の緑の印
-    p.vmAnim = { kind: 'dive', t: 0, dur: e.time };
+    game.fx.burst(p.pos.x, 0.3, p.pos.z, 0xbcaaa4, 30, { speed: 6, up: 4, life: 0.5 });
+    p.vmAnim = { kind: 'xstorm', t: 0, dur: total, every: e.every };
+    game.skillFx?.pillar?.(p.pos.x, p.pos.z, 0xffab91, 1.4); // 跳び上がる光の柱
+    const x0 = p.pos.x;
+    const z0 = p.pos.z;
+    let n = 0;
     p.skillTick = () => {
-      // 前半 40%：その場で真上へ浮く／40〜90%：着地点へ一直線に急降下
-      const k = Math.min(1, p.actT / e.time);
-      if (k < 0.4) {
-        const u = k / 0.4;
-        p.model.root.position.y = 5 * (1 - (1 - u) * (1 - u));
-        p.dashSpeed = 0;
-      } else {
-        p.model.root.position.y = Math.max(0, 5 * (1 - (k - 0.4) / 0.5));
-        p.dashSpeed = k < 0.9 ? len / (e.time * 0.5) : 0;
+      const t = p.actT;
+      // 高さ：ぱっと上がって空中にとどまり、最後に一気に落ちる
+      const fall = e.rise + e.hits * e.every;
+      if (t < e.rise) p.model.root.position.y = e.height * (1 - (1 - t / e.rise) ** 2);
+      else if (t < fall) p.model.root.position.y = e.height + Math.sin(t * 20) * 0.08;
+      else p.model.root.position.y = Math.max(0, e.height * (1 - (t - fall) / 0.12));
+      // 空中の連撃
+      while (n < e.hits && t >= e.rise + n * e.every) {
+        const i = n++;
+        const a = d.yaw + i * 2.4; // 四方八方へ
+        const y = e.height * 0.7;
+        game.skillFx?.swing({ ...p, yaw: a, pos: { x: p.pos.x, z: p.pos.z } }, i, false, e.radius, 2.4, i % 2 ? 0xffab91 : 0xffffff);
+        for (let k = 0; k < 6; k++) {
+          const r = 1 + k * (e.radius / 6);
+          game.fx.burst(x0 + Math.sin(a) * r, Math.max(0.4, y - k * 0.6), z0 + Math.cos(a) * r, i % 2 ? 0xffab91 : 0xffe0b2, 2, { speed: 3, up: 0, life: 0.3, size: 0.14, grav: 0 });
+        }
+        if (i % 2 === 1) game.skillFx?.spin(x0, z0, e.radius, i % 4 === 1 ? 0xffab91 : 0xffffff); // 足元に大きな円の斬撃
+        game.sound.se(i % 3 === 2 ? 'crit' : 'swing');
+        game.fx.shake(0.12);
+        if (local) radiusHit(game, p, e.mult, e.radius, { melee: true, gauge: 0, knock: 0.2, color: 0xffab91 }, x0, z0);
       }
-      if (p.didSkill || p.actT < e.time * 0.9) return;
+      if (p.didSkill || t < fall + 0.12) return;
+      // 着地：叩きつけて大きな衝撃
       p.didSkill = true;
       p.model.root.position.y = 0;
-      game.fx.burst(p.pos.x, 0.5, p.pos.z, 0xffab91, 50, { speed: 10, up: 6, life: 0.7, size: 0.25 });
-      game.skillFx?.slam(p.pos.x, p.pos.z, e.radius, 0xffab91);
-      game.fx.shake(0.9);
+      game.fx.burst(x0, 0.5, z0, 0xffab91, 70, { speed: 12, up: 8, life: 0.9, size: 0.28 });
+      game.fx.burst(x0, 0.5, z0, 0xffffff, 30, { speed: 8, up: 10, life: 0.6, size: 0.18 });
+      game.skillFx?.slam(x0, z0, e.radius + 1, 0xffab91);
+      game.skillFx?.pillar?.(x0, z0, 0xffab91, 2.5);
+      game.enemyFx?.impact(x0, z0, e.radius + 1.5, 0xffab91, 'default');
+      game.fx.shake(1.1);
       game.sound.se('slam');
-      if (local) radiusHit(game, p, e.mult, e.radius, { melee: true, gauge: 0, knock: 2, color: 0xffab91 });
+      if (local) {
+        radiusHit(game, p, e.last, e.radius + 0.5, { melee: true, gauge: 0, knock: 2.5, crit: true, color: 0xffab91 }, x0, z0);
+        game.fx.hitstop(0.12);
+      }
     };
   },
   // ---- 格闘家 ----
@@ -518,22 +535,22 @@ const SKILLS = {
     }
     if (local) meleeArc(game, p, d.yaw, e.mult, e.range, e.arc, { gauge: GAUGE.gainSkill, brkMul: e.brkMul, knock: 1.5 });
   },
-  detonate(game, p, d, local) {
-    const e = JOBS.summoner.e;
-    startAction(p, 'cast', 0.3);
-    game.sound.se('slam');
-    if (local) {
-      if (game.allies && !game.allies.count(p.id, 'spirit')) game.toastOnce('爆発させる精霊がいない（Q で精霊を出してから）', 1400);
-      game.bossCommand({ type: 'detonate', owner: p.id, mult: e.mult, radius: e.radius });
-    }
+  healspirit(game, p, d, local) {
+    // 癒しの精霊：HP の減った味方へ回復の球を飛ばす緑の精霊（ホストが動かす）
+    startAction(p, 'cast', 0.35);
+    game.sound.se('seal');
+    game.fx.burst(d.x, 1, d.z, 0x69f0ae, 24, { speed: 4, up: 4, life: 0.7 });
+    game.skillFx?.summon(d.x, d.z, 0x69f0ae);
+    if (local) game.bossCommand({ type: 'summon', kind: 'healspirit', x: d.x, z: d.z, owner: p.id });
   },
-  whirlspear(game, p, d, local) {
+  spearthrow(game, p, d, local) {
+    // 槍投げ：狙った方へ貫通する槍を投げる
     const e = JOBS.lancer.e;
-    startAction(p, 'spin', 0.45);
-    game.sound.se('spin');
-    game.fx.burst(p.pos.x, 1, p.pos.z, 0xffab91, 26, { speed: 9, up: 1.2, life: 0.4, size: 0.14, grav: 2 });
-    game.skillFx?.spin(p.pos.x, p.pos.z, e.radius, 0xffab91);
-    if (local) radiusHit(game, p, e.mult, e.radius, { melee: true, gauge: GAUGE.gainSkill, color: 0xffab91 });
+    startAction(p, 'cast', 0.3);
+    p.waveT = 0.3;
+    game.projectiles.playerShot(p, d.x, d.z, d.yaw, { speed: e.speed, mult: e.mult, size: e.size, range: e.range, color: e.color, pierce: true, look: 'javelin', local, gauge: GAUGE.gainSkill });
+    game.sound.se('swing');
+    game.fx.shake(0.15);
   },
   uppercut(game, p, d, local) {
     const e = JOBS.monk.e;
@@ -957,11 +974,12 @@ const GENERIC = {
       p.didSkill = true;
       p.model.root.position.y = 0;
       game.fx.burst(p.pos.x, 0.5, p.pos.z, sk.color, 45, { speed: 10, up: 6, life: 0.7, size: 0.25 });
-      game.skillFx?.slam(p.pos.x, p.pos.z, sk.radius, sk.color);
+      game.skillFx?.slam(p.pos.x, p.pos.z, sk.radius || 2, sk.color);
       game.skillFx?.leapLand?.(p, sk); // 竜の姿なら炎の輪
       game.fx.shake(0.7);
       game.sound.se('slam');
-      if (local) radiusHit(game, p, sk.mult, sk.radius, { melee: true, gauge: GAUGE.gainSkill, knock: 2, color: sk.color, brkMul: sk.brkMul });
+      // 威力の無い跳ぶ技（棒高跳びなど）は着地で攻撃しない（以前は威力が無いまま当たってボスの HP が壊れていた）
+      if (local && sk.mult && sk.radius) radiusHit(game, p, sk.mult, sk.radius, { melee: true, gauge: GAUGE.gainSkill, knock: 2, color: sk.color, brkMul: sk.brkMul });
     };
   },
   zone(game, p, d, local, sk) {

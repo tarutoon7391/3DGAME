@@ -92,7 +92,7 @@ export const JOBS = {
     name: '弓使い', role: '遠距離・単体火力', color: '#a5d6a7',
     power: 0.93, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.32, speed: 34, mult: 0.8, color: 0xc5e1a5, size: 0.22, range: 32, pierce: true },
-    q: { id: 'spread', name: '拡散矢', desc: '5方向に貫通する矢を放つ', cd: 4, mult: 1.0, count: 5, spread: 0.16 },
+    q: { id: 'poisonarrow', name: '毒矢', desc: '貫通する毒矢を放つ。当たった敵は5秒間 毒で削れ続ける', cd: 4, mult: 1.4, speed: 34, size: 0.3, range: 32, dot: { mult: 0.35, every: 0.5, dur: 5 }, color: 0x76ff03 },
     e: { id: 'backshot', name: '跳び退き射撃', desc: '後ろへ跳び退きながら強い矢を放つ（跳ぶ間は無敵）', cd: 7, mult: 1.8, dist: 5, time: 0.25 },
     r: { id: 'arrowrain', name: '矢の雨', desc: '狙った場所に3秒間 矢を降らせ続ける', radius: 5, dur: 3, every: 0.25, mult: 0.7, dist: 12 },
     trait: '10m 以上離れて当てるとダメージ +40%',
@@ -127,7 +127,7 @@ export const JOBS = {
     power: 0.8, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.55, speed: 20, mult: 0.75, color: 0x80cbc4, size: 0.28, range: 22 },
     q: { id: 'spirit', name: '精霊召喚', desc: 'その場に12秒間、ボスを撃ち続ける精霊を出す（最大2体）', cd: 9, dur: 12, every: 0.6, mult: 0.7, max: 2 },
-    e: { id: 'detonate', name: '精霊爆破', desc: '自分の精霊をすべて爆発させる（1体ごとに範囲ダメージ）', cd: 10, mult: 2.6, radius: 3.5 },
+    e: { id: 'healspirit', name: '癒しの精霊召喚', desc: 'その場に10秒間、HP の減った味方へ回復の球を飛ばす緑の精霊を出す（1球で 6% 回復・最大1体）', cd: 14, dur: 10, every: 1.2, amount: 0.06, range: 14 },
     r: { id: 'golem', name: '岩巨人召喚', desc: 'ボスの狙いを引きつけ、地面から岩を引き抜いて投げつける岩巨人を12秒間出す', dur: 12, hp: 600, mult: 1.6 },
     trait: '召喚物がいる間、自分の被ダメージ -20%',
     summonGuard: 0.8, breakMul: 1,
@@ -141,8 +141,8 @@ export const JOBS = {
     // 細く長い突き（arc が狭いぶん range が長い）
     basic: { type: 'melee', combo: [{ dur: 0.36, hit: 0.13, mult: 1.05 }, { dur: 0.36, hit: 0.13, mult: 1.1 }, { dur: 0.55, hit: 0.22, mult: 1.9 }], range: 4.0, arc: 0.9, heavyBonus: 0.6 },
     q: { id: 'lunge', name: '突進突き', desc: '前方へ7m 踏み込み、通り道の敵を貫く（ブレイク大）', cd: 6, mult: 2.4, dist: 7, time: 0.25, width: 1.4 },
-    e: { id: 'whirlspear', name: '旋回槍', desc: '槍を振り回して周囲を薙ぐ', cd: 6, mult: 1.7, radius: 4.2 },
-    r: { id: 'skyfall', name: '天穿ち', desc: '高く跳んで狙った場所へ急降下。着地の周囲に大ダメージ（跳んでいる間は無敵）', mult: 5.5, radius: 4.5, dist: 7, time: 0.8 },
+    e: { id: 'spearthrow', name: '槍投げ', desc: '狙った方へ槍を投げる（貫通・遠くまで届く）', cd: 6, mult: 2.2, speed: 32, size: 0.45, range: 30, color: 0xffab91 },
+    r: { id: 'skyfall', name: '天穿ち', desc: '真上へ跳び、空中から周りを8連撃。その場に叩きつけて着地（使っている間は無敵）', mult: 0.6, last: 2.6, hits: 8, every: 0.1, radius: 5, height: 5.5, rise: 0.3, color: 0xffab91 },
     trait: '槍が長い（届く距離 4m）。ブレイク値 1.5倍',
     breakMul: 1.5,
     look: { armorColor: 0x8d6e63, swordColor: 0xd7ccc8, swordLen: 1.0, cape: 0xbf360c, weapon: 'spear' },
