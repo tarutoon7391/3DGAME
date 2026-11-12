@@ -38,7 +38,7 @@ const R = {
   alchemist: [vm('toss4', 0.38), ['lob', { glyph: '⚗', color: 0x69f0ae, to: 'front', time: 0.4 }], ['ring', { glyph: '✚', color: 0x69f0ae, r: 4, at: 0.4 }], ['burst', { where: 'front', dist: 2.5, color: 0x69f0ae, n: 30, at: 0.4 }]],
   berserker: [vm('cheer', 0.8), aura(0xd50000, { opacity: 0.8 }), ['whiteout', { css: '#d50000', max: 0.35 }], shake(0.5)],
   chrono: [vm('raise', 0.6), ring('◷', 0xb388ff, 6, { n: 12 }), ['orbit', { glyph: '»', color: 0xb388ff, n: 8, r: 1.4, h: 0.6, spin: 6, size: 0.5, dur: 2 }]],
-  gunner: [vm('kiblast', 0.4), ['explode', { where: 'front', dist: 2.5, r: 2.5, color: 0xff7043 }], ['streak', { where: 'front', dist: -6, color: 0xffe0b2, w: 0.5 }], shake(0.5)],
+  gunner: [vm('kiblast', 0.4), ['flash', { where: 'front', dist: 1.5, color: 0xff7043, size: 4 }], ['streak', { where: 'front', dist: -9, color: 0xffe0b2, w: 0.5 }], shake(0.5)],
   warlock: [vm('throwdown', 0.45), ['lob', { glyph: '♙', color: 0xd7ccc8, to: 'front', time: 0.3, normal: true, size: 1.6 }], ['ring', { glyph: '☠', color: 0x9c27b0, r: 3, at: 0.3 }], ['streak', { where: 'target', color: 0xff1744, w: 0.2, at: 0.35 }]],
   reaper: [vm('raise', 0.6, { glow: 0x5a0000 }), ['orbit', { where: 'target', glyph: '☠', color: 0xff1744, n: 1, r: 0.01, top: true, size: 1.6, dur: 3 }], aura(0x880e4f)],
   trapper: [vm('throwdown', 0.45), ['dome', { color: 0x3e2723, r: 2.5, dur: 1.2 }], ['slam', { where: 'target', r: 3, color: 0x6d4c41 }], ['burst', { where: 'target', color: 0x8d6e63, n: 30, y: 0.3 }]],
