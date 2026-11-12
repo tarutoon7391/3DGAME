@@ -370,6 +370,7 @@ export function makeMonsterModel(color, look = {}) {
   let armR;
   let legL;
   let legR;
+  let heads = null; // 噛みつきで動かす首（三つ首のケルベロスなど）
   if (monster === 'hydra') {
     // 胴（丸い山）と3本の首。左右の首を armL / armR に
     part(box(2.4, 1.4, 2.6), bodyMat, 0, 0.9, 0, root);
@@ -382,8 +383,11 @@ export function makeMonsterModel(color, look = {}) {
       part(cone(0.08, 0.35, 4), horn, 0, len + 0.55, 0.05, pv);
       return head;
     };
-    const mid = pivot(root, 0, 1.5, 0.6);
-    neck(mid, 2.2);
+    // heads: 2 なら真ん中の首はなし（双頭）
+    if (look.heads !== 2) {
+      const mid = pivot(root, 0, 1.5, 0.6);
+      neck(mid, 2.2);
+    }
     armL = pivot(root, -0.8, 1.4, 0.5);
     neck(armL, 1.7);
     armL.rotation.z = 0.35;
@@ -443,7 +447,23 @@ export function makeMonsterModel(color, look = {}) {
       armR = legs(0.55, 0.85, 1.2, 0.42);
     }
     if (look.mane) part(box(1.6, 1.2, 0.6), mat(look.mane), 0, 2.2, 1.0, root); // たてがみ
+    if (look.heads === 3) {
+      // 三つ首：左右に首と頭を足す（噛みつきで動かす）
+      heads = [-1, 1].map((sd) => {
+        const pv = pivot(root, sd * 0.55, 2.1, 1.2);
+        part(box(0.5, 0.5, 0.9), bodyMat, 0, 0.1, 0.35, pv);
+        part(box(0.7, 0.6, 0.95), bodyMat, 0, 0.3, 0.95, pv);
+        part(box(0.5, 0.25, 0.5), bodyMat, 0, 0.12, 1.55, pv);
+        part(box(0.1, 0.1, 0.05), em, -0.2, 0.42, 1.44, pv);
+        part(box(0.1, 0.1, 0.05), em, 0.2, 0.42, 1.44, pv);
+        const e = part(cone(0.09, 0.45, 5), horn, 0, 0.75, 0.75, pv);
+        e.rotation.x = -0.5;
+        pv.rotation.y = sd * 0.45;
+        pv.userData.rx = 0;
+        return pv;
+      });
+    }
   }
   group.scale.setScalar(scale);
-  return { group, root, armL, armR, legL, legR, bodyMat };
+  return { group, root, armL, armR, legL, legR, bodyMat, heads };
 }

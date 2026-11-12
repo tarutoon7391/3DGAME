@@ -36,6 +36,10 @@ export function createHudView(game) {
   const vignette = el('rpg-vignette', root);
   const danger = el('rpg-danger', root);
   danger.innerHTML = '<span>⚠ 足元に攻撃の予兆！</span>';
+  // 必殺技の警告：画面の縁が赤く点滅して、大きな文字
+  const ultWarn = el('rpg-ultwarn', root);
+  ultWarn.innerHTML = '<div class="rpg-ultwarn-box"><b></b><big></big><small></small></div>';
+  const uw = { b: ultWarn.querySelector('b'), big: ultWarn.querySelector('big'), small: ultWarn.querySelector('small'), t: 0 };
   const markers = [0, 1, 2, 3].map(() => {
     const m = el('rpg-marker', root);
     m.innerHTML = '<i></i>';
@@ -266,6 +270,11 @@ export function createHudView(game) {
       }
       const me = game.me();
       danger.style.display = fps && me.alive && game.fx.danger(me.pos.x, me.pos.z) ? 'flex' : 'none';
+      if (uw.t > 0) {
+        uw.t -= dt;
+        if (uw.t <= 0) ultWarn.style.display = 'none';
+        else ultWarn.style.opacity = String(Math.min(1, uw.t / 0.4));
+      }
       if (bannerT > 0) {
         bannerT -= dt;
         banner.style.opacity = String(Math.min(1, bannerT));
@@ -283,6 +292,20 @@ export function createHudView(game) {
       banner.textContent = text;
       bannerT = 2.5;
       banner.style.opacity = '1';
+    },
+    /** 必殺技の警告。boss が null なら消す。dur 秒（溜めの長さ）だけ出す */
+    ultWarn(boss, name, hint, dur = 2.5) {
+      if (!boss) {
+        uw.t = 0;
+        ultWarn.style.display = 'none';
+        return;
+      }
+      uw.b.textContent = `⚠ ${boss}が必殺技を構えている！`;
+      uw.big.textContent = `「${name}」`;
+      uw.small.textContent = hint || '';
+      uw.t = dur;
+      ultWarn.style.display = 'flex';
+      ultWarn.style.opacity = '1';
     },
     /** 暗転（v: 0〜1） */
     fade(v) {

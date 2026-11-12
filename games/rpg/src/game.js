@@ -15,6 +15,7 @@ import { createEnemyFx } from './enemyfx.js';
 import { createSkillFx } from './skillfx.js';
 import { createAllies } from './allies.js';
 import { createHazards } from './hazards.js';
+import { createBossVfx } from './bossvfx.js';
 import { createEffects } from './effects.js';
 import { createSound } from './sound.js';
 import { createCameraRig } from './camera.js';
@@ -104,6 +105,7 @@ export function createGame() {
   game.skillFx = createSkillFx(game); // 味方の技エフェクト（斬撃・突進・光線・強化など）
   game.allies = createAllies(game);
   game.hazards = createHazards(game);
+  game.bossVfx = createBossVfx(game); // ボスの固有技・必殺技の見た目
   game.hudView = createHudView(game);
   game.plates = createNameplates(game); // 頭上の名前と HP バー（味方・ボス）
   game.modal = createModalHost(game);
@@ -888,6 +890,7 @@ export function createGame() {
     game.enemyFx.update(dt);
     game.skillFx.update(dt);
     game.hazards.update(dt);
+    game.bossVfx.update(dt);
     updateJobZones(game, dt);
     if (game.raid) {
       updateRevive(dt, me);

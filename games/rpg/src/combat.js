@@ -23,7 +23,7 @@ const DEF_K = 30; // 防御の効き方（大きいほど防御が効きにく�
 /** 生きている攻撃対象（雑魚＋戦闘中のボス）に fn を呼ぶ */
 export function forEachTarget(game, fn) {
   for (const e of game.enemies.list) if (e.alive) fn(e);
-  for (const b of game.bosses) if (b.active && b.alive) fn(b);
+  for (const b of game.bosses) if (b.active && b.alive && !b.hidden) fn(b); // 地中に潜っている間は当たらない
 }
 
 /**
