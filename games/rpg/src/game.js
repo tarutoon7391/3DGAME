@@ -624,6 +624,7 @@ export function createGame() {
     game.trans = null;
     game.playing = true;
     wiped = false;
+    homeToTitle();
     const pr = game.state.progress;
     loadArea(game, pr.area);
     game.hudView.show(true);
@@ -1001,6 +1002,18 @@ export function createGame() {
   loadArea(game, AREA_ORDER[0]);
   game.vm.setVisible(false);
   game.cam.update(0.016, game.me(), game.world, game.fx.shakeOffset);
+  /** 右上の「ハブへ戻る」（shared が置くリンク）は、遊んでいる間はこのゲームのタイトルへ戻るボタンにする */
+  function homeToTitle() {
+    const a = document.querySelector('.g3-home');
+    if (a && a.textContent !== '← タイトルへ') a.textContent = '← タイトルへ';
+  }
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest?.('.g3-home')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    title();
+  }, true);
+
   title();
   // ?debug：自動テスト用（ロック解除でポーズしない・window.rpg で操作できる）
   if (new URLSearchParams(location.search).has('debug')) {
