@@ -837,6 +837,7 @@ export function createGame() {
   /** 倒れた仲間のそばに立つと蘇生（だれでも同じ速さ） */
   const reviving = new Map();
   function updateRevive(dt, me) {
+    game.reviveProgress = null; // { id, k }：自分がいま蘇生している仲間と進み（HUD と 'ps' で使う）
     if (!me.alive) return;
     for (const p of game.players) {
       if (p === me || !p.downed) {
@@ -849,7 +850,8 @@ export function createGame() {
       }
       const t = (reviving.get(p.id) || 0) + dt;
       reviving.set(p.id, t);
-      game.hudView.setPrompt(`${p.name || '仲間'}を蘇生中… ${Math.min(100, Math.floor((t / REVIVE.time) * 100))}%`, null);
+      const k = Math.min(1, t / REVIVE.time);
+      if (!game.reviveProgress || k > game.reviveProgress.k) game.reviveProgress = { id: p.id, k };
       if (t >= REVIVE.time) {
         reviving.delete(p.id);
         game.teamEffect({ kind: 'revive', id: p.id });
