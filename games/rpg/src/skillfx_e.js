@@ -92,13 +92,14 @@ export function createSkillFxE({ game, root, add, mesh, slash, streak, column })
     const big = z.skill === 'meteorshower';
     const n = 3; // 流れ星は1か所に3つ。流星群は6か所×3つ
     const fall = big ? 0.5 : 0.55;
-    const total = Math.max(0.05, z.t) + 0.9;
+    const total = Math.max(0.05, z.t) + 0.9 + (big ? 0 : 0.2);
     const g = new THREE.Group();
     const mats = [];
     const list = [];
     const dir = new THREE.Vector3(0.55, 1, 0.3).normalize();
     for (let i = 0; i < n; i++) {
-      const land = Math.max(0.05, z.t) - (n - 1 - i) * (big ? 0.12 : 0.09) - (big ? Math.random() * 0.06 : 0);
+      // 流れ星は3つが1つずつ当たる（jobs.js の hits・hitGap）ので、1つ目が当たる時刻から順に落ちる
+      const land = big ? Math.max(0.05, z.t) - (n - 1 - i) * 0.12 - Math.random() * 0.06 : Math.max(0.05, z.t) + i * (z.hitGap || 0.09);
       const a = Math.random() * Math.PI * 2;
       const rr = (big ? 0.4 : 0.3) * z.r * Math.sqrt(Math.random()) * (i === n - 1 ? 0.3 : 1);
       const hit = new THREE.Vector3(z.x + Math.sin(a) * rr, 0.2, z.z + Math.cos(a) * rr);

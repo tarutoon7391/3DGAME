@@ -1057,7 +1057,8 @@ const GENERIC = {
       if (toss) game.skillFx?.toss(p, at.x + Math.sin(a) * off, at.z + Math.cos(a) * off, appear - 0.4, sk.color);
       addZone(game, {
         appear,
-        kind: sk.zone, x: at.x + Math.sin(a) * off, z: at.z + Math.cos(a) * off, r: sk.radius, t: sk.dur, delay: sk.delay,
+        kind: sk.zone, x: at.x + Math.sin(a) * off, z: at.z + Math.cos(a) * off, r: sk.radius, t: sk.dur + i * (sk.stagger || 0), delay: sk.delay, // stagger：次々に落ちる（流星群）
+        hits: sk.hits || 1, hitGap: sk.hitGap || 0.1, // hits：同じ場所に何回当たるか（流れ星）
         every: sk.every, tick: sk.every || 0, mult: (sk.mult || 0) * (sk.zone === 'trap' ? p.job.trapBonus || 1 : 1), color: sk.color,
         trigger: sk.trigger, buff: sk.buff, debuff: sk.debuff, heal: sk.heal, owner: p.id, local, p,
         range: sk.range, explode: sk.explode, endBurst: sk.endBurst, skill: sk.id,
@@ -1922,7 +1923,8 @@ export function updateJobZones(game, dt) {
         game.fx.shake(0.6);
         game.sound.se('slam');
         if (z.local) radiusHit(game, z.p, z.mult, z.r, { color: z.color, knock: 1.5, gauge: GAUGE.gainSkill }, z.x, z.z);
-        removeZone(i);
+        if (--z.hits > 0) z.t = z.hitGap; // まだ落ちてくる（流れ星は3つ）
+        else removeZone(i);
       }
     } else if (z.kind === 'totem') {
       // トーテム：近くにいる自分を強化し続ける（各自のブラウザで自分に）
