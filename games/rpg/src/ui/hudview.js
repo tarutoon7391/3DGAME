@@ -37,6 +37,10 @@ export function createHudView(game) {
   const danger = el('rpg-danger', root);
   danger.innerHTML = '<span>⚠ 足元に攻撃の予兆！</span>';
   // 必殺技の警告：画面の縁が赤く点滅して、大きな文字
+  // 近接職の肉薄ボーナス中の札
+  const closeTag = el('rpg-closein', root);
+  closeTag.textContent = '肉薄 与ダメ+15%・被ダメ-25%';
+  let closeOn = false;
   const ultWarn = el('rpg-ultwarn', root);
   ultWarn.innerHTML = '<div class="rpg-ultwarn-box"><b></b><big></big><small></small></div>';
   const uw = { b: ultWarn.querySelector('b'), big: ultWarn.querySelector('big'), small: ultWarn.querySelector('small'), t: 0 };
@@ -270,6 +274,11 @@ export function createHudView(game) {
       }
       const me = game.me();
       danger.style.display = fps && me.alive && game.fx.danger(me.pos.x, me.pos.z) ? 'flex' : 'none';
+      const near = !!(me.alive && me.closeIn?.());
+      if (near !== closeOn) {
+        closeOn = near;
+        closeTag.style.display = near ? 'block' : 'none';
+      }
       if (uw.t > 0) {
         uw.t -= dt;
         if (uw.t <= 0) ultWarn.style.display = 'none';
