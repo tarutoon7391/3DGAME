@@ -7,6 +7,7 @@ import { nextSeal } from '../area.js';
 import { VIEW } from '../data/view.js';
 import { esc, angleDiff } from '../util.js';
 import { supportBadge, createSupportMarks } from './supportinfo.js';
+import { createRecallMark } from './recallmark.js';
 
 function el(cls, parent = document.body, tag = 'div') {
   const e = document.createElement(tag);
@@ -41,6 +42,12 @@ export function createHudView(game) {
   // 近接職の肉薄ボーナス中の札
   const guardView = el('rpg-guardview', root);
   const supportMarks = createSupportMarks(game); // 回復・強化が届く仲間の足元の輪
+  const recallMark = createRecallMark(game); // 転送結界の戻り先
+  // 蘇生ゲージ（蘇生している側・されている側）
+  const reviveEl = el('rpg-revive', root);
+  reviveEl.innerHTML = '<span></span><div><i></i></div>';
+  const reviveTxt = reviveEl.querySelector('span');
+  const reviveBar = reviveEl.querySelector('i');
   const closeTag = el('rpg-closein', root);
   closeTag.textContent = '肉薄 与ダメ+15%・被ダメ-25%';
   let closeOn = false;
@@ -98,6 +105,30 @@ export function createHudView(game) {
     if (!s) return '';
     if (s.done) return '結界はすべて消えた。北の出口へ！';
     return `結界 ${s.opened}/${s.total} 解除　次の結界の番人：あと ${s.left} 体`;
+  }
+
+  /** 蘇生ゲージ：自分が仲間を蘇生している／自分が仲間に蘇生されている */
+  function drawRevive(me) {
+    let text = '';
+    let k = 0;
+    const rv = game.reviveProgress;
+    if (rv && me.alive) {
+      const o = game.players.find((p) => p.id === rv.id);
+      text = `${o?.name || '仲間'}を蘇生中…`;
+      k = rv.k;
+    } else if (me.downed) {
+      // ほかの人が自分を蘇生している（'ps' の rvId・rvK）
+      let best = null;
+      for (const p of game.players) if (p !== me && p.net?.rvId === me.id && (!best || p.net.rvK > best.net.rvK)) best = p;
+      if (best) {
+        text = `${best.name || '仲間'}が蘇生してくれている…`;
+        k = best.net.rvK;
+      }
+    }
+    reviveEl.style.display = text ? 'block' : 'none';
+    if (!text) return;
+    reviveTxt.textContent = `${text} ${Math.floor(k * 100)}%`;
+    reviveBar.style.width = `${Math.min(100, k * 100).toFixed(1)}%`;
   }
 
   /** 重騎士の盾の耐久 */
@@ -289,6 +320,8 @@ export function createHudView(game) {
       const me = game.me();
       danger.style.display = fps && me.alive && game.fx.danger(me.pos.x, me.pos.z) ? 'flex' : 'none';
       supportMarks.update();
+      recallMark.update();
+      drawRevive(me);
       guardView.style.display = fps && me.guarding ? 'block' : 'none'; // 一人称で盾を構えている間は画面の下に盾の縁
       const near = !!(me.alive && me.closeIn?.());
       if (near !== closeOn) {

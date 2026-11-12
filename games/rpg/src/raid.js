@@ -94,6 +94,7 @@ export function createRaid(game, net, handlers) {
       action: p.action, actId: p.actId || 0, combo: p.combo, actDur: p.actDur || 0,
       dashing: p.dashing, tired: p.tired, invuln: p.invuln > 0, buffs,
       sd: Math.round(p.fight?.d || 0), sh: Math.round(p.fight?.h || 0), // 撃破後の順位表
+      rvId: game.reviveProgress?.id || null, rvK: +(game.reviveProgress?.k || 0).toFixed(2), // 蘇生している仲間と進み
     };
   }
 
