@@ -4,7 +4,7 @@
 import { createApp } from '/shared/engine.js';
 import { createInput } from '/shared/input.js';
 import { createAudio } from '/shared/audio.js';
-import { showTitle, showPause, hidePause, isPaused, showResult, toast, isOverlayOpen, closeAll } from '/shared/ui.js';
+import { showPause, hidePause, isPaused, showResult, toast, isOverlayOpen, closeAll } from '/shared/ui.js';
 import { createSave } from '/shared/save.js';
 import { createState, newProgress, migrateProgress } from './state.js';
 import { createPlayer, emptyIntent } from './player.js';
@@ -24,6 +24,7 @@ import { VIEW } from './data/view.js';
 import { createHudView } from './ui/hudview.js';
 import { createModalHost, createDialog } from './ui/dialog.js';
 import { openLobby } from './ui/lobby.js';
+import { openTitleMenu, openStageSelect, closeMenu } from './ui/menu.js';
 import { openJobPicker } from './ui/jobpick.js';
 import { createNameplates } from './ui/nameplates.js';
 import { createLights, loadArea, updateAreaLogic, checkSeals, bossDown, makeRoom } from './area.js';
@@ -605,7 +606,7 @@ export function createGame() {
       retryLabel: game.raid ? (raidHost ? '同じメンバーでもう一度' : undefined) : `${course.label}をもう一度`,
       onRetry: game.raid
         ? (raidHost ? () => { const d = { step: 0, again: true }; game.raid.broadcast('restart', d); againRaid(d); } : undefined)
-        : () => startCourse(course),
+        : () => startSolo(newProgress(course.start), game.me()?.jobId || saveData.settings.job || DEFAULT_JOB),
       extraButtons: [{ label: 'タイトルへ', onClick: () => title() }],
     });
   }
@@ -643,22 +644,19 @@ export function createGame() {
     setPlayers([{ id: 'local', job, name: saveData.settings.name || '' }], 'local');
     begin(progress);
   }
-  function startCourse(course) {
-    if (course !== COURSES[0]) startSolo(newProgress(course.start), saveData.settings.job || DEFAULT_JOB);
-    else startSolo(newProgress(course.start));
-  }
-
-  /** ステージ2・3（レイド）の準備画面 */
+  /** 職業選択（準備画面）。ステージ1 はひとり用なのでルームは出さない */
   function lobby(course = COURSES[1]) {
     leaveRaid();
+    closeMenu();
     openLobby({
+      multi: course.key !== COURSES[0].key,
       settings: saveData.settings,
       save: saveSettings,
       area: course.start,
       heading: `${course.label}　${course.name}`,
       headingOf: (a) => { const c = courseOf(a); return `${c.label}　${c.name}`; },
       onSolo: ({ job }) => startSolo(newProgress(course.start), job),
-      onBack: () => title(),
+      onBack: () => stageSelect(),
       onStart: ({ net, roster, step, area }) => startRaid(net, roster, step, area),
     });
   }
@@ -746,50 +744,33 @@ export function createGame() {
     },
   };
 
-  /** タイトル：ステージ1／ステージ2 を選ぶ（shared の showTitle はボタン1つなので、2つ目はここで足す） */
+  /** タイトル（→ ステージ選択 → 職業選択）。画面は ui/menu.js・ui/lobby.js */
   function title() {
     leaveRaid();
     closeAll();
     game.playing = false;
     game.hudView.show(false);
     const has = !!saveData.progress;
-    const recText = (c) => {
-      const r = saveData[c.recKey];
-      return r.clears ? `クリア ${r.clears} 回／ベスト ${fmtTime(r.bestTime)}` : '未クリア';
-    };
-    const desc = [
-      'ステージを選んでください。育成も収集もないアクション。',
-      ...COURSES.map((c) => `${c.label}「${c.name}」：${c.desc}（${recText(c)}）`),
-    ].join('\n');
     const cont = has ? courseOf(saveData.progress.area) : null;
-    showTitle({
-      title: TITLE,
-      desc,
+    openTitleMenu({
+      subtitle: TITLE.replace(/^\S+\s*〜?|〜$/g, ''),
       controls: touch ? TOUCH_CONTROLS : CONTROLS,
-      onStart: () => startCourse(COURSES[0]),
-      startLabel: `${COURSES[0].label}　${COURSES[0].name}`,
-      onContinue: has ? () => startSolo(saveData.progress, cont !== COURSES[0] ? saveData.settings.job || DEFAULT_JOB : DEFAULT_JOB) : undefined,
-      continueLabel: has ? `つづきから（${cont.label}：${AREAS[saveData.progress.area].name.replace(/^\S+\s+/, '')}）` : undefined,
+      onPlay: () => stageSelect(),
+      onContinue: has ? () => startSolo(saveData.progress, saveData.settings.job || DEFAULT_JOB) : undefined,
+      continueLabel: has ? `${cont.label}：${AREAS[saveData.progress.area].name.replace(/^\S+\s+/, '')}` : '',
     });
-    // 説明文はステージごとに改行して見せる
-    const descEl = document.querySelector('.g3-overlay .g3-panel > p');
-    if (descEl) descEl.style.whiteSpace = 'pre-line';
-    // ステージ2・3 のボタン（見た目は shared のボタンに合わせる）
-    const row = document.querySelector('.g3-overlay .g3-btns');
-    if (row) {
-      for (const c of COURSES.slice(1)) {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'g3-btn' + (has ? ' sub' : '');
-        b.textContent = `${c.label}　${c.name}（1〜8人・職業を選ぶ）`;
-        b.addEventListener('click', (e) => {
-          e.stopPropagation();
-          closeAll();
-          lobby(c);
-        });
-        row.appendChild(b);
-      }
-    }
+  }
+
+  /** ステージ選択 */
+  function stageSelect() {
+    openStageSelect({
+      courses: COURSES.map((c, i) => {
+        const r = saveData[c.recKey];
+        return { ...c, multi: i > 0, record: { clears: r.clears, best: r.clears ? fmtTime(r.bestTime) : '' } };
+      }),
+      onPick: (c) => lobby(c),
+      onBack: () => title(),
+    });
   }
 
   // ---- 入力 → intent（データ） ----
