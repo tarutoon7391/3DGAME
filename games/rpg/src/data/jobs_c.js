@@ -83,7 +83,7 @@ export const C_SKILLS = {
   elementalist: { id: 'c_elementalist', kind: 'cycleSkip', name: '属性選び', desc: '次の属性を1つ飛ばす', cd: 12, color: 0x80cbc4 },
   werewolf: tb('c_werewolf', '遠吠え', '5秒間 周りの味方の攻撃 +15%', 18, 0xa1887f, 'howl', 5, { atkMul: 1.15 }, 9),
   fortress: sb('c_fortress', '撤収', '2秒間 移動 +60%', 10, 0x90a4ae, 'packup', 2, { speedMul: 1.6 }),
-  healfist: { id: 'c_healfist', kind: 'teamheal', name: '気の巡り', desc: 'HP を10% 払って、周りの味方を大きく回復（25%）', cd: 15, radius: 7, amount: 0.25, color: 0x69f0ae, after: { hpCost: 0.1 } },
+  healfist: { id: 'c_healfist', kind: 'teamheal', name: '気の巡り', desc: 'HP を10% 払って、周りの味方を大きく回復（25%。自分は回復しない）', cd: 15, radius: 7, amount: 0.25, selfMul: 0, color: 0x69f0ae, after: { hpCost: 0.1 } },
   sage: sb('c_sage', '時短の書', 'Q と E の待ち時間を2秒縮める', 20, 0xfff59d, 'shortcut', 0.5, {}, { after: { cdCut: { q: 2, e: 2 } } }),
   acrobat: { id: 'c_acrobat', kind: 'leap', name: '綱渡り', desc: '攻撃を跳び越えて7m 先へ（無敵）', cd: 10, dist: 7, time: 0.55, height: 4, color: 0xffd54f },
   driller: sb('c_driller', '地中潜り', '地面に潜り、2秒間 無敵・移動 +30%', 14, 0x8d6e63, 'burrow', 2, { speedMul: 1.3 }, { invuln: 2 }),

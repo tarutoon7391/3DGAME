@@ -766,11 +766,11 @@ export const JOBS = {
     name: '吸血鬼', role: '吸血と蝙蝠化', color: '#ce93d8',
     power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.26, hit: 0.09, mult: 0.9 }, { dur: 0.26, hit: 0.09, mult: 0.95 }, { dur: 0.42, hit: 0.16, mult: 1.5 }], range: 2.6, arc: 2.2, heavyBonus: 0.3 },
-    q: { id: 'bite', kind: 'cone', name: '吸血', desc: '噛みついて、与えたダメージの50% を吸う', cd: 6, mult: 2, range: 3, arc: 1.2, color: 0xb71c1c, lifesteal: 0.5 },
+    q: { id: 'bite', kind: 'cone', name: '吸血', desc: '噛みついて、与えたダメージの30% を吸う', cd: 6, mult: 2, range: 3, arc: 1.2, color: 0xb71c1c, lifesteal: 0.3 },
     e: { id: 'batswarm', kind: 'dash', name: '蝙蝠の群れ', desc: '蝙蝠になって7m すり抜ける（無敵）', cd: 6, mult: 1.2, dist: 7, time: 0.22, width: 1.6, color: 0x4a148c },
-    r: { id: 'nightlord', kind: 'selfbuff', name: '夜の王', desc: '10秒間 攻撃力 +30%・与ダメの30% を吸う・移動 +20%', buff: 'nightlord', dur: 10, vals: { atkMul: 1.3, lifesteal: 0.3, speedMul: 1.2 }, color: 0x7b1fa2, sound: 'roar', msg: '夜の王！' },
-    trait: '与えたダメージの 8% だけ HP 回復',
-    lifesteal: 0.08, breakMul: 1,
+    r: { id: 'nightlord', kind: 'selfbuff', name: '夜の王', desc: '10秒間 攻撃力 +30%・与ダメの15% を吸う・移動 +20%', buff: 'nightlord', dur: 10, vals: { atkMul: 1.3, lifesteal: 0.15, speedMul: 1.2, lsCapAdd: 0.02 }, color: 0x7b1fa2, sound: 'roar', msg: '夜の王！' },
+    trait: '与えたダメージの 5% だけ HP 回復（吸える量は毎秒 最大HP の3% まで）',
+    lifesteal: 0.05, lsPerSec: 0.03, breakMul: 1,
     look: { armorColor: 0x212121, swordColor: 0xb71c1c, swordLen: 0.7, cape: 0x4a148c, weapon: 'dagger' },
   },
   gunblade: {
@@ -810,12 +810,12 @@ export const JOBS = {
   // ================= 追加の16職（65〜80） =================
   mimic: {
     name: 'ものまね師', role: '他の職業の技を借りる', color: '#ffe0b2',
-    power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.2, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.45, speed: 24, mult: 0.85, color: 0xffe0b2, size: 0.28, range: 22 },
-    q: { id: 'copycat', kind: 'mimic', name: 'ものまね', desc: 'ランダムな職業の Q スキルを借りて使う', cd: 5 },
-    e: { id: 'copycat2', kind: 'mimic', name: 'ものまね（もう一回）', desc: 'Q とは別に、もう一度ランダムな職業の Q スキルを借りる', cd: 8 },
-    r: { id: 'copyburst', kind: 'burst', name: 'ものまね大会', desc: '周りに4回、いろんな色の衝撃を出す', ticks: 4, every: 0.18, mult: 2, radius: 5, color: 0xffcc80, melee: false },
-    trait: 'Q・E が何の技になるかは使うまで分からない',
+    q: { id: 'copycat', kind: 'mimic', name: 'ものまね', desc: 'ランダムな職業の Q スキルを借りて使う（変身中はボスの技）', cd: 4 },
+    e: { id: 'copycat2', kind: 'mimic', name: 'ものまね（もう一回）', desc: 'Q とは別に、もう一度ランダムな職業の Q スキルを借りる（変身中はボスの技）', cd: 6 },
+    r: { id: 'copyboss', kind: 'copyboss', name: 'ものまね変身', desc: '一番近いボスをコピー。12秒間 Q・E がそのボスの技になる（すぐに1つ撃つ）', dur: 12, color: 0xffcc80 },
+    trait: 'Q・E が何の技になるかは使うまで分からない。借りた技も含めて火力 1.2倍',
     breakMul: 1,
     look: { armorColor: 0x8d6e63, swordColor: 0xffe0b2, swordLen: 0.8, cape: 0xff8a65, weapon: 'flask', hat: 0x6d4c41 },
   },
@@ -950,10 +950,10 @@ export const JOBS = {
     power: 0.66, support: 1.92, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.24, hit: 0.08, mult: 0.8 }, { dur: 0.24, hit: 0.08, mult: 0.85 }, { dur: 0.24, hit: 0.08, mult: 0.85 }, { dur: 0.4, hit: 0.15, mult: 1.4 }], range: 2.4, arc: 2.2, heavyBonus: 0.2 },
     q: { id: 'chipalm', kind: 'cone', name: '気功掌', desc: '前方を打つ（与えたダメージも仲間の回復に回る）', cd: 5, mult: 2.0, range: 3.4, arc: 1.4, color: 0xa5d6a7 },
-    e: { id: 'chiwave', kind: 'teamheal', name: '気の波', desc: '周囲8mの味方の HP を 12% 回復', cd: 12, radius: 8, amount: 0.12, color: 0xa5d6a7 },
+    e: { id: 'chiwave', kind: 'teamheal', name: '気の波', desc: '周囲8mの味方の HP を 12% 回復（自分は半分）', cd: 12, radius: 8, amount: 0.12, selfMul: 0.5, color: 0xa5d6a7 },
     r: { id: 'chiburst', kind: 'burst', name: '気功乱打', desc: '周りを8回 打つ（すべて仲間の回復に回る）', ticks: 8, every: 0.12, mult: 1.1, radius: 3.8, color: 0x69f0ae },
-    trait: '近接で与えたダメージの一部が、1.2秒ごとに周り8mの仲間の回復になる',
-    healPool: { rate: 0.0004, max: 0.025, radius: 8 }, // 1.2秒ごとに最大 2.5%（僧侶を上回らない） breakMul: 1,
+    trait: '近接で与えたダメージの一部が、1.2秒ごとに周り8mの仲間の回復になる（自分への回復は 3割）',
+    healPool: { rate: 0.0004, max: 0.025, radius: 8, selfMul: 0.3 }, // 1.2秒ごとに最大 2.5%（僧侶を上回らない） breakMul: 1,
     look: { armorColor: 0x2e7d32, swordColor: 0xa5d6a7, swordLen: 0.5, cape: 0x1b5e20, weapon: 'fist' },
   },
   sage: {

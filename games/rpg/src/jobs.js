@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { JOBS, JOB_ORDER, GAUGE } from './data/jobs.js';
 import { radiusHit, strike, forEachTarget, meleeArc } from './combat.js';
 import { angleDiff, yawTo } from './util.js';
+import { useCopiedMove, copyMoves, nearestBoss } from './jobs_copy.js';
 
 const fwd = (yaw, d) => [Math.sin(yaw) * d, Math.cos(yaw) * d];
 
@@ -955,7 +956,7 @@ const GENERIC = {
     game.sound.se('seal');
     ringFx(game, d.x, d.z, sk.radius, sk.color);
     game.skillFx?.teamHealFx?.(p, sk); // くす玉：赤十字の緑の帯が広がる
-    if (local) game.teamEffect({ kind: 'heal', x: d.x, z: d.z, r: sk.radius, amount: sk.amount });
+    if (local) game.teamEffect({ kind: 'heal', x: d.x, z: d.z, r: sk.radius, amount: sk.amount, ...(sk.selfMul !== undefined ? { from: p.id, selfMul: sk.selfMul } : {}) });
   },
   teamgauge(game, p, d, local, sk) {
     startAction(p, 'cast', 0.4);
@@ -1115,6 +1116,18 @@ const GENERIC = {
     // ものまね師：ランダムな職業の Q を借りて使う（何を借りたかは d.mimic で他の人にも同じものを見せる）
     // d.pick は借りた技の側（精霊術士の属性・道化師の手品など）が使うので、ものまね師は別の名前で持つ
     // ものまね保存：さっき借りた技をもう一度
+    // ものまね変身中（R）：コピーしたボスの技を撃つ
+    if (d.cm === undefined && local && p.buffs.copyboss) {
+      const list = copyMoves(p.buffs.copyboss.key);
+      if (list.length) {
+        d.ck = p.buffs.copyboss.key;
+        d.cm = list[Math.floor(Math.random() * list.length)];
+      }
+    }
+    if (d.cm !== undefined) {
+      useCopiedMove(game, p, d, local);
+      return;
+    }
     if (d.mimic === undefined && local && p.buffs.mimickeep && p.lastMimic) {
       d.mimic = p.lastMimic;
       delete p.buffs.mimickeep;
@@ -1129,6 +1142,31 @@ const GENERIC = {
     game.toastOnce(`ものまね：${src.name}の「${src.q.name}」`, 1400);
     if (SKILLS[src.q.id]) SKILLS[src.q.id](game, p, d, local);
     else if (GENERIC[src.q.kind]) GENERIC[src.q.kind](game, p, d, local, src.q);
+  },
+  copyboss(game, p, d, local, sk) {
+    // ものまね師の必殺技：一番近いボスをコピー。dur 秒間 Q・E がそのボスの技になり、すぐに1つ撃つ
+    if (d.ck === undefined) {
+      const b = nearestBoss(game, d.x, d.z);
+      if (b) {
+        d.ck = b.key;
+        const list = copyMoves(b.key);
+        d.cm = list[Math.floor(Math.random() * list.length)];
+      }
+    }
+    if (!d.ck) {
+      game.toastOnce('コピーできるボスがいない', 1400);
+      return;
+    }
+    p.buff('copyboss', sk.dur, { key: d.ck });
+    game.fx.burst(p.pos.x, 1.6, p.pos.z, sk.color, 50, { speed: 6, up: 5, life: 0.9 });
+    game.skillFx?.powerUp(p, sk.color, true);
+    game.sound.se('gate');
+    if (local) {
+      game.toast(`ものまね変身！ ${sk.dur}秒間 Q・E がボスの技になる`, 2200);
+      p.cd.q = 0;
+      p.cd.e = 0;
+    }
+    if (d.cm) useCopiedMove(game, p, d, local);
   },
   cycle(game, p, d, local, sk) {
     // 精霊術士：使うたびに順番に属性が変わる（炎→氷→雷→…）
