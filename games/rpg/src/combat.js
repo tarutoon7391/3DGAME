@@ -104,11 +104,18 @@ export function strike(game, pl, target, mult, opts = {}) {
   game.skillFx?.hit(target, color, crit, pl); // 当たったときの光（src/skillfx.js）
   game.sound.se(crit ? 'crit' : 'hit');
   if (melee) game.fx.hitstop(crit ? 0.07 : 0.04);
-  // 魔剣士の魔力付与：近接が当たると小さな爆発（爆発そのものは付与を起こさない）
+  // 魔剣士の魔力付与：近接が当たると、少し遅れて全く同じダメージの魔力の追撃がもう一度入る
   const ench = pl.buffs.enchant;
   if (ench && melee && !opts.enchanted) {
-    game.fx.burst(target.pos.x, 1.2, target.pos.z, ench.color || 0x7c4dff, 10, { speed: 5, up: 3, life: 0.35 });
-    radiusHit(game, pl, ench.mult, ench.radius, { enchanted: true, gauge: 0, color: ench.color || 0x7c4dff, knock: 0.5 }, target.pos.x, target.pos.z);
+    const col = ench.color || 0x7c4dff;
+    setTimeout(() => {
+      if (!target.alive) return;
+      target.takeHit(game, dmg, dx / len, dz / len, 0.3, { brk: 0, from: pl.id });
+      if (!pl.remote && pl.fight && game.bosses.includes(target)) pl.fight.d += dmg;
+      game.fx.text(target.pos.x, (target.hpY ?? 2) + 0.5, target.pos.z, crit ? `${dmg}!` : String(dmg), '#b388ff', crit);
+      game.fx.burst(target.pos.x, 1.4, target.pos.z, col, 14, { speed: 5, up: 3, life: 0.4 });
+      game.skillFx?.hit(target, col, crit, pl);
+    }, 90);
   }
   // 鞭使い：当てるたびに足が速くなる（最大 +30%・2秒）
   if (J.whipSpeed && melee && !pl.remote) {

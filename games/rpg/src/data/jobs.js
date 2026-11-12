@@ -253,7 +253,7 @@ export const JOBS = {
     name: '侍', role: '居合・反撃', color: '#e0e0e0',
     power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.32, hit: 0.11, mult: 1.0 }, { dur: 0.32, hit: 0.11, mult: 1.05 }, { dur: 0.5, hit: 0.2, mult: 1.8 }], range: 2.9, arc: 2.0, heavyBonus: 0.4 },
-    q: { id: 'iai', kind: 'cone', name: '居合', desc: '前方へ一閃。必ず会心', cd: 6, mult: 2.4, range: 6, arc: 1.2, crit: true, color: 0xffffff },
+    q: { id: 'iai', kind: 'cone', name: '居合', desc: '前方へ一閃。必ず会心', cd: 6, mult: 2.4, range: 8, arc: 1.2, crit: true, color: 0xffffff },
     e: { id: 'mikiri', kind: 'counter', name: '見切り', desc: '1秒間 構える。その間に攻撃されると無傷で受け流し、強烈に反撃', cd: 7, dur: 1, mult: 4, range: 6 },
     r: { id: 'tsubame', kind: 'burst', name: '奥義・燕返し', desc: '一瞬溜めてから、目にも止まらぬ6連斬り（周囲・すべて会心）。最後は溜めた縦斬り', crit: true, ticks: 6, every: 0.12, windup: 0.25, lastGap: 0.2, mult: 1.3, radius: 3.6, color: 0xffffff },
     trait: '会心のダメージがさらに +50%',
@@ -325,9 +325,10 @@ export const JOBS = {
     name: '魔剣士', role: '魔力付与の近接', color: '#9575cd',
     power: 0.97, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.34, hit: 0.11, mult: 1.0 }, { dur: 0.34, hit: 0.11, mult: 1.1 }, { dur: 0.5, hit: 0.2, mult: 1.6 }], range: 2.8, arc: 2.2, heavyBonus: 0.4 },
-    q: { id: 'enchant', kind: 'selfbuff', name: '魔力付与', desc: '10秒間 近接攻撃が当たるたびに小さな魔力の爆発が起きる', cd: 14, buff: 'enchant', dur: 10, vals: { mult: 0.7, radius: 2.2, color: 0x7c4dff }, color: 0x7c4dff, msg: '魔力付与！ 近接攻撃が爆発する' },
-    e: { id: 'flashblade', kind: 'dash', name: '魔光閃', desc: '魔力をまとって6m 斬り抜ける', cd: 6, mult: 2.0, dist: 6, time: 0.2, width: 1.5, color: 0x9575cd },
-    r: { id: 'arcanewave', kind: 'shots', name: '魔剣解放', desc: '剣を掲げて1秒 魔力を溜め、巨大な魔力の刃を放つ（貫通・着弾で爆発はしない）', windup: 1, mult: 5, speed: 26, size: 1.1, range: 22, pierce: true, color: 0x7c4dff, sound: 'wave' },
+    // 威力の目安（防御 10 のボスに会心なし）：魔刃一閃 約200（魔力付与中は約400）／魔剣解放 約400〜1000
+    q: { id: 'enchant', kind: 'selfbuff', name: '魔力付与', desc: '10秒間 近接攻撃が当たるたびに、同じダメージの魔力の追撃がもう一度入る', cd: 14, buff: 'enchant', dur: 10, vals: { echo: true, color: 0x7c4dff }, color: 0x7c4dff, msg: '魔力付与！ 近接攻撃が2回当たる' },
+    e: { id: 'manablade', name: '魔刃一閃', desc: '魔力を込めた斬撃を飛ばす（貫通・約200。魔力付与中は2倍）', cd: 6, mult: 5.5, enchantMul: 2, range: 18, radius: 1.7, scale: 1.6, color: 0x9575cd },
+    r: { id: 'arcanewave', name: '魔剣解放', desc: '剣を掲げて1秒 魔力を溜め、巨大な魔力の刃を放つ。いま使える Q・E・C をすべて待ち状態にするかわりに、使える技が多いほど強く派手になる（0個 約400／1個 約600／2個 約800／3個 約1000）', windup: 1, mults: [11, 16.5, 22, 27.5], speed: 26, range: 26, color: 0x7c4dff },
     trait: 'Q・E を使うたびに必殺ゲージ +6',
     gaugeOnSkill: 6, breakMul: 1.1,
     look: { armorColor: 0x4527a0, swordColor: 0xb39ddb, swordLen: 1.0, cape: 0x311b92, weapon: 'sword' },
