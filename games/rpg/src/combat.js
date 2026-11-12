@@ -5,6 +5,7 @@ import { courseOf, COURSES } from './data/areas.js';
 import { angleDiff, yawTo } from './util.js';
 import { PLAYER } from './data/player.js';
 import { GAUGE, SOLO_DAMAGE } from './data/jobs.js';
+import { ENEMY_DMG_MUL } from './data/enemies.js';
 
 /** 敵の攻撃の基準 HP：frac × この値がダメージ（遠距離職の標準 HP。変更前と同じ痛さ） */
 const ENEMY_HIT_BASE_HP = 110;
@@ -181,7 +182,7 @@ export function hurtPlayer(game, pl, frac, fromX, fromZ) {
   const base = courseOf(game.state.progress.area) === COURSES[0] ? pl.maxHp : ENEMY_HIT_BASE_HP;
   const stage1 = base === pl.maxHp;
   const solo = !stage1 && game.players.length === 1 ? SOLO_DAMAGE : 1; // ひとりで挑むときは少し軽い
-  let dmg = Math.max(1, Math.ceil(base * frac * pl.dmgTakenMul() * solo));
+  let dmg = Math.max(1, Math.ceil(base * frac * pl.dmgTakenMul() * solo * ENEMY_DMG_MUL)); // ENEMY_DMG_MUL：調整中の倍率（data/enemies.js）
   // 剣闘士：正面（向いている方向の左右60°）からの攻撃は 40% カット
   if (pl.job.frontGuard) {
     const toFrom = Math.atan2(fromX - pl.pos.x, fromZ - pl.pos.z);
