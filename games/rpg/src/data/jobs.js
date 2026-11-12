@@ -381,8 +381,10 @@ export const JOBS = {
     power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.18, speed: 40, mult: 0.45, color: 0xffcc80, size: 0.16, range: 26 },
     q: { id: 'fanning', kind: 'shots', name: 'ファニング', desc: '0.6秒で6連射', cd: 6, count: 6, every: 0.1, jitter: 0.12, speed: 40, mult: 0.75, size: 0.18, range: 26, color: 0xffcc80 },
-    e: { id: 'roll', kind: 'selfbuff', name: 'ローリング', desc: '転がって回避し（回避と同じ移動）、0.6秒 無敵・5秒間 会心率 +30%', cd: 8, move: true, buff: 'roll', dur: 5, vals: { critAdd: 0.3 }, invuln: 0.6, color: 0xffcc80, sound: 'dodge' },
-    r: { id: 'deadeye', kind: 'shots', name: 'デッドアイ', desc: '一番近いボスへ自動で狙う6連射（必ず当たる向き。着弾で小さく爆ぜる）', aim: true, pop: true, count: 6, every: 0.12, speed: 50, mult: 1.6, size: 0.22, range: 40, pierce: true, color: 0xffab40 },
+    e: { id: 'roll', kind: 'selfbuff', name: 'ローリング', desc: '回避の1.5倍の距離を転がり、0.6秒 無敵・5秒間 会心率 +30%', cd: 8, move: true, moveMul: 1.5, buff: 'roll', dur: 5, vals: { critAdd: 0.3 }, invuln: 0.6, color: 0xffcc80, sound: 'dodge' },
+    // デッドアイ：構えている間は移動 50%・ほかの技と回避・ダッシュ不可。左クリックで、一番近いボスへ赤い弾を6連射
+    // 1発の威力は溜めた秒数で上がる（防御 10 のボスに会心なし：溜めなし 約60 → 10秒 約200）。12秒たつと自動で撃つ
+    r: { id: 'deadeye', name: 'デッドアイ', desc: '構えて溜める（移動 50%・ほかの技と回避不可）。左クリックで一番近いボスへ赤い弾を6連射。溜めるほど強い（1発 約60 → 10秒溜めで約200）', count: 6, every: 0.12, speed: 50, minMult: 1.6, maxMult: 5.33, full: 10, auto: 12, size: 0.3, range: 44, color: 0xff1744, speedMul: 0.5 },
     trait: '移動しながらでも撃ちやすい速射。会心率 +5%',
     critBonus: 0.05, breakMul: 1,
     look: { armorColor: 0x6d4c41, swordColor: 0x424242, swordLen: 0.6, cape: 0x8d6e63, weapon: 'gun' },

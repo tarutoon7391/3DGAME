@@ -8,6 +8,7 @@ import { VIEW } from '../data/view.js';
 import { esc, angleDiff } from '../util.js';
 import { supportBadge, createSupportMarks } from './supportinfo.js';
 import { createRecallMark } from './recallmark.js';
+import { createDeadeyeView } from './deadeye.js';
 
 function el(cls, parent = document.body, tag = 'div') {
   const e = document.createElement(tag);
@@ -43,6 +44,7 @@ export function createHudView(game) {
   const guardView = el('rpg-guardview', root);
   const supportMarks = createSupportMarks(game); // 回復・強化が届く仲間の足元の輪
   const recallMark = createRecallMark(game); // 転送結界の戻り先
+  const deadeyeView = createDeadeyeView(game); // デッドアイの構え（照準とシネマ調の画面）
   // 蘇生ゲージ（蘇生している側・されている側）
   const reviveEl = el('rpg-revive', root);
   reviveEl.innerHTML = '<span></span><div><i></i></div>';
@@ -321,6 +323,7 @@ export function createHudView(game) {
       danger.style.display = fps && me.alive && game.fx.danger(me.pos.x, me.pos.z) ? 'flex' : 'none';
       supportMarks.update();
       recallMark.update();
+      deadeyeView.update();
       drawRevive(me);
       guardView.style.display = fps && me.guarding ? 'block' : 'none'; // 一人称で盾を構えている間は画面の下に盾の縁
       const near = !!(me.alive && me.closeIn?.());

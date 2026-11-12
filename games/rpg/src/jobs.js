@@ -314,6 +314,43 @@ const SKILLS = {
       }
     };
   },
+  // ---- 拳銃使い ----
+  deadeye(game, p, d, local) {
+    // デッドアイ：構える（撃つのは左クリック。player.js の updateDeadeye → fireDeadeye）
+    game.sound.se('windup');
+    game.fx.burst(p.pos.x, 1.6, p.pos.z, 0xff1744, 24, { speed: 3, up: 3, life: 0.6 });
+    if (local) {
+      p.deadeye = { t: 0 };
+      p.buff('deadeye', 99); // ほかの人の画面にも構えているのを見せる（撃つと消す）
+      game.toastOnce('デッドアイ：左クリックで撃つ（溜めるほど強い）', 1800);
+    }
+  },
+  _deadeyefire(game, p, d, local) {
+    // 6連射：撃つたびに一番近いボスへ向け直す。赤い弾が着弾で爆ぜる
+    const r = JOBS.gunslinger.r;
+    const k = Math.max(0, Math.min(1, d.k || 0));
+    const mult = r.minMult + (r.maxMult - r.minMult) * k;
+    for (let i = 0; i < r.count; i++) {
+      later(p, i * r.every, () => {
+        let yaw = p.yaw;
+        let best = null;
+        let bd = r.range;
+        for (const b of game.bosses) {
+          if (!b.active || !b.alive || b.hidden) continue;
+          const dd = Math.hypot(b.pos.x - p.pos.x, b.pos.z - p.pos.z);
+          if (dd < bd) { bd = dd; best = b; }
+        }
+        if (best) yaw = Math.atan2(best.pos.x - p.pos.x, best.pos.z - p.pos.z);
+        p.yaw = yaw;
+        p.waveT = 0.15;
+        game.skillFx?.muzzle?.(p);
+        game.projectiles.playerShot(p, p.pos.x, p.pos.z, yaw, { speed: r.speed, mult, color: r.color, size: r.size * (1 + k * 0.6), range: r.range, pop: true, local, gauge: 0 });
+        game.fx.burst(p.pos.x + Math.sin(yaw) * 1.2, 1.4, p.pos.z + Math.cos(yaw) * 1.2, i % 2 ? 0xff1744 : 0xffd740, 10 + Math.round(k * 20), { speed: 6, up: 2, life: 0.3 });
+        game.fx.shake(0.15 + k * 0.25);
+        game.sound.se(i === r.count - 1 ? 'crit' : 'shoot');
+      });
+    }
+  },
   // ---- 魔剣士 ----
   manablade(game, p, d, local) {
     // 魔刃一閃：魔力を込めた斬撃を飛ばす。魔力付与中は2倍で、紫に強く光る
@@ -896,6 +933,13 @@ export function castR(game, p, intent) {
   return cast(game, p, r.id, skillData(game, p, intent, r.dist || 3));
 }
 
+/** デッドアイを撃つ（溜めの割合 k）。自分で撃って、ほかの人にも見せる */
+export function fireDeadeye(game, p, k) {
+  const d = { k: +k.toFixed(3) };
+  SKILLS._deadeyefire(game, p, d, true);
+  game.raid?.sendSkill(p, '_deadeyefire', d);
+}
+
 /** 他の人のスキルを見た目だけ再生する */
 export function playRemoteSkill(game, p, id, d) {
   run(game, p, id, d, false);
@@ -1126,6 +1170,7 @@ const GENERIC = {
     // ローリング：ふつうの回避と同じように転がって動く（動いていなければ後ろへ）
     if (sk.move) {
       const y = d.myaw ?? p.yaw + Math.PI;
+      p.rollMul = sk.moveMul || 1; // ローリング：回避より遠くへ
       p.action = 'dodge';
       p.actT = 0;
       p.dodgeX = Math.sin(y);
