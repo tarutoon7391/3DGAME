@@ -2,7 +2,7 @@
 // ai: melee（近接）/ ranged（遠距離）/ charger（突進）。model は src/models.js の形状名
 // 攻撃の威力は data/player.js の HIT（最大 HP の割合）で決まる
 // 速度・予備動作・攻撃間隔は旧仕様から 速さ×1.3、予備動作×0.8、硬直×0.7、攻撃間隔×0.65 程度にした
-
+import { S5_MOVES } from './bossmoves_s5.js';
 
 /** ボスの HP にかける倍率（調整中の一時的なもの。1 で元どおり） */
 export const BOSS_HP_MUL = 0.5;
@@ -672,6 +672,12 @@ export const BOSSES = {
     look: { monster: 'dragon', scale: 3.0, horn: 0xffab40, eye: 0xffea00, belly: 0xff8a65, wingColor: 0x4e1a0a },
   },
 };
+
+// ステージ5のボスは固有技（各7種）と必殺技に差し替え（data/bossmoves_s5.js）
+for (const [k, v] of Object.entries(S5_MOVES)) {
+  const look = v.look ? { ...BOSSES[k].look, ...v.look } : BOSSES[k].look;
+  Object.assign(BOSSES[k], v, { look });
+}
 
 /** 1-3のボス（旧コードとの互換用） */
 export const BOSS = BOSSES.galdra;

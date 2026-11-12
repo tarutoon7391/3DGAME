@@ -8,6 +8,7 @@ import { makeBossModel } from './models.js';
 import { angleDiff, lerpAngle, yawTo, rand } from './util.js';
 import { hurtPlayer, bossTarget } from './combat.js';
 import { HIT } from './data/player.js';
+import { createMoveRunner, poseSeq } from './bossmoves.js';
 
 const BREAK = { ratio: 0.22, stun: 4, dmgMul: 1.5 };
 /** 気絶系の効き目の減り方：かかるたびに ×0.7（最低 25%）。ブレイク気絶と時間停止で回数を共有 */
@@ -105,6 +106,7 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
         b.t = 0;
       }
       b.pattern = s.pattern;
+      b.hidden = !!s.hid;
       // 参加者：弱体化の有無だけ（見た目と錬金術師の特性用）
       b.debuffs = {};
       if (s.vuln) b.debuffs.vuln = { t: 1, mul: 1 };
@@ -116,6 +118,7 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
       else if (name === 'wall') game.hazards?.wall(d);
       else if (name === 'donut') game.hazards?.donut(d);
       else if (name === 'pull') game.hazards?.startPull(d);
+      else if (name === 'vfx') game.bossVfx?.play(d.type, d);
     },
     dispose() {
       cancelAll();
@@ -149,15 +152,29 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
     if (b.shred) dmg = Math.round(dmg * (1 + b.shred.n * b.shred.per)); // 鎧砕き
     b.hp = Math.max(0, b.hp - dmg);
     b.flash = 0.1;
-    if (b.state !== 'stun' && b.active && b.state !== 'rage' && b.state !== 'intro') {
+    const ulting = isUlt();
+    if (b.state !== 'stun' && b.active && b.state !== 'rage' && b.state !== 'intro' && !ulting) {
       b.brk += brk;
       if (b.brk >= b.brkMax) breakDown();
     }
+    // 必殺技：HP が決まった割合を切るたびに1回（溜めに入れるときに出す）
+    const U = P.ult;
+    if (U && b.active) while ((b.ultUsed || 0) < U.hpAt.length && b.hp <= maxHp * U.hpAt[b.ultUsed || 0]) {
+      b.ultUsed = (b.ultUsed || 0) + 1;
+      b.ultReady = true;
+    }
     if (b.hp <= 0) die();
-    else if (R && !b.raged && b.hp <= maxHp * R.at && b.state !== 'stun') enrage();
+    else if (R && !b.raged && b.hp <= maxHp * R.at && b.state !== 'stun' && !ulting) enrage();
   }
 
+  /** 必殺技の最中か */
+  function isUlt() {
+    return b.state === 'seq' && !!P[b.pattern]?.ult;
+  }
+  b.isUlt = isUlt;
+
   function cancelAll() {
+    runner?.cancel();
     if (b.tele) b.tele.end();
     b.tele = null;
     b.jump = null;
@@ -334,6 +351,10 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
   }
 
   function startPattern(name, tgt) {
+    if (kindOf(name) === 'seq') {
+      runner.start(name, tgt);
+      return;
+    }
     b.pattern = name;
     b.state = 'windup';
     b.t = 0;
@@ -605,7 +626,7 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
       if (zn.t > 0) continue;
       zn.tele.end();
       b.zones.splice(i, 1);
-      hitAll(inCircle(zn.x, zn.z, zn.r), meleeHit, zn.x, zn.z);
+      hitAll(inCircle(zn.x, zn.z, zn.r), zn.frac ?? meleeHit, zn.x, zn.z);
       game.fx.burst(zn.x, 0.4, zn.z, zn.color, zn.burst ? 18 : 26, { speed: 6, up: zn.burst ? 6 : 10, life: 0.6, size: 0.22 });
       game.enemyFx?.impact(zn.x, zn.z, zn.r, zn.color);
       game.sound.se('slam');
@@ -615,6 +636,23 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
       for (let k = 0; k < n; k++) shot(zn.x, zn.z, off + (k / n) * Math.PI * 2, 6, zn.color);
     }
   }
+
+  // ---------------- 固有技・必殺技の台本（src/bossmoves.js） ----------------
+  /** 見た目を自分と参加者で出す（src/bossvfx.js） */
+  function vfx(type, d) {
+    game.bossVfx?.play(type, d);
+    game.raid?.bossFx('vfx', { type, ...d });
+  }
+  const runner = createMoveRunner({
+    game, b, C, P, hitAll, inCircle, inRect, shot, ring, emit, hazard, vfx, meleeHit,
+    wm, cm, target: () => bossTarget(game, b),
+    nova(x, z, max, speed, width, color) {
+      spawnNova(x, z, max, speed, width, color);
+      game.raid?.bossFx('nova', { x, z, max, speed, width, color });
+    },
+  });
+  /** 台本の時間の倍率（必殺技は怒っていても同じ） */
+  const seqMul = () => (P[b.pattern]?.ult ? 1 : wm());
 
   function update(rawDt) {
     // 弱体化の残り時間（実時間で減る）
@@ -680,6 +718,14 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
             b.pos.x += Math.sin(b.yaw) * spd;
             b.pos.z += Math.cos(b.yaw) * spd;
             walking = true;
+          }
+          // 必殺技：ほかのボスが撃っていなければ、休みのうちに溜めに入る
+          if (b.ultReady && !game.bosses.some((o) => o !== b && o.isUlt?.())) {
+            b.ultReady = false;
+            b.queued = null;
+            b.restDur = null;
+            runner.start('ult', tgt);
+            break;
           }
           if (b.queued) {
             // 追撃（連続攻撃・瞬間移動のあと）はすぐ出す
@@ -775,6 +821,14 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
         }
         break;
       }
+      case 'seq':
+        if (runner.update(dt, tgt)) {
+          const after = P[b.pattern]?.after;
+          b.state = 'rest';
+          b.t = 0;
+          if (after && P[after]) b.queued = after;
+        } else if (b.state === 'seq') poseSeq(m, P[b.pattern], b.t, seqMul());
+        break;
       case 'whirl': {
         // 回転しながら標的へ寄ってくる。tick ごとに周りを斬る
         const p = P[b.pattern];
@@ -865,6 +919,7 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
 
     if (b.state !== 'dead' && b.pos.y === 0) game.world.collide(b.pos, b.radius);
     m.group.rotation.y = b.yaw;
+    m.group.visible = !b.hidden;
     if (b.state === 'rest' || b.state === 'move') poseWalk(walking);
     drawGlow();
   }
@@ -890,6 +945,7 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
       b.yaw = lerpAngle(b.yaw, n.yaw, k);
     }
     m.group.rotation.y = b.yaw;
+    m.group.visible = !b.hidden;
     const kind = b.pattern && P[b.pattern] ? kindOf(b.pattern) : '';
     m.group.scale.setScalar(b.state === 'windup' && kind === 'teleport' ? Math.max(0.05, 1 - b.t / (P[b.pattern].windup * wm())) : 1);
     switch (b.state) {
@@ -915,6 +971,7 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
         m.root.rotation.y = -0.3;
         break;
       case 'charge': m.root.rotation.x = 0.35; break;
+      case 'seq': if (P[b.pattern]) poseSeq(m, P[b.pattern], b.t, seqMul()); break;
       case 'whirl':
         m.root.rotation.y += dt * 18;
         m.armL.rotation.set(-Math.PI / 2, 0, 0.6);
@@ -958,7 +1015,8 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
     m.root.position.y = 0;
   }
   function drawGlow() {
-    const glow = b.state === 'windup' || b.state === 'charge' ? 0.5 + 0.5 * Math.sin(b.t * 25) : b.raged ? 0.25 : 0;
+    const ult = isUlt();
+    const glow = ult ? 0.7 + 0.3 * Math.sin(b.t * 30) : b.state === 'windup' || b.state === 'charge' || b.state === 'seq' ? 0.5 + 0.5 * Math.sin(b.t * 25) : b.raged ? 0.25 : 0;
     const stun = b.state === 'stun' ? 0.35 + 0.25 * Math.sin(b.t * 10) : 0;
     if (b.flash > 0) m.bodyMat.emissive.setRGB(1, 1, 1);
     else if (b.state === 'frozen') m.bodyMat.emissive.setRGB(0.35, 0.25, 0.8); // 時間停止：紫
@@ -975,7 +1033,7 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
     key: b.key, idx: b.idx, sub: b.sub, x: +b.pos.x.toFixed(2), z: +b.pos.z.toFixed(2), y: +b.pos.y.toFixed(2), yaw: +b.yaw.toFixed(3),
     hp: Math.round(b.hp), maxHp: b.maxHp, brk: Math.round(b.brk), brkMax: b.brkMax,
     state: b.state, pattern: b.pattern, raged: b.raged, active: b.active, alive: b.alive,
-    vuln: !!b.debuffs.vuln, slow: !!b.debuffs.slow,
+    vuln: !!b.debuffs.vuln, slow: !!b.debuffs.slow, hid: b.hidden ? 1 : 0,
   });
   /** ホスト：鎧砕き（重ねるほど被ダメ増。6秒殴られないと戻る） */
   b.addShred = (per, max) => {
@@ -996,6 +1054,10 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
   /** ホスト：時間停止（攻撃を中断して dur 秒 固まる） */
   b.freeze = (dur, immune = 15) => {
     if (!b.alive || !b.active || b.state === 'dead') return;
+    if (isUlt()) {
+      game.toast(`${C.name}は必殺技の最中で止められない！`, 1600);
+      return;
+    }
     if (b.freezeImmune > 0) {
       game.toast(`${C.name}には時間停止がまだ効かない（あと ${Math.ceil(b.freezeImmune)} 秒）`, 1800);
       return;

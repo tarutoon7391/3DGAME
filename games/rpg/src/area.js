@@ -89,6 +89,7 @@ export function loadArea(game, id) {
   game.projectiles.clear();
   game.allies?.clear();
   game.hazards?.clear();
+  game.bossVfx?.clear();
   clearJobZones();
   game.fx.clear();
   disposeBosses(game);
