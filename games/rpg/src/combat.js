@@ -57,6 +57,7 @@ export function strike(game, pl, target, mult, opts = {}) {
   const len = Math.hypot(dx, dz) || 1;
   const brk = dmg * (melee ? 1 : GAUGE.breakShot) * (J.breakMul ?? 1) * (opts.brkMul ?? 1);
   target.takeHit(game, dmg, dx / len, dz / len, knock, { brk, from: pl.id });
+  if (!pl.remote && pl.fight && game.bosses.includes(target)) pl.fight.d += dmg; // 撃破後の順位表
   // 必殺ゲージ：通常攻撃は職業ごとの basicGauge（毎秒の上がり方が揃う）。
   // 技などの小さなヒット（3 以下）は 2秒あたりの上限つき。大きな値（魂刈り・見切りの反撃など）は狙って決めた量なのでそのまま
   const g = opts.gauge ?? GAUGE.gainSkill;
@@ -85,6 +86,7 @@ export function strike(game, pl, target, mult, opts = {}) {
         gain = Math.max(0, Math.min(gain, pl.maxHp * cap - pl.lsWin.sum));
         pl.lsWin.sum += gain;
       }
+      if (pl.fight) pl.fight.h += Math.min(gain, pl.maxHp - pl.hp);
       pl.hp = Math.min(pl.maxHp, pl.hp + gain);
     }
     // 格闘家：当て続けるほど強くなる

@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { JOBS, JOB_ORDER, GAUGE } from './data/jobs.js';
 import { radiusHit, strike, forEachTarget, meleeArc } from './combat.js';
 import { angleDiff, yawTo } from './util.js';
+import { CLOSE } from './data/player.js';
 import { useCopiedMove, copyMoves, nearestBoss } from './jobs_copy.js';
 
 const fwd = (yaw, d) => [Math.sin(yaw) * d, Math.cos(yaw) * d];
@@ -619,7 +620,7 @@ function afterSkill(game, p, d, local, sk) {
     p.dodgeZ = Math.cos(y);
   }
   if (!local) return;
-  if (a.invuln) p.invuln = Math.max(p.invuln, a.invuln);
+  if (a.invuln) p.invuln = Math.max(p.invuln, a.invuln + (a.dodge && p.job.closeFighter ? CLOSE.dodgeInvulnAdd : 0)); // 近接職の回避つきの技は無敵が少し長い
   if (a.cdCut) for (const [k, v] of Object.entries(a.cdCut)) if (p.cd[k] !== undefined) p.cd[k] = Math.max(0, p.cd[k] - v);
   if (a.gauge) p.addGauge(a.gauge);
   if (a.hpCost) p.hp = Math.max(1, p.hp - p.maxHp * a.hpCost);

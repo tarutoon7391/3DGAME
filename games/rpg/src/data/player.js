@@ -32,8 +32,13 @@ export const PLAYER = {
  * 近接職の後押し（通常攻撃が近接で、タンク以外の職）
  *   near 以内（ボスの体の縁から）にボスがいる間：与ダメージ atkMul 倍・被ダメージ dmgMul 倍（肉薄ボーナス）
  *   通常攻撃の振り始めに、前方 lungeArc（片側）の範囲で一番近い敵へ最大 lungeMax だけ踏み込む
+ *   スタミナが多く、回避の無敵が長く距離も長い
  */
-export const CLOSE = { near: 6, atkMul: 1.15, dmgMul: 0.75, lungeMax: 1.6, lungeArc: 1.2 };
+export const CLOSE = {
+  near: 6, atkMul: 1.15, dmgMul: 0.75, lungeMax: 1.6, lungeArc: 1.2,
+  staminaMul: 2, regenMul: 1.5, tiredRegenMul: 2, // スタミナ 2倍（バテからの戻りは今までと同じ秒数）
+  dodgeInvulnAdd: 0.1, dodgeSpeedMul: 1.25, // 回避（回避つきの技も）の無敵 +0.1秒・距離 1.25倍
+};
 
 /** スタミナ：ダッシュと回避で減り、使わなければ回復。0 でバテ（満タンまで回避・ダッシュ不可） */
 export const STAMINA = {

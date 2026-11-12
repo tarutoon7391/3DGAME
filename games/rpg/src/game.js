@@ -210,9 +210,25 @@ export function createGame() {
   game.teamEffect = (eff) => {
     // 支援係数：効果を出した自分の職業の support を掛けてから配る（受け取った側では掛けない）
     eff = scaleSupport(eff, game.me()?.job.support ?? 1);
+    countHeal(eff);
     applyTeamEffect(eff);
     game.raid?.sendTeam(eff);
   };
+  /** 撃破後の順位表用：自分の出した回復で、みんなが実際に回復しそうな量を足す */
+  function countHeal(eff) {
+    const me = game.me();
+    if (!me?.fight || (eff.kind !== 'heal' && eff.kind !== 'prayer')) return;
+    for (const o of game.players) {
+      if (!o.alive || o.downed) continue;
+      if (eff.r && Math.hypot(o.pos.x - eff.x, o.pos.z - eff.z) > eff.r) continue;
+      const lack = Math.max(0, o.maxHp - o.hp);
+      if (eff.kind === 'prayer') me.fight.h += lack;
+      else {
+        const self = eff.from === me.id && o === me ? eff.selfMul ?? 1 : 1;
+        me.fight.h += Math.min(lack, o.maxHp * eff.amount * self);
+      }
+    }
+  }
   function applyTeamEffect(eff) {
     const me = game.me();
     if (!me) return;
@@ -686,6 +702,7 @@ export function createGame() {
     onEvent(type, a) {
       if (type === 'door') game.world.extra.doors?.[a[0]]?.(a[1]);
       else if (type === 'gather') game.gatherLocal(a[0], a[1]);
+      else if (type === 'rank') game.hudView.ranking(a[0]);
       else if (type === 'step') {
         game.onBossStep(a[0]);
         game.projectiles.clearEnemyShots();
@@ -868,6 +885,10 @@ export function createGame() {
 
     if (!game.raid && game.fx.consumeStop(dt)) return; // ヒットストップ（協力プレイでは止めない）
     pr.stats.time += dt;
+    // ボス戦が始まったら、自分の与ダメージ・回復量の集計を0から（撃破後の順位表）
+    const fighting = game.bosses.some((b) => b.active && b.alive);
+    if (fighting && !game.wasFighting && me) me.fight = { d: 0, h: 0 };
+    game.wasFighting = fighting;
     game.players.forEach((p) => p.update(dt, p === me ? intent : idleIntent));
     game.world.update(dt, time);
     if (game.isClient) {
