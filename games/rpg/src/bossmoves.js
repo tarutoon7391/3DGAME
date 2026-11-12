@@ -4,7 +4,7 @@
 // 参加者のボスは姿勢だけ poseSeq で同じ台本から作る（b.t と pattern は届いた状態）
 import { angleDiff, yawTo, rand } from './util.js';
 
-const DEF_TELE = { hit: 0.5, zones: 0.6, mover: 0.5, rot: 0.6, safe: 0, check: 0, facing: 0, all: 0 };
+const DEF_TELE = { hit: 0.5, zones: 0.6, mover: 0.5, rot: 0.6, safe: 0, check: 0, facing: 0, all: 0, still: 0.8 };
 
 /** 台本の時刻（怒り・必殺技の倍率込み）。arm：予兆を出す時刻、at：当たる時刻 */
 export function stepTimes(s, mul) {
@@ -221,6 +221,9 @@ export function createMoveRunner(ctx) {
         break;
       }
       case 'move': armMove(st, tgt, left); break;
+      case 'still': // 動くな：今の位置を覚えておく
+        st.pos = new Map(game.players.filter((o) => o.alive).map((o) => [o, { x: o.pos.x, z: o.pos.z }]));
+        break;
       case 'mover': {
         const sp = spots(s, tgt)[0];
         const ang = sp.yaw;
@@ -273,6 +276,14 @@ export function createMoveRunner(ctx) {
         sp = { x: tgt.pos.x + Math.sin(back) * (s.dist || 4), z: tgt.pos.z + Math.cos(back) * (s.dist || 4) };
         if (game.world.blocked(sp.x, sp.z)) sp = { x: tgt.pos.x - Math.sin(back) * (s.dist || 4), z: tgt.pos.z - Math.cos(back) * (s.dist || 4) };
       } else if (s.to === 'self') sp = { x: b.pos.x, z: b.pos.z };
+      else if (s.to === 'rand' && tgt) {
+        // 標的のまわりのどこか（見えにくい横・後ろ寄り）
+        for (let i = 0; i < 8; i++) {
+          const a = (tgt.yaw ?? 0) + Math.PI * rand(0.45, 1.55);
+          sp = { x: tgt.pos.x + Math.sin(a) * (s.dist || 7), z: tgt.pos.z + Math.cos(a) * (s.dist || 7) };
+          if (!game.world.blocked(sp.x, sp.z)) break;
+        }
+      }
       else sp = tgt ? { x: tgt.pos.x, z: tgt.pos.z } : { x: b.pos.x, z: b.pos.z };
       st.dest = sp;
       st.from = { x: b.pos.x, z: b.pos.z, y: b.pos.y };
@@ -280,6 +291,7 @@ export function createMoveRunner(ctx) {
       if (s.follow) st.followT = s.follow * run.mul;
     } else if (m === 'dash') {
       run.aim = aimAt(tgt);
+      b.yaw += s.a || 0; // 斜めに走る（ジグザグ・挟み込み）
       if ((s.hitR ?? 0) < 0) return; // 当たらない移動（回転斧の前進）は予兆なし
       const len = s.speed * s.dur * run.mul;
       st.teles = [game.fx.telegraph('rect', { x: b.pos.x, z: b.pos.z, len, width: s.w || b.radius * 2, angle: b.yaw, dur: left })];
@@ -311,7 +323,7 @@ export function createMoveRunner(ctx) {
           const hitIt = () => {
             ctx.hitAll(ctx.inCircle(sp.x, sp.z, s.r), fracOf(s), sp.x, sp.z);
             ctx.vfx('impact', { x: +sp.x.toFixed(2), z: +sp.z.toFixed(2), r: s.r, color: col });
-            if (s.fx === 'pillar') ctx.vfx('pillar', { x: +sp.x.toFixed(2), z: +sp.z.toFixed(2), r: s.r * 0.8, color: col });
+            if (s.fx && s.fx !== 'meteor') ctx.vfx(s.fx, { x: +sp.x.toFixed(2), z: +sp.z.toFixed(2), r: s.r * 0.8, color: col });
             game.fx.burst(sp.x, 0.4, sp.z, col, 16, { speed: 6, up: 8, life: 0.6, size: 0.22 });
             game.sound.se('slam');
             const n = Math.round((s.burst || 0) * ctx.cm());
@@ -372,15 +384,44 @@ export function createMoveRunner(ctx) {
         if (s.flash !== false) ctx.vfx('flash', { color: col, dur: 0.6 });
         break;
       }
-      case 'facing': // ボスの方を向いている人に当てる（背を向けていれば無事）
+      case 'facing': // ボスの方を向いている人に当てる（背を向けていれば無事）。invert なら背を向けている人に当てる
         ctx.hitAll((x, z, pr, pl) => {
           if (!pl || pl.yaw === undefined) return true;
-          return Math.abs(angleDiff(pl.yaw, yawTo(x, z, b.pos.x, b.pos.z))) < Math.PI / 2;
+          const looking = Math.abs(angleDiff(pl.yaw, yawTo(x, z, b.pos.x, b.pos.z))) < Math.PI / 2;
+          return s.invert ? !looking : looking;
         }, fracOf(s), b.pos.x, b.pos.z);
         game.fx.shake(1);
         game.sound.se('gate');
         ctx.vfx('flash', { color: col, dur: 0.8, peak: 0.85 });
         break;
+      case 'cover': { // 岩陰：ボスから見て岩の後ろにいれば無事
+        const rocks = (run.safe || []).filter((o) => o.kind === 'rock');
+        ctx.hitAll((x, z) => !rocks.some((o) => {
+          const dx = o.x - b.pos.x;
+          const dz = o.z - b.pos.z;
+          const L = Math.hypot(dx, dz) || 1;
+          const px = x - b.pos.x;
+          const pz = z - b.pos.z;
+          const along = (px * dx + pz * dz) / L;
+          const side = Math.abs(px * dz - pz * dx) / L;
+          return along > L - o.r * 0.5 && along < L + 7 && side < o.r * 0.95;
+        }), fracOf(s), b.pos.x, b.pos.z);
+        game.fx.shake(1.2);
+        game.sound.se('wave');
+        ctx.vfx('flash', { color: col, dur: 0.7, peak: 0.6 });
+        break;
+      }
+      case 'still': { // 動くな：予兆のあいだに動いた人（回避も）に当てる
+        const pos = st.pos || new Map();
+        ctx.hitAll((x, z, pr, pl) => {
+          const o = pl && pos.get(pl);
+          if (!o) return false;
+          return Math.hypot(x - o.x, z - o.z) > (s.tol ?? 0.6);
+        }, fracOf(s), b.pos.x, b.pos.z);
+        game.sound.se('gate');
+        ctx.vfx('flash', { color: col, dur: 0.5, peak: 0.5 });
+        break;
+      }
       case 'all': // 全体：回避の無敵でしか避けられない
         ctx.hitAll(() => true, fracOf(s), b.pos.x, b.pos.z);
         game.fx.shake(0.9);

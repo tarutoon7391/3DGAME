@@ -8,6 +8,7 @@ export const BOSS_THEME = {
   kain: 'blood', abel: 'arrow', nezal: 'dark', lilith: 'dark', wyvern: 'fire', behemoth: 'earth', hydra: 'water',
   griffon: 'feather', manticore: 'poison', eldragon: 'arcane', cerberus: 'fire', basilisk: 'poison', firebird: 'fire',
   minotaur: 'earth', harpy: 'feather', ragna: 'fire',
+  fenrir: 'ice', celsia: 'ice', volt: 'arcane', jotun: 'ice', nox: 'dark', astral: 'arcane',
 };
 
 /** 雑魚の弾 → テーマ（ENEMIES の shotColor） */

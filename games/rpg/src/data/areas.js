@@ -187,11 +187,39 @@ export const AREAS = {
     ],
     signs: [{ x: 3.5, z: 42, key: 'dusk' }],
   },
+
+  // ステージ6：星降る氷原（屋外・夜の雪原）。広さと部屋の区切りはステージ4・5 と同じ。月明かりで青白く
+  frost: {
+    name: 'ステージ6　星降る氷原', stage: 8, bgm: 'field', wallH: 3.2, castle: true, outdoor: true,
+    bounds: { minX: -22, maxX: 22, minZ: -164, maxZ: 50 },
+    sky: 0x0d1838, fog: [55, 180], ground: 0xdfe9f3,
+    sun: { color: 0xb3c7ff, intensity: 2.2, hemi: 1.0, sky: 0x9fb4ff, ground: 0x3d4f6b, offset: { x: -20, y: 30, z: 10 } },
+    palette: { wall: 0x90a4ae, trim: 0xb0bec5, rock: 0x78909c, pillar: 0x90a4ae, tileA: 0xe3f2fd, tileB: 0xcfd8dc, flame: 0x80d8ff, flameGlow: 0x40c4ff, light: 0xb3e5fc, carpet: 0x5c6bc0 },
+    carpet: false,
+    spawn: { x: 0, z: 44 },
+    gates: [],
+    solids: [
+      { minX: -22, maxX: -5, minZ: 30, maxZ: 50 },
+      { minX: 5, maxX: 22, minZ: 30, maxZ: 50 },
+    ],
+    doors: [{ z: 30, gap: 3 }, { z: -4, gap: 3 }, { z: -38, gap: 3 }, { z: -72, gap: 3.5 }, { z: -114, gap: 3.5 }],
+    pillars: [],
+    torches: [],
+    bosses: [
+      { key: 'fenrir', x: 0, z: 12, triggerZ: 25, door: 0, respawn: { x: 0, z: 44 }, circle: 0x80deea, label: '第1の氷原' },
+      { key: 'celsia', x: 0, z: -22, triggerZ: -9, door: 1, respawn: { x: 0, z: -0.5 }, circle: 0x4fc3f7, label: '第2の氷原' },
+      { key: 'volt', x: 0, z: -56, triggerZ: -43, door: 2, respawn: { x: 0, z: -34.5 }, circle: 0xffee58, label: '第3の氷原' },
+      { x: 0, z: -94, triggerZ: -77, door: 3, respawn: { x: 0, z: -68.5 }, circle: 0x7c4dff, label: '第4の氷原（2体同時）',
+        pair: [{ key: 'jotun', x: -7, z: -94 }, { key: 'nox', x: 7, z: -98 }] },
+      { key: 'astral', x: 0, z: -142, triggerZ: -120, door: 4, respawn: { x: 0, z: -110.5 }, circle: 0xb388ff, label: '星の祭壇' },
+    ],
+    signs: [{ x: 3.5, z: 42, key: 'frost' }],
+  },
 };
 
 
 /** ステージの順番（つづきから・移行用） */
-export const AREA_ORDER = ['forest', 'canyon', 'dungeon', 'castle', 'abyss', 'wilds', 'dusk'];
+export const AREA_ORDER = ['forest', 'canyon', 'dungeon', 'castle', 'abyss', 'wilds', 'dusk', 'frost'];
 
 /** 古いセーブ（version 1）のエリア id → 新しい id */
 export const OLD_AREA_MAP = { village: 'forest', field: 'canyon', dungeon: 'dungeon' };
@@ -217,6 +245,9 @@ export const COURSES = [
   },  {
     key: 'dusk', label: 'ステージ5', name: '黄昏の古戦場', start: 'dusk', areas: ['dusk'], recKey: 'records5',
     desc: '夕暮れの戦場で魔獣と5連戦。4戦目は2体同時、最後は黄昏竜ラグナ', clearMsg: '黄昏竜ラグナを打ち倒した！',
+  },  {
+    key: 'frost', label: 'ステージ6', name: '星降る氷原', start: 'frost', areas: ['frost'], recKey: 'records6',
+    desc: '夜の雪原で5連戦。4戦目は2体同時、最後は星喰いの竜アストラル', clearMsg: '星喰いの竜アストラルを打ち倒した！',
   },
 
 

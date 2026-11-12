@@ -219,6 +219,22 @@ export function createBossVfx(game) {
       }, mats);
     },
 
+    /** 落雷：空から細い光が落ちて地面で弾ける */
+    bolt(d) {
+      const m = glow(d.color, 1, streakTexture());
+      const g = new THREE.Group();
+      g.position.set(d.x, 0, d.z);
+      const a = new THREE.Mesh(G('boltc', () => new THREE.CylinderGeometry(0.18, 0.35, 30, 6, 8, true).translate(0, 15, 0)), m);
+      g.add(a);
+      burst(d.x, 0.5, d.z, d.color, 24, { speed: 8, up: 6, life: 0.5, size: 0.22 });
+      return add(g, 0.4, (k) => {
+        a.rotation.y = Math.random() * 6;
+        a.scale.set(1 + Math.random() * 0.8, 1, 1 + Math.random() * 0.8);
+        a.position.x = (Math.random() - 0.5) * 0.3;
+        m.opacity = (1 - k) * (0.6 + Math.random() * 0.4);
+      }, [m]);
+    },
+
     /** 火柱・光の柱 */
     pillar(d) {
       const m = glow(d.color, 0.85, wallTexture());
