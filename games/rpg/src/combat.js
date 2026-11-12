@@ -199,6 +199,30 @@ export function hurtPlayer(game, pl, frac, fromX, fromZ) {
     const toFrom = Math.atan2(fromX - pl.pos.x, fromZ - pl.pos.z);
     if (Math.abs(angleDiff(pl.yaw, toFrom)) < Math.PI / 3) dmg = Math.max(1, Math.ceil(dmg * pl.job.frontGuard));
   }
+  // 重騎士の盾構え：前からの攻撃は完全に防ぐ（盾の耐久が減る）。真上・足元からの攻撃は防げない
+  if (pl.guarding && pl.job.guard && Math.hypot(fromX - pl.pos.x, fromZ - pl.pos.z) > 0.6) {
+    const toFrom = Math.atan2(fromX - pl.pos.x, fromZ - pl.pos.z);
+    if (Math.abs(angleDiff(pl.yaw, toFrom)) < pl.job.guard.arc) {
+      pl.guardHp -= dmg;
+      pl.invuln = Math.max(pl.invuln, 0.25);
+      const fx = pl.pos.x + Math.sin(pl.yaw) * 1.1;
+      const fz = pl.pos.z + Math.cos(pl.yaw) * 1.1;
+      game.fx.burst(fx, 1.2, fz, 0x80d8ff, 16, { speed: 5, up: 3, life: 0.4 });
+      game.fx.text(fx, 2.3, fz, 'ガード', '#80d8ff');
+      game.sound.se('hit');
+      if (pl.guardHp <= 0) {
+        pl.guardHp = 0;
+        pl.guardBroken = true;
+        pl.guarding = false;
+        delete pl.buffs.guard;
+        game.fx.burst(fx, 1.2, fz, 0xffffff, 40, { speed: 8, up: 4, life: 0.6 });
+        game.sound.se('slam');
+        game.fx.shake(0.5);
+        game.toastOnce('盾が壊れた！ しまって直るまで構えられない', 1800);
+      }
+      return false;
+    }
+  }
   // 結界師のバリア：先にバリアが受け止める
   const bar = pl.buffs.barrier;
   if (bar && bar.hp > 0) {

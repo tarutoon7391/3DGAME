@@ -38,6 +38,7 @@ export function createHudView(game) {
   danger.innerHTML = '<span>⚠ 足元に攻撃の予兆！</span>';
   // 必殺技の警告：画面の縁が赤く点滅して、大きな文字
   // 近接職の肉薄ボーナス中の札
+  const guardView = el('rpg-guardview', root);
   const closeTag = el('rpg-closein', root);
   closeTag.textContent = '肉薄 与ダメ+15%・被ダメ-25%';
   let closeOn = false;
@@ -97,6 +98,13 @@ export function createHudView(game) {
     return `結界 ${s.opened}/${s.total} 解除　次の結界の番人：あと ${s.left} 体`;
   }
 
+  /** 重騎士の盾の耐久 */
+  function guardRow(me) {
+    const max = me.maxHp * me.job.guard.max;
+    const label = me.guardBroken ? '<span class="rpg-tired">破損</span>' : me.guarding ? '構え中' : Math.floor(me.guardHp);
+    return `<div class="rpg-row"><span>盾</span>${bar(me.guardHp, max, me.guardBroken ? '#ff7043' : '#80d8ff', 180, me.guardBroken ? 'tired' : '')}<span>${label}</span></div>`;
+  }
+
   function drawHud() {
     const me = game.me();
     const tired = me.tired;
@@ -105,6 +113,7 @@ export function createHudView(game) {
       <div><b class="rpg-lv">${esc(game.world?.def.name || '')}</b><span class="rpg-area">${esc(me.job.name)}${me.shift ? `（変化師・あと ${Math.ceil(me.shift.t)} 秒で変化）` : ''}</span></div>
       <div class="rpg-row"><span>HP</span>${bar(me.hp, me.maxHp, me.hp / me.maxHp < 0.3 ? '#ff5252' : '#66bb6a')}<span>${Math.ceil(me.hp)}/${me.maxHp}</span></div>
       <div class="rpg-row"><span>ST</span>${bar(me.stamina, me.staminaMax, stColor, 180, tired ? 'tired' : '')}<span class="${tired ? 'rpg-tired' : ''}">${tired ? 'バテ！' : Math.floor(me.stamina)}</span></div>
+      ${me.job.guard ? guardRow(me) : ''}
       <div class="rpg-goal">◆ ${esc(goal())}</div>
     </div>`);
 
@@ -277,6 +286,7 @@ export function createHudView(game) {
       }
       const me = game.me();
       danger.style.display = fps && me.alive && game.fx.danger(me.pos.x, me.pos.z) ? 'flex' : 'none';
+      guardView.style.display = fps && me.guarding ? 'block' : 'none'; // 一人称で盾を構えている間は画面の下に盾の縁
       const near = !!(me.alive && me.closeIn?.());
       if (near !== closeOn) {
         closeOn = near;

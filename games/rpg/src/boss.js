@@ -284,7 +284,10 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
   }
 
   /** test(x,z,r) が真のプレイヤー（と召喚物）に攻撃を当てる */
+  /** 攻撃力ダウン（重騎士のシールドバッシュ）の倍率 */
+  const weakMul = () => b.debuffs.weak?.mul ?? 1;
   function hitAll(test, frac, fx, fz) {
+    frac *= weakMul();
     for (const pl of game.players) if (pl.alive && test(pl.pos.x, pl.pos.z, pl.radius, pl)) hurtPlayer(game, pl, frac, fx, fz);
     game.allies?.hitBy(test, frac);
   }
@@ -300,7 +303,7 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
   };
 
   function shot(x, z, yaw, speed, color) {
-    game.projectiles.enemyShot(x, z, yaw, speed, shotHit, color);
+    game.projectiles.enemyShot(x, z, yaw, speed, shotHit * weakMul(), color);
   }
 
   function ring(cx, cz, count, offset, speed, color) {
@@ -338,7 +341,7 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
         const d = Math.hypot(pl.pos.x - n.x, pl.pos.z - n.z);
         if (Math.abs(d - n.r) < n.width + pl.radius) {
           n.hit.add(pl);
-          hurtPlayer(game, pl, meleeHit, n.x, n.z);
+          hurtPlayer(game, pl, meleeHit * weakMul(), n.x, n.z);
         }
       }
       if (!puppet) game.allies?.hitBy((x, z) => Math.abs(Math.hypot(x - n.x, z - n.z) - n.r) < n.width + 0.6, meleeHit);
@@ -437,7 +440,7 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
       case 'wall': {
         // すき間が1か所ある壁を、標的の方へ走らせる
         const gapC = rand(-p.gapRange, p.gapRange);
-        hazard('wall', { x: +b.pos.x.toFixed(2), z: +b.pos.z.toFixed(2), yaw: +b.yaw.toFixed(3), wait: dur, speed: p.speed, max: p.max, thick: p.thick, gapC: +gapC.toFixed(2), gapW: p.gapW, frac: meleeHit, color: p.color });
+        hazard('wall', { x: +b.pos.x.toFixed(2), z: +b.pos.z.toFixed(2), yaw: +b.yaw.toFixed(3), wait: dur, speed: p.speed, max: p.max, thick: p.thick, gapC: +gapC.toFixed(2), gapW: p.gapW, frac: meleeHit * weakMul(), color: p.color });
         break;
       }
       default: // ring / spiral / nova / stalker：自分の周り
@@ -1046,10 +1049,10 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
   b.setDebuff = (name, dur, mul) => {
     const had = b.debuffs[name];
     // 強い方・長い方を残す（弱い鈍化で強い鈍化を上書きしない）
-    const better = !had || (name === 'slow' ? mul <= had.mul : mul >= had.mul);
+    const better = !had || (name === 'slow' || name === 'weak' ? mul <= had.mul : mul >= had.mul); // 鈍化・攻撃力ダウンは小さいほど強い
     b.debuffs[name] = better ? { t: Math.max(dur, had?.t || 0), mul } : { ...had, t: Math.max(had.t, dur) };
     // お知らせは新しくかかったときだけ（連射・多段で毎回出ると画面が埋まる）
-    if (!had) game.toastOnce(name === 'vuln' ? `${C.name}が腐食した！（被ダメージ増）` : `${C.name}の動きが鈍った！`, 1600);
+    if (!had) game.toastOnce(name === 'vuln' ? `${C.name}が腐食した！（被ダメージ増）` : name === 'weak' ? `${C.name}の攻撃力が下がった！` : `${C.name}の動きが鈍った！`, 1600);
   };
   /** ホスト：時間停止（攻撃を中断して dur 秒 固まる） */
   b.freeze = (dur, immune = 15) => {

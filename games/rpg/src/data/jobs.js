@@ -55,9 +55,12 @@ export const JOBS = {
     power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.45, hit: 0.16, mult: 1.2 }, { dur: 0.6, hit: 0.25, mult: 2.0 }], range: 2.6, arc: 2.4, heavyBonus: 0.3 },
     q: { id: 'taunt', name: '挑発の雄叫び', desc: 'ボスの狙いを自分に集め、6秒間 被ダメージ半減', cd: 14, dur: 6 },
-    e: { id: 'bash', name: 'シールドバッシュ', desc: '盾を構えて4m 突進。ブレイク値が大きく溜まる', cd: 8, mult: 1.6, dist: 4, time: 0.22, width: 1.6, brkMul: 3 },
+    e: { id: 'bash', name: '盾構え／バッシュ', desc: 'E 押しっぱなしで盾を構え、前からの攻撃を完全に防ぐ（盾の耐久が尽きると壊れ、しまって回復するまで出せない）。構え中に左クリックでシールドバッシュ：前へ6m 突撃し、ぶつかったボスの動きと攻撃力を下げる', cd: 10, mult: 1.8, dist: 6, time: 0.28, width: 1.8, brkMul: 3,
+      hitDebuffs: [{ name: 'slow', dur: 4, mul: 0.7 }, { name: 'weak', dur: 6, mul: 0.7 }] }, // ぶつかったボスにだけ
+    // 盾構え：max は最大 HP に対する耐久、arc は防げる前方の角度（片側）。しまって delay 秒後から毎秒 regen（耐久の割合）ずつ戻る
+    guard: { max: 0.9, arc: 1.75, speedMul: 0.45, delay: 1.5, regen: 0.35 },
     r: { id: 'aegis', name: '守護結界', desc: '足元に7秒間の結界。中に入った敵弾を消し、中の味方の被ダメージ半減', dur: 7, radius: 5.5 },
-    trait: '被ダメージ -25%、ノックバックしない。ブレイク値 2倍',
+    trait: '被ダメージ -25%、ノックバックしない。ブレイク値 2倍。E は押しっぱなしの盾構え（クールダウンなし）',
     dmgTaken: 0.75, noKnock: true, breakMul: 2.0,
     look: { armorColor: 0x78909c, swordColor: 0xb0bec5, swordLen: 0.8, cape: 0x37474f, weapon: 'mace', bigShield: true },
   },

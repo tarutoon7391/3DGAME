@@ -805,6 +805,7 @@ export function createGame() {
     it.dash = k('ShiftLeft') || k('ShiftRight');
     it.skillQ = input.wasPressed('KeyQ');
     it.skillE = input.wasPressed('KeyE');
+    it.holdE = k('KeyE');
     it.skillC = input.wasPressed('KeyC');
     it.skillR = input.wasPressed('KeyR');
     it.interact = input.wasPressed('KeyF');
@@ -814,6 +815,7 @@ export function createGame() {
       it.dash ||= ts.dash;
       it.skillQ ||= ts.pressed.has('skillQ');
       it.skillE ||= ts.pressed.has('skillE');
+      it.holdE ||= ts.held?.has('skillE');
       it.skillC ||= ts.pressed.has('skillC');
       it.skillR ||= ts.pressed.has('skillR');
       it.interact ||= ts.pressed.has('interact');

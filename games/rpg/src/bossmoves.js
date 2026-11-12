@@ -352,7 +352,7 @@ export function createMoveRunner(ctx) {
         ctx.hazard('wall', {
           x: +(b.pos.x - Math.sin(yaw) * back).toFixed(2), z: +(b.pos.z - Math.cos(yaw) * back).toFixed(2), yaw: +yaw.toFixed(3),
           wait: (s.wait ?? 0.6) * run.mul, speed: s.speed, max: s.max ?? 50, thick: s.thick ?? 1.4,
-          gapC: +(s.gapC ?? rand(-(s.gapRange ?? 7), s.gapRange ?? 7)).toFixed(2), gapW: s.gapW ?? 4.4, frac: fracOf(s), color: col,
+          gapC: +(s.gapC ?? rand(-(s.gapRange ?? 7), s.gapRange ?? 7)).toFixed(2), gapW: s.gapW ?? 4.4, frac: fracOf(s) * (b.debuffs.weak?.mul ?? 1), color: col,
         });
         break;
       }

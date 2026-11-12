@@ -444,9 +444,33 @@ const SKILLS = {
     dashStrike(game, p, d, local, JOBS.swordsman.e, 0xcfd8dc);
   },
   bash(game, p, d, local) {
+    // シールドバッシュ（盾を構えている間だけ）：前へ突撃し、最初にぶつかった相手で止まる。ボスなら動きと攻撃力を下げる
     const e = JOBS.knight.e;
-    dashStrike(game, p, d, local, e, 0x90a4ae, { brkMul: e.brkMul, knock: 2 });
+    startAction(p, 'dash', e.time);
+    p.dodgeX = Math.sin(d.yaw);
+    p.dodgeZ = Math.cos(d.yaw);
+    p.yaw = d.yaw;
+    p.dashSpeed = e.dist / e.time;
+    game.skillFx?.dash(p, d.yaw, e.dist, e.width, 0x80d8ff);
     game.skillFx?.shieldWall(p, e.time, 0x80d8ff); // 盾を構えて水色の壁ごと突撃
+    if (local) p.invuln = Math.max(p.invuln, e.time + 0.1);
+    game.sound.se('spin');
+    let done = false;
+    p.skillTick = () => {
+      game.fx.burst(p.pos.x, 1, p.pos.z, 0x80d8ff, 3, { speed: 2, up: 1, life: 0.3 });
+      if (done || !local) return;
+      forEachTarget(game, (t) => {
+        if (done || Math.hypot(t.pos.x - p.pos.x, t.pos.z - p.pos.z) > t.radius + e.width) return;
+        done = true;
+        strike(game, p, t, e.mult, { melee: true, gauge: GAUGE.gainSkill, brkMul: e.brkMul, knock: 2, color: 0x80d8ff });
+        if (game.bosses.includes(t)) for (const db of e.hitDebuffs) game.bossCommand({ type: 'debuff', ...db, sub: t.sub });
+        p.actT = p.actDur; // ぶつかったら止まる
+        game.fx.burst(t.pos.x, 1.5, t.pos.z, 0xffffff, 40, { speed: 8, up: 4, life: 0.5 });
+        game.fx.shake(0.6);
+        game.sound.se('slam');
+        game.raid?.sendSkill(p, '_bashhit', { x: +t.pos.x.toFixed(2), z: +t.pos.z.toFixed(2) });
+      });
+    };
   },
   icelance(game, p, d, local) {
     const e = JOBS.mage.e;
@@ -1463,6 +1487,10 @@ function shoot(game, p, d, local) {
   }
   game.sound.se('shoot');
 }
+SKILLS._bashhit = (game, p, d) => {
+  game.fx.burst(d.x, 1.5, d.z, 0xffffff, 40, { speed: 8, up: 4, life: 0.5 });
+  game.sound.se('slam');
+};
 SKILLS._dodgeblast = (game, p, d) => {
   game.fx.burst(d.x, 0.8, d.z, 0xffd54f, 24, { speed: 6, up: 4, life: 0.5 });
 };
