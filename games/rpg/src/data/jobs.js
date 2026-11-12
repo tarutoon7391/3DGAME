@@ -43,9 +43,9 @@ export const JOBS = {
     name: '剣士', role: '近接アタッカー', color: '#ffd54f',
     power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: SWORD_COMBO, range: 2.8, arc: 2.2, heavyBonus: 0.4 },
-    q: { id: 'spin', name: '回転斬り', desc: '周囲をまとめて斬る', cd: 5, mult: 1.8, radius: 3.8 },
+    q: { id: 'hayabusa', name: '隼斬り', desc: '前へ踏み込みながら高速の3連撃（3撃目は強い）', cd: 5, mult: 0.85, last: 1.3, range: 3.4, arc: 1.7, step: 0.6, every: 0.13 },
     e: { id: 'galethrust', name: '疾風突き', desc: '前方へ5m 踏み込んで突く', cd: 6, mult: 1.9, dist: 5, time: 0.18, width: 1.3 },
-    r: { id: 'blade', name: '剣聖の一閃', desc: '前方へ巨大な斬撃を飛ばし、当たった敵をひるませる', mult: 4.5, range: 16, radius: 1.8 },
+    r: { id: 'sakura', name: '奥義・乱れ桜', desc: '一番近いボスへ一瞬で詰め寄り、桜吹雪の8連撃（最後は必ず会心）。使っている間は無敵', mult: 0.75, last: 2.6, hits: 8, every: 0.11, reach: 18, color: 0xf8bbd0 },
     trait: 'コンボ3段目が必ず会心。ブレイク値 1.3倍',
     breakMul: 1.3,
     look: { armorColor: 0x5d7fa8, swordColor: 0xcfd8dc, swordLen: 1.0, cape: 0xb71c1c, weapon: 'sword' },
