@@ -314,8 +314,9 @@ export const JOBS = {
       { name: '風（移動 +30%）', kind: 'teambuff', radius: 9, buff: 'card', dur: 10, vals: { speedMul: 1.3 }, color: 0xa5d6a7 },
       { name: '星（毎秒 3% 回復）', kind: 'teambuff', radius: 9, buff: 'card', dur: 10, vals: { regen: 0.03 }, color: 0xfff59d },
     ] },
-    e: { id: 'starfall', kind: 'zone', zone: 'strike', name: '流れ星', desc: '狙った場所に1秒後 光る小さな隕石を3つ落とす', cd: 6, at: 'aim', dist: 8, radius: 4, dur: 1, mult: 3, color: 0xd1c4e9 },
-    r: { id: 'meteorshower', kind: 'zone', zone: 'strike', name: '流星群', desc: '狙った場所の周りに燃える隕石を降らせる', at: 'aim', dist: 9, count: 6, scatter: 3.5, radius: 3, dur: 1.2, mult: 2.6, color: 0xb39ddb },
+    // 威力の目安（防御 10 のボスに会心なし）：流れ星 約80×3回・流星群 約100×6回
+    e: { id: 'starfall', kind: 'zone', zone: 'strike', name: '流れ星', desc: '狙った場所に1秒後 光る小さな隕石を3つ落とす（約80×3回）', cd: 6, at: 'aim', dist: 8, radius: 4, dur: 1, mult: 3.0, hits: 3, hitGap: 0.09, color: 0xd1c4e9 },
+    r: { id: 'meteorshower', kind: 'zone', zone: 'strike', name: '流星群', desc: '狙った場所に燃える隕石を6つ次々に降らせる（約100×6回）', at: 'aim', dist: 9, count: 6, scatter: 1.6, radius: 3.4, dur: 1.2, stagger: 0.14, mult: 3.76, color: 0xb39ddb },
     trait: '星の加護：会心率 +15%',
     critBonus: 0.15, breakMul: 1,
     look: { armorColor: 0x311b92, swordColor: 0xd1c4e9, swordLen: 0.9, cape: 0x4527a0, weapon: 'staff', hat: 0x1a237e },
