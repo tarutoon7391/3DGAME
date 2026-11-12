@@ -75,7 +75,16 @@ export function strike(game, pl, target, mult, opts = {}) {
     let ls = (J.lifesteal || 0) + (opts.lifesteal || 0);
     for (const b of Object.values(pl.buffs)) if (b.lifesteal) ls += b.lifesteal; // 吸血鬼の蝙蝠化など
     if (ls && pl.alive && pl.hp !== undefined) {
-      const gain = J.lifestealCap ? Math.min(dmg * ls, pl.maxHp * J.lifestealCap) : dmg * ls; // 呪術師は1回の回復に上限
+      let gain = J.lifestealCap ? Math.min(dmg * ls, pl.maxHp * J.lifestealCap) : dmg * ls; // 呪術師は1回の回復に上限
+      // 吸血鬼：吸える量は1秒あたり 最大HP × lsPerSec まで（夜の王で上限が上がる）
+      if (J.lsPerSec) {
+        const now = performance.now();
+        if (!pl.lsWin || now - pl.lsWin.t0 > 1000) pl.lsWin = { t0: now, sum: 0 };
+        let cap = J.lsPerSec;
+        for (const b of Object.values(pl.buffs)) if (b.lsCapAdd) cap += b.lsCapAdd;
+        gain = Math.max(0, Math.min(gain, pl.maxHp * cap - pl.lsWin.sum));
+        pl.lsWin.sum += gain;
+      }
       pl.hp = Math.min(pl.maxHp, pl.hp + gain);
     }
     // 格闘家：当て続けるほど強くなる

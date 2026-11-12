@@ -165,7 +165,7 @@ export const SKILL_VIS = {
   // ---- ものまね師 ----
   copycat: { cast: [vm('hat', 0.8), ['burst', { color: 0xffcc80, n: 24, at: 0.35 }]] },
   copycat2: { cast: [vm('hat', 0.8), ['burst', { color: 0xffcc80, n: 24, at: 0.35 }]] },
-  copyburst: { cast: [vm('cheer', 1), ['confetti', { n: 80 }]], tick: (n) => [['explode', { r: 3, color: [0xff5252, 0x40c4ff, 0x69f0ae, 0xffeb3b][n % 4] }]] },
+  copyboss: { cast: [vm('cheer', 1), ['confetti', { n: 80 }]] },
   // ---- 不死鳥使い ----
   phoenixflame: { cast: [['fire', { range: 6, arc: 1.2 }]] },
   emberheal: { cast: [vm('raise', 0.6), ['orbit', { tex: 'smoke', color: 0xff8a65, n: 14, r: 0.9, h: 2.4, rise: 0.7, size: 0.6 }]] },

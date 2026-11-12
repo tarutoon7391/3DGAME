@@ -268,7 +268,7 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
         if (p.healT <= 0) {
           p.healT = 1.2;
           if (p.healPool > 0) {
-            game.teamEffect({ kind: 'heal', x: +p.pos.x.toFixed(1), z: +p.pos.z.toFixed(1), r: J.healPool.radius, amount: Math.min(J.healPool.max, p.healPool * J.healPool.rate), quiet: true });
+            game.teamEffect({ kind: 'heal', x: +p.pos.x.toFixed(1), z: +p.pos.z.toFixed(1), r: J.healPool.radius, amount: Math.min(J.healPool.max, p.healPool * J.healPool.rate), quiet: true, from: p.id, selfMul: J.healPool.selfMul ?? 1 });
             p.healPool = 0;
           }
         }

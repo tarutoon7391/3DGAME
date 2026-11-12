@@ -220,7 +220,9 @@ export function createGame() {
     switch (eff.kind) {
       case 'heal':
         if (me.alive && near) {
-          me.hp = Math.min(me.maxHp, me.hp + me.maxHp * eff.amount);
+          const self = eff.from === me.id ? eff.selfMul ?? 1 : 1; // 治癒拳士：自分への回復は減らす
+          if (self <= 0) break;
+          me.hp = Math.min(me.maxHp, me.hp + me.maxHp * eff.amount * self);
           game.fx.burst(me.pos.x, 1.5, me.pos.z, eff.quiet ? 0xce93d8 : 0xfff59d, eff.quiet ? 3 : 16, { speed: 2, up: 4, life: 0.7 });
           if (!eff.quiet) game.toastOnce('癒しの光で回復した！', 1200);
         }
