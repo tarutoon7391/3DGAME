@@ -906,7 +906,7 @@ const GENERIC = {
       n++;
       game.fx.burst(p.pos.x, 1, p.pos.z, sk.color, 24, { speed: 8, up: 1.5, life: 0.4, size: 0.15, grav: 2 });
       game.skillFx?.burstTick(p, sk, n, ticks);
-      if (local) radiusHit(game, p, sk.mult, sk.radius, { melee: sk.melee !== false, gauge: GAUGE.gainSkill, color: sk.color, brkMul: sk.brkMul, knock: sk.knock ?? 1.2 });
+      if (local) radiusHit(game, p, sk.mult, sk.radius, { melee: sk.melee !== false, gauge: GAUGE.gainSkill, color: sk.color, brkMul: sk.brkMul, knock: sk.knock ?? 1.2, crit: !!sk.crit }); // crit：必ず会心（燕返し）
       // 爆弾魔の自爆：撃ち終わったら自分の HP が残りわずかになる
       if (local && sk.selfHpTo && n >= ticks) {
         p.hp = Math.min(p.hp, sk.selfHpTo);

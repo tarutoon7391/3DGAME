@@ -25,7 +25,7 @@ export const C_SKILLS = {
   reaper: sb('c_reaper', '首狩りの構え', '3秒間 攻撃 +40%', 16, 0xff1744, 'headhunt', 3, { atkMul: 1.4 }),
   trapper: { id: 'c_trapper', kind: 'debuff', name: '落とし穴', desc: 'ボスを落とし穴にはめ、2秒 ほとんど動けなくする', cd: 20, color: 0x6d4c41, debuffs: [{ name: 'slow', dur: 2, mul: 0.15 }] },
   samurai: sb('c_samurai', '納刀ステップ', '刀を納めて回避し、居合の待ち時間を3秒縮める', 9, 0xffffff, 'noto', 0.4, {}, { after: { dodge: 'move', invuln: 0.4, cdCut: { q: 3 } } }),
-  dancer: { id: 'c_dancer', kind: 'cleanse', name: 'ターン', desc: '回って周りの敵弾を消す', cd: 12, radius: 5, color: 0xf48fb1 },
+  dancer: { id: 'c_dancer', kind: 'cleanse', name: 'ターン', desc: '回って周りの敵弾を消す', cd: 6, radius: 5, color: 0xf48fb1 },
   storm: { id: 'c_storm', kind: 'dash', name: '雷化', desc: '雷になって前へ8m 駆け抜ける（通り道の敵を打つ）', cd: 10, mult: 1.0, dist: 8, time: 0.18, width: 1.4, color: 0xfff176 },
   barrier: { id: 'c_barrier', kind: 'recall', name: '転送結界', desc: '1回目で結界を置き、2回目でそこへ戻る（20秒以内）', cd: 14, color: 0x80d8ff },
   thief: { id: 'c_thief', kind: 'blinkbehind', name: 'すり抜け', desc: '一番近いボスの背後へすり抜ける', cd: 8, color: 0x9e9e9e, after: { invuln: 0.4 } },
