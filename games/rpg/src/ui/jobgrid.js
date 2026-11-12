@@ -32,6 +32,7 @@ export function jobGridHtml(selected, tab) {
       <div><b>${esc(J.name)}</b>　${esc(J.role)}　<span class="rpg-small">HP ${J.stats.hp}・攻 ${J.stats.atk}・${J.basic.type === 'melee' ? '近接' : '飛び道具'}</span></div>
       <div><em>Q</em>${esc(J.q.name)}：${esc(J.q.desc)}</div>
       <div><em>E</em>${esc(J.e.name)}：${esc(J.e.desc)}</div>
+      ${J.c ? `<div><em>C</em>${esc(J.c.name)}：${esc(J.c.desc)}</div>` : ''}
       <div><em>R</em>${esc(J.r.name)}：${esc(J.r.desc)}</div>
       <div class="trait">特性：${esc(J.trait)}</div>
     </div>`;

@@ -14,6 +14,7 @@
 // の2つ。どちらも docs/balance の計測（tools/rpg-balance）で決める
 
 import { ROLES, roleStats } from './roles.js';
+import { C_SKILLS } from './jobs_c.js';
 
 export const GAUGE = {
   max: 100,
@@ -1239,3 +1240,7 @@ export const MAX_RAID_PLAYERS = 8;
 
 /** ダウンした味方の蘇生（近くに立っている秒数）と、蘇生直後の HP 割合 */
 export const REVIVE = { time: 3, radius: 2.2, hp: 0.4 };
+
+
+// C キー（3つ目の通常技）を各職業に付ける（data/jobs_c.js）
+for (const [id, c] of Object.entries(C_SKILLS)) if (JOBS[id]) JOBS[id].c = c;

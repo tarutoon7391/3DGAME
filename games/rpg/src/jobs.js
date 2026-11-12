@@ -594,7 +594,7 @@ function skillData(game, p, intent, dist = 0) {
 /** 職業データからスキル定義を探す（汎用の型で動かす技用） */
 function findSkill(p, id) {
   const J = p.job;
-  for (const k of ['q', 'e', 'r']) if (J[k]?.id === id) return J[k];
+  for (const k of ['q', 'e', 'c', 'r']) if (J[k]?.id === id) return J[k];
   return null;
 }
 
@@ -604,10 +604,42 @@ function run(game, p, id, d, local) {
   if (SKILLS[id]) SKILLS[id](game, p, d, local);
   else if (sk && GENERIC[sk.kind]) GENERIC[sk.kind](game, p, d, local, sk);
   if (sk) game.skillFx?.skillCast?.(p, sk, d); // 技ごとの演出（data/skillvis.js のレシピ）
+  if (sk?.after || (sk?.debuffs && sk.kind !== 'debuff')) afterSkill(game, p, d, local, sk);
+}
+
+/** 技のあとに足す動き（data/jobs_c.js の after）：回避の移動・無敵・待ち時間短縮・必殺ゲージ・HP を払う・気づかれない */
+function afterSkill(game, p, d, local, sk) {
+  const a = sk.after || {};
+  if (a.dodge) {
+    const y = a.dodge === 'back' ? d.yaw + Math.PI : d.myaw ?? d.yaw + Math.PI;
+    p.action = 'dodge';
+    p.actT = 0;
+    p.dodgeX = Math.sin(y);
+    p.dodgeZ = Math.cos(y);
+  }
+  if (!local) return;
+  if (a.invuln) p.invuln = Math.max(p.invuln, a.invuln);
+  if (a.cdCut) for (const [k, v] of Object.entries(a.cdCut)) if (p.cd[k] !== undefined) p.cd[k] = Math.max(0, p.cd[k] - v);
+  if (a.gauge) p.addGauge(a.gauge);
+  if (a.hpCost) p.hp = Math.max(1, p.hp - p.maxHp * a.hpCost);
+  if (a.unseen) game.bossCommand({ type: 'unseen', id: p.id, dur: a.unseen });
+  if (sk.debuffs && sk.kind !== 'debuff') for (const db of sk.debuffs) game.bossCommand({ type: 'debuff', ...db });
 }
 
 function cast(game, p, id, d) {
   const sk = findSkill(p, id);
+  // 結界師の転送結界：印が残っていれば（20秒以内）そこへ戻る。無ければ今の場所に印
+  if (sk?.kind === 'recall') {
+    const m = p.recallMark;
+    if (m && performance.now() - m.at < 20000) {
+      d.rc = { x: m.x, z: m.z };
+      p.recallMark = null;
+    } else {
+      p.recallMark = { x: d.x, z: d.z, at: performance.now() };
+      p.cdOverride = 1; // 印を置いただけなら待ち時間はほぼ無し
+    }
+  }
+  if (sk?.kind === 'heartBoom' && p.swapMark) d.hb = { x: p.swapMark.x, z: p.swapMark.z }; // 双子：場のハート
   // 双子の入れ替わり：前に使った場所と、今回の色（0 青・1 ピンク）を d に入れて、全員で同じ動きにする
   if (sk?.swap) {
     d.sw = p.swapMark || null;
@@ -655,6 +687,19 @@ export function castQ(game, p, intent) {
 export function castE(game, p, intent) {
   const e = p.job.e;
   return cast(game, p, e.id, skillData(game, p, intent, e.dist || 2));
+}
+
+/** C スキル（3つ目の通常技。クールダウン制） */
+export function castC(game, p, intent) {
+  const c = p.job.c;
+  if (!c) return false;
+  const d = skillData(game, p, intent, c.dist || 2);
+  if (c.back) {
+    // 棒高跳び：狙いと逆（後ろ）へ
+    d.tx = 2 * d.x - d.tx;
+    d.tz = 2 * d.z - d.tz;
+  }
+  return cast(game, p, c.id, d);
 }
 
 /** R 必殺技（必殺ゲージ） */
@@ -1069,12 +1114,18 @@ const GENERIC = {
   mimic(game, p, d, local, sk) {
     // ものまね師：ランダムな職業の Q を借りて使う（何を借りたかは d.mimic で他の人にも同じものを見せる）
     // d.pick は借りた技の側（精霊術士の属性・道化師の手品など）が使うので、ものまね師は別の名前で持つ
+    // ものまね保存：さっき借りた技をもう一度
+    if (d.mimic === undefined && local && p.buffs.mimickeep && p.lastMimic) {
+      d.mimic = p.lastMimic;
+      delete p.buffs.mimickeep;
+    }
     if (d.mimic === undefined) {
       const pool = JOB_ORDER.filter((j) => j !== p.jobId && JOBS[j].q.kind !== 'mimic');
       d.mimic = pool[Math.floor(Math.random() * pool.length)];
     }
     const src = JOBS[d.mimic];
     if (!src) return;
+    p.lastMimic = d.mimic;
     game.toastOnce(`ものまね：${src.name}の「${src.q.name}」`, 1400);
     if (SKILLS[src.q.id]) SKILLS[src.q.id](game, p, d, local);
     else if (GENERIC[src.q.kind]) GENERIC[src.q.kind](game, p, d, local, src.q);
@@ -1161,11 +1212,131 @@ const GENERIC = {
   random(game, p, d, local, sk) {
     // 道化師：候補のうち1つ（何が出たかは d.pick で他の人にも同じものを見せる）
     if (d.pick === undefined) d.pick = Math.floor(Math.random() * sk.pool.length);
+    // ギャンブラーのダブルアップ：次の効果を2回（ハズレも）
+    if (local && d.double === undefined && p.buffs.doubleup && (sk.id === 'dice' || sk.id === 'cardtrick')) {
+      d.double = true;
+      delete p.buffs.doubleup;
+    }
     const one = sk.pool[d.pick];
-    game.toastOnce(`${sk.name}：${one.name}！`, 1400);
+    game.toastOnce(`${sk.name}：${one.name}！${d.double ? '（ダブルアップで2倍）' : ''}`, 1400);
     if (sk.id === 'card') game.skillFx?.cardFx?.(p, one); // 星のカード：出たマークを画面に散らす
     game.skillFx?.randomFx?.(p, sk, one); // 手品：帽子から取り出す／大道芸：両手を上げて紙吹雪
     GENERIC[one.kind](game, p, d, local, one);
+    if (d.double) GENERIC[one.kind](game, p, d, local, one);
+  },
+  // ---------------- C キーの技（data/jobs_c.js）で使う汎用処理 ----------------
+  recall(game, p, d, local, sk) {
+    // 結界師の転送結界：1回目で印を置き、2回目（20秒以内）でそこへ戻る。d.rc：戻り先
+    startAction(p, 'cast', 0.25);
+    game.sound.se('gate');
+    if (d.rc) {
+      game.skillFx?.blink(d.x, d.z, d.rc.x, d.rc.z, sk.color);
+      if (local) {
+        p.pos.x = d.rc.x;
+        p.pos.z = d.rc.z;
+        game.world.collide(p.pos, p.radius);
+        p.invuln = Math.max(p.invuln, 0.4);
+      }
+    } else ringFx(game, d.x, d.z, 2.5, sk.color);
+  },
+  moveZones(game, p, d, local, sk) {
+    // 祈祷師・機工士：置いたものを足元へ / 予言者：予言の一撃をボスの足元へ
+    startAction(p, 'cast', 0.3);
+    game.sound.se('seal');
+    const to = sk.to === 'boss' && d.bx !== undefined ? { x: d.bx, z: d.bz } : { x: d.x, z: d.z };
+    let n = 0;
+    for (const z of zones) {
+      if (z.kind !== sk.zoneKind || z.owner !== p.id) continue;
+      game.fx.burst(z.x, 1, z.z, sk.color, 12, { speed: 3, up: 2, life: 0.4 });
+      z.x = to.x + (n % 3 - 1) * 1.2;
+      z.z = to.z + (Math.floor(n / 3) - 0.5) * 1.2;
+      if (z.mesh) z.mesh.position.set(z.x, z.mesh.position.y, z.z);
+      game.fx.burst(z.x, 1, z.z, sk.color, 12, { speed: 3, up: 2, life: 0.4 });
+      n++;
+    }
+    if (local && !n) game.toastOnce('動かせるものが置かれていない', 1000);
+  },
+  dropZone(game, p, d, local, sk) {
+    // 陰陽師の札返し：一番古い札を1枚回収
+    startAction(p, 'cast', 0.25);
+    const i = zones.findIndex((z) => z.kind === sk.zoneKind && z.owner === p.id);
+    if (i >= 0) {
+      game.fx.burst(zones[i].x, 1.2, zones[i].z, sk.color, 14, { speed: 3, up: 2, life: 0.4 });
+      removeZone(i);
+    } else if (local) game.toastOnce('回収できる札が無い', 1000);
+  },
+  detonate(game, p, d, local, sk) {
+    // 吸着爆弾魔の一斉起爆：貼った爆弾を今すぐ爆発（時間切れの処理で爆発する）
+    startAction(p, 'cast', 0.2);
+    let n = 0;
+    for (const z of zones) if (z.kind === sk.zoneKind && z.owner === p.id) { z.t = Math.min(z.t, 0.01); n++; }
+    if (local && !n) game.toastOnce('貼った爆弾が無い', 1000);
+  },
+  bloom(game, p, d, local, sk) {
+    // 庭師の水やり：自分の花をすぐに咲かせる（時間切れで咲く）
+    startAction(p, 'cast', 0.3);
+    let n = 0;
+    for (const z of zones) if (z.owner === p.id && z.endBurst) { z.t = Math.min(z.t, 0.01); n++; }
+    if (local && !n) game.toastOnce('咲かせる花が無い', 1000);
+  },
+  heartBoom(game, p, d, local, sk) {
+    // 双子のハート爆破：場に置いたハートの所で爆発（d.hb：ハートの場所）
+    startAction(p, 'cast', 0.25);
+    if (!d.hb) {
+      if (local) game.toastOnce('場にハートが無い（入れ替わりで置ける）', 1200);
+      return;
+    }
+    game.skillFx?.explosion?.(d.hb.x, d.hb.z, sk.radius, sk.color, true);
+    if (local) radiusHit(game, p, sk.mult, sk.radius, { gauge: GAUGE.gainSkill, color: sk.color, knock: 1.5, melee: false }, d.hb.x, d.hb.z);
+  },
+  firewall(game, p, d, local, sk) {
+    // 火炎放射兵の炎の壁：前に横長の炎（小さなエリアを横に並べる）
+    startAction(p, 'cast', 0.35);
+    game.sound.se('seal');
+    const n = 5;
+    for (let i = 0; i < n; i++) {
+      const side = (i - (n - 1) / 2) * (sk.width / (n - 1));
+      const x = d.x + Math.sin(d.yaw) * sk.dist - Math.cos(d.yaw) * side;
+      const z = d.z + Math.cos(d.yaw) * sk.dist + Math.sin(d.yaw) * side;
+      addZone(game, { kind: 'field', x, z, r: 1.4, t: sk.dur, every: sk.every, tick: sk.every, mult: sk.mult, color: sk.color, owner: p.id, local, p, skill: 'napalm' });
+    }
+  },
+  reviveShot(game, p, d, local, sk) {
+    // 衛生兵の蘇生ショット：一番近い倒れた仲間を起こす
+    startAction(p, 'cast', 0.3);
+    if (!local) return;
+    let best = null;
+    let bd = sk.range;
+    for (const o of game.players) {
+      if (o === p || !o.downed) continue;
+      const dd = Math.hypot(o.pos.x - p.pos.x, o.pos.z - p.pos.z);
+      if (dd < bd) { bd = dd; best = o; }
+    }
+    if (!best) {
+      game.toastOnce('近くに倒れた仲間がいない', 1200);
+      p.cdOverride = 1; // 外したときは待ち時間をほぼかけない
+      return;
+    }
+    game.skillFx?.beam(p.pos.x, p.pos.z, Math.atan2(best.pos.x - p.pos.x, best.pos.z - p.pos.z), bd, 0.5, sk.color);
+    game.teamEffect({ kind: 'revive', id: best.id });
+    game.toast(`${best.name || '仲間'}を蘇生ショットで起こした！`, 1600);
+  },
+  shiftHold(game, p, d, local, sk) {
+    // 変化師：今の職業を延ばす
+    startAction(p, 'cast', 0.3);
+    if (local && p.shift) {
+      p.shift.t += sk.add;
+      game.toastOnce(`変化を ${sk.add} 秒 延ばした（あと ${Math.ceil(p.shift.t)} 秒）`, 1400);
+    }
+  },
+  cycleSkip(game, p, d, local, sk) {
+    // 精霊術士：次の属性を1つ飛ばす
+    startAction(p, 'cast', 0.25);
+    const pool = p.job.q.pool || [];
+    if (local && pool.length) {
+      p.cycleIdx = ((p.cycleIdx ?? -1) + 1) % pool.length;
+      game.toastOnce(`次の属性：${pool[(p.cycleIdx + 1) % pool.length].name}`, 1200);
+    }
   },
 };
 
