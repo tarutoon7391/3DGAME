@@ -202,6 +202,7 @@ export function hurtPlayer(game, pl, frac, fromX, fromZ) {
     }
   }
   pl.hp = Math.max(0, pl.hp - dmg);
+  for (const b of Object.values(pl.buffs)) if (b.minHp && pl.hp < b.minHp) pl.hp = b.minHp; // 背水の剣士の踏みとどまり
   // 棘の騎士：殴られたら近くの敵にとげで反撃
   if (pl.job.thorns && pl.hp > 0) {
     let best = null;

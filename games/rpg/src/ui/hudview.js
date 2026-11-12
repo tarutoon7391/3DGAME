@@ -101,7 +101,7 @@ export function createHudView(game) {
     const full = me.gauge >= GAUGE.max;
     const cdSlot = (key, sk, cd) => `<div class="rpg-skill ${cd > 0 ? 'off' : ''}"><b>${key}</b><span>${esc(sk.name)}</span><small>CD ${sk.cd}秒</small>${cd > 0 ? `<i>${cd.toFixed(1)}</i>` : ''}</div>`;
     const usedR = J.r.oncePerRun && game.state.progress.usedOnce?.[J.r.id];
-    const html = `${cdSlot('Q', J.q, me.cd.q)}${cdSlot('E', J.e, me.cd.e)}
+    const html = `${cdSlot('Q', J.q, me.cd.q)}${cdSlot('E', J.e, me.cd.e)}${J.c ? cdSlot('C', J.c, me.cd.c) : ''}
       ${usedR
         ? `<div class="rpg-skill off"><b>R</b><span>${esc(J.r.name)}</span><small>使用済み</small></div>`
         : `<div class="rpg-skill ${full ? 'ready' : 'off'}"><b>R</b><span>${esc(J.r.name)}</span><small>${full ? '撃てる！' : `${Math.floor(me.gauge)}%`}</small><div class="rpg-gauge" style="width:${Math.min(100, me.gauge)}%"></div></div>`}

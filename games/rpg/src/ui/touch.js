@@ -30,6 +30,7 @@ export function createTouch({ onPause, onView, allowMouse = false }) {
     <button type="button" class="rt-btn rt-dodge" data-k="dodge">回避</button>
     <button type="button" class="rt-btn rt-q" data-k="skillQ"><b>Q</b><span></span><i></i></button>
     <button type="button" class="rt-btn rt-e" data-k="skillE"><b>E</b><span></span><i></i></button>
+    <button type="button" class="rt-btn rt-c" data-k="skillC"><b>C</b><span></span><i></i></button>
     <button type="button" class="rt-btn rt-r" data-k="skillR"><b>R</b><span></span><i></i><u></u></button>
     <button type="button" class="rt-btn rt-f" data-k="interact">調べる</button>
     <div class="rt-top">
@@ -191,6 +192,7 @@ export function createTouch({ onPause, onView, allowMouse = false }) {
       };
       cdBtn('skillQ', 'Q', J.q, me.cd.q);
       cdBtn('skillE', 'E', J.e, me.cd.e);
+      if (J.c) cdBtn('skillC', 'C', J.c, me.cd.c);
       const r = btn('skillR');
       const used = J.r.oncePerRun && game.state.progress.usedOnce?.[J.r.id];
       const full = !used && me.gauge >= GAUGE.max;

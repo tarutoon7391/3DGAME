@@ -18,6 +18,8 @@ const xTick = (color, r) => (n) => [diag(n % 2 === 1, { color, r, dur: 0.22 }), 
 /** 振り下ろして地面を叩く（周囲攻撃の1回ごと） */
 const smashTick = (color, r, big = false) => () => [vm('bigchop', 0.32), ['slam', { color, r, at: 0.1 }], ['explode', { color, r: r * 0.7, big, at: 0.1 }], shake(big ? 0.7 : 0.45)];
 
+import { SKILL_VIS_C, C_FRAMES } from './skillvis_c.js';
+
 export const SKILL_VIS = {
   // ---- 暗黒騎士 ----
   darkblade: { cast: [vm('iai', 0.4, { glow: 0x5a1a8a }), ['orbit', { color: 0xb388ff, n: 14, r: 0.7, h: 2.2, dur: 0.45, spin: 6, size: 0.3 }], vert({ r: 5, color: 0x9c27b0, at: 0.14 }), vert({ r: 5.4, color: 0x6a1b9a, white: false, at: 0.18, dur: 0.4 }), ['flash', { where: 'front', dist: 3, color: 0xb388ff, size: 5, at: 0.16 }], ['shake', { amt: 0.4, at: 0.14 }]] },
@@ -290,6 +292,8 @@ export const SKILL_VIS = {
   lastrites: { cast: [vm('cheer', 1.2), ['whiteout', { css: '#ffffff', max: 0.7, dur: 0.6 }], ['column', { color: 0xfff8e1, r: 2.5, h: 14, dur: 1.2 }], ['ring', { glyph: '✝', color: 0xfff59d, r: 10, n: 12, dur: 1.5 }], ['scatter', { glyph: '✚', css: '#fff59d', n: 14 }]] },
 };
 
+Object.assign(SKILL_VIS, SKILL_VIS_C); // C キーの技（data/skillvis_c.js）
+
 /** バフ中の画面の縁の色（"r,g,b"）。キーはバフの名前 */
 export const BUFF_FRAMES = {
   veil: '106,27,154', afterimage: '255,255,141', pact: '183,28,28', spicy: '255,112,67', feast: '255,204,128', sake: '255,171,145',
@@ -304,3 +308,4 @@ export const BUFF_FRAMES = {
 export const LAST_VERTICAL = ['darkknight', 'cursed', 'desperado', 'oni', 'hammer', 'gunblade', 'gladiator', 'charger', 'thornknight', 'shredder', 'drummer', 'bellringer'];
 /** 撃つと銃口が光る職業（銃口の位置は武器の形から自動で求める） */
 export const GUN_JOBS = ['gambler', 'sniper', 'twins', 'machinegunner', 'flamer', 'rocketeer', 'medic', 'fortress', 'splitter'];
+Object.assign(BUFF_FRAMES, C_FRAMES); // C キーの技のバフ

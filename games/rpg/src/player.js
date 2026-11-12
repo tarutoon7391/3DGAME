@@ -7,12 +7,12 @@ import { PLAYER, STAMINA } from './data/player.js';
 import { JOBS, DEFAULT_JOB, GAUGE, REVIVE } from './data/jobs.js';
 import { lerpAngle, lerpAngle as la } from './util.js';
 import { meleeArc, strike, forEachTarget, radiusHit } from './combat.js';
-import { castQ, castE, castR, basicShot } from './jobs.js';
+import { castQ, castE, castC, castR, basicShot } from './jobs.js';
 
 /** 空の入力（何も押していない） */
 export function emptyIntent(out = {}) {
   out.moveX = 0; out.moveZ = 0; out.aimYaw = 0;
-  out.attack = false; out.dodge = false; out.dash = false; out.skillQ = false; out.skillE = false; out.skillR = false; out.interact = false;
+  out.attack = false; out.dodge = false; out.dash = false; out.skillQ = false; out.skillE = false; out.skillC = false; out.skillR = false; out.interact = false;
   out.lockYaw = false; // true なら体の向きを常に aimYaw（一人称：カメラの水平方向）に合わせる
   return out;
 }
@@ -56,7 +56,7 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
     knockX: 0,
     knockZ: 0,
     shotCd: 0,
-    cd: { q: 0, e: 0 },
+    cd: { q: 0, e: 0, c: 0 },
     hpHist: [], // 時魔導士の巻き戻し用：0.1秒ごとの HP（3秒ぶん）
     hpHistT: 0,
     gauge: 0, // 必殺ゲージ（0〜GAUGE.max）
@@ -90,6 +90,7 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
       p.invuln = 0;
       p.cd.q = 0;
       p.cd.e = 0;
+      p.cd.c = 0;
       p.hpHist.length = 0;
       p.wolfUsed = false;
       p.mark = null;
@@ -203,6 +204,7 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
       const cdRate = game.bardAura?.(p) || 1; // 吟遊詩人の近くでは速く戻る
       p.cd.q = Math.max(0, p.cd.q - dt * cdRate);
       p.cd.e = Math.max(0, p.cd.e - dt * cdRate);
+      p.cd.c = Math.max(0, p.cd.c - dt * cdRate);
       // HP の記録（巻き戻し用）
       p.hpHistT -= dt;
       if (p.hpHistT <= 0) {
@@ -289,7 +291,7 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
         }
       }
       if (J.selfRegen) p.hp = Math.min(p.maxHp, p.hp + p.maxHp * J.selfRegen * dt); // 料理人のつまみ食い
-      if (J.hpDrain && p.hp > 1) p.hp = Math.max(1, p.hp - p.maxHp * J.hpDrain * dt); // 呪いの騎士：HP が減り続ける
+      if (J.hpDrain && p.hp > 1 && !p.buffs.curseHold) p.hp = Math.max(1, p.hp - p.maxHp * J.hpDrain * dt); // 呪いの騎士：HP が減り続ける
 
       const mlen = Math.hypot(intent.moveX, intent.moveZ);
       const moving = mlen > 0.01;
@@ -323,14 +325,15 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
         game.fx.burst(p.pos.x, 0.3, p.pos.z, 0xd7ccc8, 8, { speed: 2, up: 1, life: 0.4 });
       } else if (intent.dodge && p.tired && p === game.me()) {
         game.toastOnce('バテていて回避できない！');
-      } else if ((intent.skillQ || intent.skillE) && !busy) {
-        // Q・E：クールダウン制のスキル
-        const slot = intent.skillQ ? 'q' : 'e';
+      } else if ((intent.skillQ || intent.skillE || (intent.skillC && J.c)) && !busy) {
+        // Q・E・C：クールダウン制のスキル
+        const slot = intent.skillQ ? 'q' : intent.skillE ? 'e' : 'c';
         const sk = J[slot];
         if (p.cd[slot] > 0) {
           if (p === game.me()) game.toastOnce(`${sk.name}はあと ${p.cd[slot].toFixed(1)} 秒`, 900);
-        } else if ((slot === 'q' ? castQ : castE)(game, p, intent)) {
-          p.cd[slot] = sk.cd * (J.cdMul || 1); // 賢者はクールダウンが短い
+        } else if ((slot === 'q' ? castQ : slot === 'e' ? castE : castC)(game, p, intent)) {
+          p.cd[slot] = p.cdOverride ?? sk.cd * (J.cdMul || 1); // 賢者はクールダウンが短い。cdOverride：転送結界の印・蘇生ショットの空振り
+          delete p.cdOverride;
         }
       } else if (intent.skillR && !busy) {
         // R：必殺技（必殺ゲージ。oncePerRun なら1回の挑戦で1度だけ）

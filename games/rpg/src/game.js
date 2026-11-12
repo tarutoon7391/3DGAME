@@ -249,6 +249,7 @@ export function createGame() {
         if (me.alive) {
           me.cd.q = 0;
           me.cd.e = 0;
+          me.cd.c = 0;
           game.toastOnce('指揮者の号令：Q・E がすぐ使える！', 1600);
         }
         break;
@@ -782,6 +783,7 @@ export function createGame() {
     it.dash = k('ShiftLeft') || k('ShiftRight');
     it.skillQ = input.wasPressed('KeyQ');
     it.skillE = input.wasPressed('KeyE');
+    it.skillC = input.wasPressed('KeyC');
     it.skillR = input.wasPressed('KeyR');
     it.interact = input.wasPressed('KeyF');
     if (ts) {
@@ -790,6 +792,7 @@ export function createGame() {
       it.dash ||= ts.dash;
       it.skillQ ||= ts.pressed.has('skillQ');
       it.skillE ||= ts.pressed.has('skillE');
+      it.skillC ||= ts.pressed.has('skillC');
       it.skillR ||= ts.pressed.has('skillR');
       it.interact ||= ts.pressed.has('interact');
     }

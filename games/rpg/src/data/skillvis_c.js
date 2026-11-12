@@ -125,3 +125,13 @@ const R = {
 
 /** レシピ（キーは 'c_' + 職業 ID） */
 export const SKILL_VIS_C = Object.fromEntries(Object.entries(R).map(([k, cast]) => ['c_' + k, { cast }]));
+
+/** C の技のバフ中の画面の縁の色（"r,g,b"） */
+export const C_FRAMES = {
+  ironwall: '144,164,174', spiritguard: '129,212,250', frenzy: '213,0,0', haste: '179,136,255', headhunt: '255,23,68', starguard: '255,245,157',
+  scale: '255,87,34', march: '255,213,79', darkdrain: '74,20,140', curseHold: '136,14,79', cling: '255,61,0', snack: '255,204,128',
+  stagger: '248,187,208', aimlock: '255,23,68', brace: '213,0,0', jetpack: '255,112,67', mikiriDodge: '77,208,225', refract: '128,222,234',
+  skate: '179,229,252', batform: '123,31,162', reload2: '255,171,64', fog: '236,239,241', parry: '255,204,128', howl: '161,136,127',
+  packup: '144,164,174', burrow: '141,110,99', rhythm: '255,241,118', catch: '255,152,0', holywater: '255,249,196', inbell: '255,202,40',
+  echowall: '124,77,255', charge: '213,0,0', proxy: '229,115,115', ashregen: '255,138,101', doubleup: '255,213,79',
+};
