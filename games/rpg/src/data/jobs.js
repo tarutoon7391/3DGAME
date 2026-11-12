@@ -203,11 +203,12 @@ export const JOBS = {
     power: 0.91, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     // 連射できないかわりに1発が重く、貫通する
     basic: { type: 'shot', cd: 0.9, speed: 48, mult: 2.2, color: 0xffd180, size: 0.2, range: 36, pierce: true },
-    q: { id: 'buckshot', name: '散弾', desc: '近距離に7発の散弾。近いほど全弾当たる', cd: 5, count: 7, spread: 0.13, mult: 0.75, range: 9, speed: 34 },
-    e: { id: 'mine', name: '地雷設置', desc: '足元に地雷を置く。ボスが近づくか6秒たつと爆発', cd: 10, mult: 3.2, radius: 3.5, trigger: 2.5, dur: 6 },
-    r: { id: 'cannon', name: '大砲', desc: '巨大な砲弾を撃つ。着弾で大爆発', mult: 7, radius: 4.5, speed: 26 },
-    trait: '会心率 +20%',
-    critBonus: 0.2, breakMul: 1,
+    // 威力の目安（防御 10 のボスに会心なし）：大砲 約200・地雷 約250・大花火 約700
+    q: { id: 'cannon', name: '大砲', desc: '巨大な砲弾を撃つ。着弾で爆発（約200ダメージ）', cd: 7, mult: 5.9, radius: 4, speed: 26 },
+    e: { id: 'mine', name: '地雷設置', desc: '足元に地雷を置く。ボスが近づく（4.5m）か6秒たつと大きく爆発（約250ダメージ）', cd: 10, mult: 7.3, radius: 5, trigger: 4.5, dur: 6 },
+    r: { id: 'hanabi', name: '大花火', desc: '巨大な花火玉を撃ち上げる。着弾でカラフルな大爆発（約700ダメージ）', mult: 20.5, radius: 6, speed: 24 },
+    trait: '会心率 +30%',
+    critBonus: 0.3, breakMul: 1,
     look: { armorColor: 0x5d4037, swordColor: 0x424242, swordLen: 0.9, cape: 0xff6f00, weapon: 'gun' },
   },
   warlock: {
@@ -228,11 +229,11 @@ export const JOBS = {
     power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     // 大鎌：遅いが横に広い
     basic: { type: 'melee', combo: [{ dur: 0.48, hit: 0.2, mult: 1.25 }, { dur: 0.48, hit: 0.2, mult: 1.3 }, { dur: 0.65, hit: 0.28, mult: 2.0 }], range: 3.3, arc: 3.2, heavyBonus: 0.4 },
-    q: { id: 'soulreap', name: '魂刈り', desc: '大きく薙ぎ払う。当てた数だけ必殺ゲージが大きく溜まる', cd: 7, mult: 2.0, range: 4.2, arc: 4.2, gauge: 14 },
-    e: { id: 'scythethrow', name: '鎌投げ', desc: '大鎌を投げる。12m 先で戻ってきて往復で当たる（貫通）', cd: 6, mult: 1.3, speed: 22, range: 12 },
+    q: { id: 'soulreap', name: '魂刈り', desc: '大鎌を大きく振りかぶり、周り6.5mを広く刈る。当たれば必殺ゲージ +30%', cd: 7, mult: 2.4, range: 6.5, arc: 5.0, windup: 0.3, gauge: 30 },
+    e: { id: 'scythethrow', name: '鎌投げ', desc: '大きな鎌を投げる（約150ダメージ）。12m 先で戻ってきて往復で当たる（貫通）', cd: 6, mult: 4.0, speed: 22, range: 12, size: 1.8 },
     r: { id: 'verdict', name: '死の宣告', desc: '前方の敵1体に、減っている HP が多いほど強い一撃（最大で通常の3倍以上）', mult: 3, missingMult: 9, range: 6 },
-    trait: 'ボスの HP が 30% 以下なら攻撃力 +40%',
-    executeAt: 0.3, executeBonus: 1.4, breakMul: 1,
+    trait: '必殺ゲージが 30% 溜まりやすい',
+    gaugeMul: 1.3, breakMul: 1,
     look: { armorColor: 0x263238, swordColor: 0xb0bec5, swordLen: 1.0, cape: 0x000000, weapon: 'scythe' },
   },
 

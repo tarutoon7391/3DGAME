@@ -382,22 +382,22 @@ const SKILLS = {
     if (local) game.bossCommand({ type: 'freeze', dur: e.dur, immune: e.immune });
   },
   // ---- 砲術士 ----
-  buckshot(game, p, d, local) {
-    const q = JOBS.gunner.q;
-    startAction(p, 'cast', 0.25);
-    p.waveT = 0.25;
-    for (let i = 0; i < q.count; i++) {
-      const a = d.yaw + (i - (q.count - 1) / 2) * q.spread + (Math.random() - 0.5) * 0.04;
-      game.projectiles.playerShot(p, d.x, d.z, a, { speed: q.speed, mult: q.mult, color: 0xffd180, size: 0.16, range: q.range, local, gauge: GAUGE.gainSkill });
-    }
-    game.fx.shake(0.2);
+  cannon(game, p, d, local) {
+    // 大砲（Q）：巨大な砲弾。着弾で爆発
+    const e = JOBS.gunner.q;
+    startAction(p, 'cast', 0.45);
+    game.projectiles.playerShot(p, d.x, d.z, d.yaw, { speed: e.speed, mult: e.mult, color: 0xff6f00, size: 0.9, range: 34, explode: e.radius, local, gauge: GAUGE.gainSkill });
+    game.fx.shake(0.5);
     game.sound.se('slam');
   },
-  cannon(game, p, d, local) {
+  hanabi(game, p, d, local) {
+    // 大花火（R）：花火玉を撃ち、着弾で大爆発。上空に色とりどりの花火が次々に開く（全員の画面で）
     const e = JOBS.gunner.r;
-    startAction(p, 'cast', 0.45);
-    game.projectiles.playerShot(p, d.x, d.z, d.yaw, { speed: e.speed, mult: e.mult, color: 0xff6f00, size: 0.9, range: 34, explode: e.radius, local });
-    game.fx.shake(0.5);
+    startAction(p, 'cast', 0.5);
+    game.projectiles.playerShot(p, d.x, d.z, d.yaw, { speed: e.speed, mult: e.mult, color: 0xff4081, size: 1.1, range: 36, explode: e.radius, local, gauge: 0,
+      onEnd: (x, z) => fireworks(game, x, z, e.radius) });
+    game.fx.burst(p.pos.x + Math.sin(d.yaw) * 1.5, 1.4, p.pos.z + Math.cos(d.yaw) * 1.5, 0xffd740, 30, { speed: 8, up: 3, life: 0.5 });
+    game.fx.shake(0.6);
     game.sound.se('slam');
   },
   // ---- 呪術師 ----
@@ -430,13 +430,23 @@ const SKILLS = {
   },
   // ---- 処刑人 ----
   soulreap(game, p, d, local) {
+    // 魂刈り：大鎌を大きく振りかぶってから（windup）、周りを広く刈る。当たれば必殺ゲージ +30%
     const q = JOBS.reaper.q;
-    startAction(p, 'spin', 0.45);
-    p.vmAnim = { kind: 'spinflip', t: 0, dur: 0.45 };
-    game.sound.se('spin');
-    game.fx.burst(p.pos.x, 1, p.pos.z, 0xb0bec5, 30, { speed: 9, up: 1, life: 0.4, size: 0.14, grav: 2 });
-    game.skillFx?.slash(p.pos.x, p.pos.z, d.yaw, q.range, q.arc, 0xb0bec5);
-    if (local) meleeArc(game, p, d.yaw, q.mult, q.range, q.arc, { gauge: q.gauge });
+    startAction(p, 'cast', q.windup + 0.45);
+    p.vmAnim = { kind: 'iai', t: 0, dur: q.windup + 0.3 }; // 振り上げて溜めてから振る
+    p.yaw = d.yaw;
+    game.sound.se('windup');
+    game.fx.burst(p.pos.x, 2.4, p.pos.z, 0x9e9e9e, 16, { speed: 2, up: 2, life: 0.4 });
+    later(p, q.windup, () => {
+      p.vmAnim = { kind: 'spinflip', t: 0, dur: 0.4 };
+      game.sound.se('spin');
+      game.fx.burst(p.pos.x, 1, p.pos.z, 0xb0bec5, 50, { speed: 12, up: 1, life: 0.5, size: 0.16, grav: 2 });
+      game.skillFx?.slash(p.pos.x, p.pos.z, d.yaw, q.range, q.arc, 0xb0bec5);
+      game.skillFx?.slash(p.pos.x, p.pos.z, d.yaw, q.range * 0.8, q.arc, 0x546e7a, { y: 1.5, dur: 0.4 });
+      game.enemyFx?.impact(p.pos.x, p.pos.z, q.range, 0x90a4ae, 'default');
+      game.fx.shake(0.5);
+      if (local && meleeArc(game, p, d.yaw, q.mult, q.range, q.arc, { gauge: 0, knock: 1.5 }) > 0) p.addGauge(q.gauge / (p.job.gaugeMul || 1)); // 特性の倍率をかけずに +30%
+    });
   },
   verdict(game, p, d, local) {
     const e = JOBS.reaper.r;
@@ -640,7 +650,7 @@ const SKILLS = {
   scythethrow(game, p, d, local) {
     const e = JOBS.reaper.e;
     startAction(p, 'cast', 0.3);
-    const o = { speed: e.speed, mult: e.mult, color: 0xb0bec5, size: 0.6, range: e.range, pierce: true, local, gauge: GAUGE.gainSkill };
+    const o = { speed: e.speed, mult: e.mult, color: 0xb0bec5, size: e.size, range: e.range, pierce: true, local, gauge: GAUGE.gainSkill }; // 見た目も当たりも大きい鎌
     game.projectiles.playerShot(p, d.x, d.z, d.yaw, o);
     // 先まで飛んだら投げた人の方へ戻ってくる
     const fx = d.x + Math.sin(d.yaw) * (e.range + 0.8);
@@ -652,6 +662,31 @@ const SKILLS = {
     game.sound.se('spin');
   },
 };
+
+/** 大花火の見た目：着弾点の上空に色とりどりの花火が時間差で開く */
+const HANABI_COLORS = [0xff1744, 0xffea00, 0x00e5ff, 0x76ff03, 0xd500f9, 0xff9100, 0xffffff];
+function fireworks(game, x, z, r) {
+  game.skillFx?.explosion?.(x, z, r, 0xff4081, true);
+  game.enemyFx?.impact(x, z, r + 1, 0xffd740, 'default');
+  game.fx.shake(1);
+  for (let i = 0; i < 9; i++) {
+    setTimeout(() => {
+      const c = HANABI_COLORS[i % HANABI_COLORS.length];
+      const a = Math.random() * Math.PI * 2;
+      const rr = i === 0 ? 0 : 1 + Math.random() * r;
+      const fx = x + Math.sin(a) * rr;
+      const fz = z + Math.cos(a) * rr;
+      const fy = 5 + Math.random() * 4;
+      // 打ち上がる筋と、丸く開く花
+      game.fx.burst(fx, 1, fz, c, 6, { speed: 1, up: 14, life: 0.35, size: 0.12, grav: 0 });
+      setTimeout(() => {
+        game.fx.burst(fx, fy, fz, c, 60, { speed: 9, up: 2, life: 1.1, size: 0.2, grav: 2.5 });
+        game.fx.burst(fx, fy, fz, 0xffffff, 16, { speed: 4, up: 1, life: 0.6, size: 0.14, grav: 1 });
+        game.sound.se(i % 2 ? 'crit' : 'slam');
+      }, 220);
+    }, i * 120);
+  }
+}
 
 /** sec 秒後に fn（他の人の分身でも動く。倒れていたらやめる） */
 function later(p, sec, fn) {
@@ -1251,6 +1286,24 @@ const GENERIC = {
     if (SKILLS[src.q.id]) SKILLS[src.q.id](game, p, d, local);
     else if (GENERIC[src.q.kind]) GENERIC[src.q.kind](game, p, d, local, src.q);
   },
+  recoil(game, p, d, local, sk) {
+    // 反動跳び：前へ砲弾を撃ち、反動で後ろへ大きく跳ぶ（跳ぶ間は無敵）
+    game.projectiles.playerShot(p, d.x, d.z, d.yaw, { speed: sk.speed, mult: sk.mult, color: sk.color, size: sk.size, range: 28, explode: sk.explode, local, gauge: GAUGE.gainSkill });
+    game.fx.burst(p.pos.x + Math.sin(d.yaw) * 1.4, 1.3, p.pos.z + Math.cos(d.yaw) * 1.4, sk.color, 30, { speed: 8, up: 3, life: 0.4 });
+    game.fx.shake(0.4);
+    game.sound.se('slam');
+    const back = d.yaw + Math.PI;
+    startAction(p, 'dash', sk.time);
+    p.dodgeX = Math.sin(back);
+    p.dodgeZ = Math.cos(back);
+    p.yaw = d.yaw; // 前を向いたまま後ろへ飛ぶ
+    p.dashSpeed = sk.dist / sk.time;
+    if (local) p.invuln = Math.max(p.invuln, sk.time + 0.15);
+    p.skillTick = () => {
+      p.model.root.position.y = Math.sin(Math.min(1, p.actT / sk.time) * Math.PI) * sk.height;
+      if (p.actT >= sk.time - 0.02) p.model.root.position.y = 0;
+    };
+  },
   followup(game, p, d, local, sk) {
     // 格闘家の追撃：d.fu（直前の技）ごとに派生
     const F = p.job.followups?.[d.fu];
@@ -1750,6 +1803,14 @@ function addZone(game, z) {
     z.mat = new THREE.MeshBasicMaterial({ color: 0xff6f00 });
     z.mesh = new THREE.Mesh(geoCache.mine, z.mat);
     z.mesh.position.y = 0.13;
+    z.mesh.scale.setScalar(1.4);
+    // 感知範囲の輪（ここにボスが入ると爆発）
+    geoCache.mineRing ||= new THREE.RingGeometry(0.93, 1, 40).rotateX(-Math.PI / 2);
+    z.ringMat = new THREE.MeshBasicMaterial({ color: 0xff6f00, transparent: true, opacity: 0.35, depthWrite: false });
+    const ring = new THREE.Mesh(geoCache.mineRing, z.ringMat);
+    ring.scale.setScalar(z.trigger / 1.4);
+    ring.position.y = -0.06;
+    z.mesh.add(ring);
   } else if (z.kind === 'aegis') {
     geoCache.dome ||= new THREE.SphereGeometry(1, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2);
     z.mat = new THREE.MeshBasicMaterial({ color: 0x90caf9, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide });
@@ -1782,6 +1843,7 @@ function removeZone(i) {
   z.aura?.remove();
   zoneGroup.remove(z.mesh);
   z.mat.dispose();
+  z.ringMat?.dispose();
   if (z.rock) {
     zoneGroup.remove(z.rock);
     z.rockMat.dispose();

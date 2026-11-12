@@ -20,7 +20,7 @@ export const C_SKILLS = {
   alchemist: { id: 'c_alchemist', kind: 'teamheal', name: '回復薬の瓶', desc: '回復薬を割って周りの味方を回復（20%）', cd: 14, radius: 5, amount: 0.2, color: 0x69f0ae },
   berserker: sb('c_berserker', '狂化', '5秒間 攻撃 +30%・被ダメ +20%', 18, 0xd50000, 'frenzy', 5, { atkMul: 1.3, dmgMul: 1.2 }),
   chrono: tb('c_chrono', '加速', '4秒間 周りの味方の移動 +25%・攻撃 +10%', 16, 0xb388ff, 'haste', 4, { speedMul: 1.25, atkMul: 1.1 }, 8),
-  gunner: { id: 'c_gunner', kind: 'cone', name: '反動跳び', desc: '前へ散弾を撃ち、反動で後ろへ跳ぶ', cd: 10, mult: 1.2, range: 5, arc: 1.2, color: 0xff7043, melee: false, after: { dodge: 'back', invuln: 0.4 } },
+  gunner: { id: 'c_gunner', kind: 'recoil', name: '反動跳び', desc: '前へ砲弾を撃ち、反動で後ろへ9m 跳ぶ（跳ぶ間は無敵）', cd: 10, mult: 2.5, size: 0.55, explode: 2.5, speed: 30, dist: 9, time: 0.45, height: 2.2, color: 0xff7043 },
   warlock: sb('c_warlock', '身代わり人形', '人形を置き、3秒間 敵に気づかれない', 18, 0x9c27b0, 'doll', 3, {}, { after: { unseen: 3 } }),
   reaper: sb('c_reaper', '首狩りの構え', '3秒間 攻撃 +40%', 16, 0xff1744, 'headhunt', 3, { atkMul: 1.4 }),
   trapper: { id: 'c_trapper', kind: 'debuff', name: '落とし穴', desc: 'ボスを落とし穴にはめ、2秒 ほとんど動けなくする', cd: 20, color: 0x6d4c41, debuffs: [{ name: 'slow', dur: 2, mul: 0.15 }] },
