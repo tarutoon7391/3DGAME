@@ -229,7 +229,7 @@ const SKILLS = {
     if (local) p.invuln = Math.max(p.invuln, total + 0.2);
     game.sound.se('dodge');
     game.fx.burst(p.pos.x, 0.3, p.pos.z, 0xbcaaa4, 30, { speed: 6, up: 4, life: 0.5 });
-    p.vmAnim = { kind: 'xstorm', t: 0, dur: total, every: e.every };
+    p.vmAnim = { kind: 'thrusts', t: 0, dur: total - 0.3, every: e.every, delay: e.rise }; // 一人称：槍の通常攻撃と同じ突き
     game.skillFx?.pillar?.(p.pos.x, p.pos.z, 0xffab91, 1.4); // 跳び上がる光の柱
     const x0 = p.pos.x;
     const z0 = p.pos.z;
@@ -244,9 +244,10 @@ const SKILLS = {
       // 空中の連撃
       while (n < e.hits && t >= e.rise + n * e.every) {
         const i = n++;
-        const a = d.yaw + i * 2.4; // 四方八方へ
+        const a = d.yaw + (i % 2 ? 0.25 : -0.25) * ((i % 4) / 2); // 通常攻撃と同じく前へ突く（少しずつ角度を変える）
         const y = e.height * 0.7;
-        game.skillFx?.swing({ ...p, yaw: a, pos: { x: p.pos.x, z: p.pos.z } }, i, false, e.radius, 2.4, i % 2 ? 0xffab91 : 0xffffff);
+        p.yaw = d.yaw;
+        game.skillFx?.swing({ ...p, yaw: a, pos: { x: p.pos.x, z: p.pos.z } }, i % 3, i % 3 === 2, e.radius, 0.9, i % 2 ? 0xffab91 : 0xffffff); // 槍の突きの軌跡
         for (let k = 0; k < 6; k++) {
           const r = 1 + k * (e.radius / 6);
           game.fx.burst(x0 + Math.sin(a) * r, Math.max(0.4, y - k * 0.6), z0 + Math.cos(a) * r, i % 2 ? 0xffab91 : 0xffe0b2, 2, { speed: 3, up: 0, life: 0.3, size: 0.14, grav: 0 });
@@ -292,6 +293,7 @@ const SKILLS = {
     startAction(p, 'cast', e.dur + 0.3);
     p.yaw = d.yaw;
     p.vmAnim = { kind: 'barrage', t: 0, dur: e.dur };
+    if (local) p.invuln = Math.max(p.invuln, e.dur + 0.35); // 打っている間は無敵
     let tick = 0;
     let finished = false;
     game.sound.se('roar');
@@ -564,7 +566,7 @@ const SKILLS = {
       p.didSkill = true;
       game.fx.burst(p.pos.x, 1.5, p.pos.z, 0xffcc80, 30, { speed: 4, up: 9, life: 0.6 });
       game.skillFx?.slash(p.pos.x, p.pos.z, p.yaw, e.radius + 0.5, 2.6, 0xffcc80, { roll: Math.PI / 2, dur: 0.35 });
-      if (local) radiusHit(game, p, e.mult, e.radius, { melee: true, gauge: GAUGE.gainSkill, knock: 1.5, color: 0xffcc80 });
+      if (local) radiusHit(game, p, e.mult, e.radius, { melee: true, gauge: GAUGE.gainSkill, knock: 1.5, color: 0xffcc80, brkMul: e.brkMul });
     };
   },
   triflask(game, p, d, local) {
@@ -739,6 +741,16 @@ function cast(game, p, id, d) {
     p.swapMark = { x: d.x, z: d.z };
     p.swapN = (p.swapN || 0) + 1;
   }
+  // 格闘家の追撃：直前の技（Q・E・R）が終わる前でなければ出せない
+  if (sk?.kind === 'followup') {
+    const f = p.chainFrom;
+    if (!f || f.left <= 0) {
+      game.toastOnce('追撃は Q・E・R の技が終わる前に押す', 1400);
+      return false;
+    }
+    p.chainFrom = null;
+    Object.assign(d, { fu: f.id, yaw: f.yaw, x: +p.pos.x.toFixed(2), z: +p.pos.z.toFixed(2), fy: +(p.model.root.position.y || 0).toFixed(2) });
+  }
   // 暗黒騎士：HP を払って撃つ技（足りなければ撃てない）
   if (sk?.hpCost) {
     const cost = p.maxHp * sk.hpCost;
@@ -751,6 +763,10 @@ function cast(game, p, id, d) {
     game.fx.burst(p.pos.x, 1.2, p.pos.z, 0x880e4f, 14, { speed: 3, up: 3, life: 0.5 });
   }
   run(game, p, id, d, true);
+  // 格闘家：Q・E・R を使ったら、その技が終わるまで（少し猶予つき）追撃を受け付ける
+  if (p.job.c?.kind === 'followup' && sk && (sk === p.job.q || sk === p.job.e || sk === p.job.r) && p.job.followups?.[id]) {
+    p.chainFrom = { id, yaw: d.yaw, left: (p.actDur || 0.4) + 0.3 }; // left：受け付ける残り秒（ゲームの時間で減る）
+  }
   // 残響術士：汎用の型の技は、少し遅れて威力を下げてもう一度出る
   const echo = p.job.echo;
   if (echo && sk?.kind && GENERIC[sk.kind]) {
@@ -1234,6 +1250,102 @@ const GENERIC = {
     game.toastOnce(`ものまね：${src.name}の「${src.q.name}」`, 1400);
     if (SKILLS[src.q.id]) SKILLS[src.q.id](game, p, d, local);
     else if (GENERIC[src.q.kind]) GENERIC[src.q.kind](game, p, d, local, src.q);
+  },
+  followup(game, p, d, local, sk) {
+    // 格闘家の追撃：d.fu（直前の技）ごとに派生
+    const F = p.job.followups?.[d.fu];
+    if (!F) return;
+    const col = 0xffab40;
+    game.toastOnce(F.name, 1000);
+    if (d.fu === 'kiblast') {
+      // 気功突進：気の玉と同じ速さで前へ突っ込み（無敵）、着弾点（前にいる敵の手前か、射程の端）で一撃。着いてから0.5秒も無敵
+      const range = p.job.q.range;
+      let dist = range;
+      forEachTarget(game, (e) => {
+        const dx = e.pos.x - d.x;
+        const dz = e.pos.z - d.z;
+        const along = dx * Math.sin(d.yaw) + dz * Math.cos(d.yaw);
+        const side = Math.abs(dx * Math.cos(d.yaw) - dz * Math.sin(d.yaw));
+        if (along > 0 && side < e.radius + 1 && along - e.radius - 1 < dist) dist = Math.max(0.5, along - e.radius - 1);
+      });
+      const t = Math.max(0.08, (dist / (range + 0.5)) * 0.42); // 気の玉は 0.42 秒で射程の端まで飛ぶ
+      startAction(p, 'dash', t);
+      p.dodgeX = Math.sin(d.yaw);
+      p.dodgeZ = Math.cos(d.yaw);
+      p.yaw = d.yaw;
+      p.dashSpeed = dist / t;
+      if (local) p.invuln = Math.max(p.invuln, t + F.after);
+      game.skillFx?.dash(p, d.yaw, dist, 1.4, col);
+      game.skillFx?.hadouken(p, d.yaw, dist, 0.6, col);
+      game.sound.se('spin');
+      const arrive = () => {
+        p.vmAnim = { kind: 'kiblast', t: 0, dur: 0.35 };
+        const x = p.pos.x + Math.sin(d.yaw) * 1.2;
+        const z = p.pos.z + Math.cos(d.yaw) * 1.2;
+        game.fx.burst(x, 1.2, z, col, 40, { speed: 9, up: 4, life: 0.5 });
+        game.enemyFx?.impact(x, z, F.radius, col, 'default');
+        game.fx.shake(0.6);
+        game.sound.se('slam');
+        if (local) {
+          radiusHit(game, p, F.mult, F.radius, { melee: true, gauge: GAUGE.gainSkill, knock: 2, color: col }, x, z);
+          p.invuln = Math.max(p.invuln, F.after);
+        }
+      };
+      // 自分は突進の最後のフレームで（ゲームの時間で）、ほかの人の分身は時計で
+      if (local) {
+        let done = false;
+        p.skillTick = () => {
+          if (done || p.actT < p.actDur - 1e-4) return;
+          done = true;
+          arrive();
+        };
+      } else later(p, t, arrive);
+    } else if (d.fu === 'uppercut') {
+      // かかと落とし：空中から前へ振り下ろす。ブレイク値が溜まりやすい。出している間と着地後0.5秒は無敵
+      startAction(p, 'cast', F.time + 0.1);
+      p.vmAnim = { kind: 'bigchop', t: 0, dur: F.time + 0.1 };
+      const y0 = Math.max(1.2, d.fy || 0);
+      if (local) p.invuln = Math.max(p.invuln, F.time + F.after + 0.1);
+      game.sound.se('swing');
+      p.skillTick = (dt = 1 / 60) => {
+        const k = Math.min(1, p.actT / F.time);
+        // 少し上がってから一気に落ちる
+        p.model.root.position.y = k < 0.35 ? y0 + 0.8 * Math.sin((k / 0.35) * Math.PI / 2) : (y0 + 0.8) * (1 - (k - 0.35) / 0.65);
+        if (local && k < 1) {
+          p.pos.x += Math.sin(d.yaw) * (F.dist / F.time) * dt;
+          p.pos.z += Math.cos(d.yaw) * (F.dist / F.time) * dt;
+          game.world.collide(p.pos, p.radius);
+        }
+        if (p.didSkill || k < 1) return;
+        p.didSkill = true;
+        p.model.root.position.y = 0;
+        const x = p.pos.x + Math.sin(d.yaw) * 1.2;
+        const z = p.pos.z + Math.cos(d.yaw) * 1.2;
+        game.fx.burst(x, 0.4, z, col, 50, { speed: 10, up: 6, life: 0.7, size: 0.24 });
+        game.skillFx?.slam(x, z, F.radius, col);
+        game.enemyFx?.impact(x, z, F.radius + 0.5, col, 'default');
+        game.fx.shake(0.9);
+        game.sound.se('slam');
+        if (local) {
+          radiusHit(game, p, F.mult, F.radius, { melee: true, gauge: GAUGE.gainSkill, knock: 1, brkMul: F.brkMul, color: col }, x, z);
+          p.invuln = Math.max(p.invuln, F.after);
+        }
+      };
+    } else if (d.fu === 'barrage') {
+      // 気功波三連：大きく強い気の玉を3連発（派手に）
+      startAction(p, 'cast', F.every * F.count + 0.2);
+      for (let i = 0; i < F.count; i++) {
+        later(p, i * F.every, () => {
+          p.vmAnim = { kind: 'kiblast', t: 0, dur: 0.3 };
+          const yaw = d.yaw;
+          game.skillFx?.hadouken(p, yaw, 9, 0.8, i === F.count - 1 ? 0xffd740 : col);
+          game.projectiles.playerShot(p, p.pos.x, p.pos.z, yaw, { speed: F.speed, mult: F.mult, size: F.size * (i === F.count - 1 ? 1.3 : 1), range: F.range, explode: F.explode, color: i === F.count - 1 ? 0xffd740 : col, local, gauge: 0 });
+          game.fx.burst(p.pos.x + Math.sin(yaw) * 1.5, 1.3, p.pos.z + Math.cos(yaw) * 1.5, col, 30, { speed: 7, up: 3, life: 0.5 });
+          game.fx.shake(0.35);
+          game.sound.se('wave');
+        });
+      }
+    }
   },
   copyboss(game, p, d, local, sk) {
     // ものまね師の必殺技：一番近いボスをコピー。dur 秒間 Q・E がそのボスの技になり、すぐに1つ撃つ

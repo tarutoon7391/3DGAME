@@ -246,6 +246,7 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
         if (b.regen && p.alive) p.hp = Math.min(p.maxHp, p.hp + p.maxHp * b.regen * dt);
         if (b.t <= 0) delete p.buffs[k];
       }
+      if (p.chainFrom) p.chainFrom.left -= dt; // 格闘家の追撃の受付
       for (let i = p.pending.length - 1; i >= 0; i--) {
         const pe = p.pending[i];
         pe.t -= dt;
@@ -358,6 +359,13 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
           if (p === game.me()) game.toastOnce(`シールドバッシュはあと ${p.cd.e.toFixed(1)} 秒`, 900);
         } else if (castE(game, p, intent)) {
           p.cd.e = J.e.cd;
+        }
+      } else if (intent.skillC && J.c?.kind === 'followup') {
+        // 格闘家の追撃：技の途中（busy）でも出せる
+        if (p.cd.c > 0) {
+          if (p === game.me()) game.toastOnce(`追撃はあと ${p.cd.c.toFixed(1)} 秒`, 900);
+        } else if (castC(game, p, intent)) {
+          p.cd.c = J.c.cd;
         }
       } else if ((intent.skillQ || (intent.skillE && !J.guard) || (intent.skillC && J.c)) && !busy) {
         // Q・E・C：クールダウン制のスキル

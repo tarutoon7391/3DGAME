@@ -16,7 +16,7 @@ export const C_SKILLS = {
   bard: { id: 'c_bard', kind: 'debuff', name: '子守唄', desc: '4秒間 ボスの動きをゆっくりに', cd: 16, color: 0xb3e5fc, debuffs: [{ name: 'slow', dur: 4, mul: 0.55 }] },
   summoner: sb('c_summoner', '精霊強化', '8秒間、自分の精霊（癒しの精霊も）の攻撃・回復の速さが 1.5倍', 14, 0x81d4fa, 'spiritboost', 8, { spiritRate: 1.5 }),
   lancer: { id: 'c_lancer', kind: 'leap', name: '棒高跳び', desc: '槍を突いて後ろへ14m 大きく跳ぶ（無敵）', cd: 10, back: true, dist: 14, time: 0.65, height: 4.5, color: 0xffe0b2 },
-  monk: sb('c_monk', '受け身', '前転で回避（連打の段数はそのまま）', 8, 0xffab40, 'ukemi', 0.5, {}, { after: { dodge: 'move', invuln: 0.5 } }),
+  monk: { id: 'c_monk', kind: 'followup', name: '追撃', desc: 'Q・E・R の技が終わる前に押すと、その技から派生した追撃が出る（気功波→突進して一撃／昇龍拳→かかと落とし／百烈拳→大きな気功波3連）。単体では出せない', cd: 6, color: 0xffab40 },
   alchemist: { id: 'c_alchemist', kind: 'teamheal', name: '回復薬の瓶', desc: '回復薬を割って周りの味方を回復（20%）', cd: 14, radius: 5, amount: 0.2, color: 0x69f0ae },
   berserker: sb('c_berserker', '狂化', '5秒間 攻撃 +30%・被ダメ +20%', 18, 0xd50000, 'frenzy', 5, { atkMul: 1.3, dmgMul: 1.2 }),
   chrono: tb('c_chrono', '加速', '4秒間 周りの味方の移動 +25%・攻撃 +10%', 16, 0xb388ff, 'haste', 4, { speedMul: 1.25, atkMul: 1.1 }, 8),

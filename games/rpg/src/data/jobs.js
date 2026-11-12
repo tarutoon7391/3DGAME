@@ -151,10 +151,16 @@ export const JOBS = {
     name: '格闘家', role: '連打で加速する近接', color: '#ffcc80',
     power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.18, hit: 0.06, mult: 0.6 }, { dur: 0.18, hit: 0.06, mult: 0.6 }, { dur: 0.18, hit: 0.06, mult: 0.65 }, { dur: 0.2, hit: 0.07, mult: 0.7 }, { dur: 0.36, hit: 0.13, mult: 1.3 }], range: 2.2, arc: 1.8, heavyBonus: 0.2 },
-    q: { id: 'kiblast', name: '気功波', desc: '前方5mの扇に気の衝撃を放ち、敵を吹き飛ばす', cd: 5, mult: 2.0, range: 5.5, arc: 1.3 },
-    e: { id: 'uppercut', name: '昇龍拳', desc: '無敵で飛び上がりながら周りを打ち上げる', cd: 6, mult: 2.2, radius: 2.8, time: 0.45 },
-    r: { id: 'barrage', name: '百烈拳', desc: '2秒間その場で拳を連打（約20発）。最後に強烈な一撃', dur: 2, every: 0.1, mult: 0.45, finish: 3, range: 3 },
-    trait: '攻撃を当て続けるほど攻撃力アップ（1発 +2%、最大 +50%）。被弾でリセット',
+    q: { id: 'kiblast', name: '気功波', desc: '前方10mへ気の玉を放ち、敵を吹き飛ばす', cd: 5, mult: 2.0, range: 10, arc: 0.9 },
+    e: { id: 'uppercut', name: '昇龍拳', desc: '無敵で飛び上がりながら周りを打ち上げる（ブレイク値が溜まりやすい）', cd: 6, mult: 2.2, radius: 2.8, time: 0.45, brkMul: 1.6 },
+    r: { id: 'barrage', name: '百烈拳', desc: '2秒間その場で拳を連打（約20発）。最後に強烈な一撃（打っている間は無敵）', dur: 2, every: 0.1, mult: 0.45, finish: 3, range: 3 },
+    // 追撃（C）：Q・E・R の技の途中で C を押すと、その技から派生して出る
+    followups: {
+      kiblast: { name: '追撃・気功突進', mult: 2.4, radius: 3.2, after: 0.5 }, // 気の玉と同じ速さで突っ込み、着弾点で一撃
+      uppercut: { name: '追撃・かかと落とし', mult: 2.6, radius: 3.6, brkMul: 3, dist: 1.8, time: 0.35, after: 0.5 },
+      barrage: { name: '追撃・気功波三連', count: 3, every: 0.22, mult: 2.6, size: 0.95, explode: 3.2, speed: 26, range: 26 },
+    },
+    trait: '攻撃を当て続けるほど攻撃力アップ（1発 +2%、最大 +50%）。被弾でリセット。C は技から派生する追撃',
     chainPer: 0.02, chainMax: 25, breakMul: 1.2,
     look: { armorColor: 0xe65100, swordColor: 0xffcc80, swordLen: 0.5, cape: 0xffb74d, weapon: 'fist' },
   },

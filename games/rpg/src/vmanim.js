@@ -152,6 +152,19 @@ export function animateSpecial(V, k, Rp, Lp, setFlash) {
     Rp.x = (0.05 * up - 0.3 * sw) * s;
     Rp.y = (0.15 * up - 0.12 * sw) * s;
     if (sw > 0 && sw < 1) out.spin = true;
+  } else if (V.kind === 'thrusts') {
+    // 天穿ち：槍の通常攻撃と同じ突きを、空中で every 秒ごとに繰り返す（delay までは構えるだけ）
+    Rp.aim = true;
+    Rp.rx = 0.08;
+    Rp.ry = 0.12;
+    Rp.x -= 0.06;
+    Rp.y += 0.02;
+    if (V.t >= (V.delay || 0)) {
+      const ph = ((V.t - (V.delay || 0)) % V.every) / V.every;
+      Rp.z += ph < 0.3 ? 0.08 * (ph / 0.3) : -0.45 * Math.sin(((ph - 0.3) / 0.7) * Math.PI);
+      Rp.twist = ph * Math.PI * 0.5;
+      if (ph > 0.3 && ph < 0.6) setFlash(0x5a4a20);
+    }
   } else if (V.kind === 'xstorm') {
     // 鎖嵐：右上→左下、左上→右下を超高速で繰り返す
     const f = V.t / V.every;
