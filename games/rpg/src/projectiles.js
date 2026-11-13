@@ -68,6 +68,7 @@ export function createProjectiles(game) {
    * local でなければ見た目だけ（他の人の弾）
    */
   function playerShot(pl, x, z, yaw, o) {
+    pl?.model?.onShot?.(o.color); // 衣装の色の切り替え（双子）
     if (pshots.length >= MAX_PSHOTS) return;
     pshots.push({
       owner: pl, x: x + Math.sin(yaw) * 0.8, z: z + Math.cos(yaw) * 0.8, yaw,

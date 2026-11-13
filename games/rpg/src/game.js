@@ -145,7 +145,7 @@ export function createGame() {
     const old = game.me();
     if (!old || old.jobId === job || !JOBS[job]) return;
     scene.remove(old.model.group);
-    const np = createPlayer(game, game.localIndex, { job, remote: false, id: old.id, name: old.name });
+    const np = createPlayer(game, game.localIndex, { job, remote: false, id: old.id, name: old.name, shifted: shift });
     np.pos.copy(old.pos);
     np.yaw = old.yaw;
     game.players[game.localIndex] = np;

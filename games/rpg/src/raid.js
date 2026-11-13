@@ -88,7 +88,7 @@ export function createRaid(game, net, handlers) {
     const buffs = {};
     for (const k of Object.keys(p.buffs)) buffs[k] = 1;
     return {
-      job: p.jobId, name: p.name,
+      job: p.jobId, name: p.name, sf: p.shifted ? 1 : 0, // sf：変化師の変化中
       x: +p.pos.x.toFixed(2), z: +p.pos.z.toFixed(2), yaw: +p.yaw.toFixed(3),
       hp: Math.round(p.hp), maxHp: p.maxHp, alive: p.alive, downed: p.downed,
       action: p.action, actId: p.actId || 0, combo: p.combo, actDur: p.actDur || 0,
@@ -105,17 +105,17 @@ export function createRaid(game, net, handlers) {
     let p = game.players.find((o) => o.id === from);
     if (!p) {
       // 途中参加の人：分身を作る
-      p = createPlayer(game, game.players.length, { job: s.job, remote: true, id: from, name: s.name });
+      p = createPlayer(game, game.players.length, { job: s.job, remote: true, id: from, name: s.name, shifted: !!s.sf });
       p.net = { ...s };
       p.reset(s.x, s.z, s.yaw);
       game.players.push(p);
       handlers.onRosterChange?.();
     }
-    // 職業が変わっていたら（全滅したときの選び直し）分身を作り直す
-    if (p.remote && s.job && p.jobId !== s.job) {
+    // 職業が変わっていたら（全滅したときの選び直し・変化師の変化）分身を作り直す
+    if (p.remote && s.job && (p.jobId !== s.job || !!p.shifted !== !!s.sf)) {
       const i = game.players.indexOf(p);
       game.scene.remove(p.model.group);
-      const np = createPlayer(game, i, { job: s.job, remote: true, id: from, name: s.name });
+      const np = createPlayer(game, i, { job: s.job, remote: true, id: from, name: s.name, shifted: !!s.sf });
       np.reset(s.x, s.z, s.yaw);
       game.players[i] = np;
       p = np;
