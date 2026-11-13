@@ -42,7 +42,7 @@ export function createHazards(game) {
     const safe = new THREE.Mesh(safeGeo, safeMat);
     safe.position.set(d.x, 0.06, d.z);
     game.scene.add(mesh, safe);
-    donuts.push({ mesh, safe, geo, mat, safeGeo, safeMat, t: d.dur, age: 0 });
+    donuts.push({ mesh, safe, geo, mat, safeGeo, safeMat, t: d.dur, age: 0, x: d.x, z: d.z, rIn: d.rIn, rOut: d.rOut });
   }
 
   /** 引き寄せの渦：t 秒間、自分のプレイヤーを (x,z) へ引っぱる */
@@ -133,5 +133,19 @@ export function createHazards(game) {
     pull = null;
   }
 
-  return { wall, donut, startPull, update, clear, get pulling() { return !!pull; } };
+  /** (x,z) の半径 r の円にかかっている炎の壁・ドーナツの数（吸収術士が「吸った攻撃」として数える） */
+  function countNear(x, z, r) {
+    let n = 0;
+    for (const w of walls) {
+      const along = (x - w.x) * Math.sin(w.yaw) + (z - w.z) * Math.cos(w.yaw);
+      if (Math.abs(along - w.off) < w.thick / 2 + r) n++;
+    }
+    for (const d of donuts) {
+      const dd = Math.hypot(x - d.x, z - d.z);
+      if (dd - r < d.rOut && dd + r > d.rIn) n++;
+    }
+    return n;
+  }
+
+  return { wall, donut, startPull, update, clear, countNear, get pulling() { return !!pull; } };
 }
