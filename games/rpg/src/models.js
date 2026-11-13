@@ -107,7 +107,7 @@ export function makeHero(look) {
   // 衣装スキン（costumes.js）がある職業は、服の色・髪・マントを衣装側に任せる
   const costume = COSTUMES[look.jobId] || null;
   const armorMat = new THREE.MeshStandardMaterial({ color: costume?.body ?? look.armorColor, roughness: 0.7, flatShading: true, emissive: 0x000000 });
-  const h = humanoid({ clothMat: armorMat, pants: 0x3e2f23 });
+  const h = humanoid({ clothMat: armorMat, pants: costume?.pants ?? 0x3e2f23, skin: costume?.skin });
   const hair = mat(0x5a3a1a);
   const cape = costume ? costume.cape : look.cape ?? 0xb71c1c;
   const weapon = look.weapon || 'sword';
@@ -123,7 +123,7 @@ export function makeHero(look) {
       part(box(0.5, 0.06, 0.3), mat(cape), 0, 2.02, 0.05, h.root); // はちまき
     }
   }
-  if (look.mask) part(box(0.52, 0.18, 0.06), mat(0x212121), 0, 1.78, 0.25, h.root); // 忍者の覆面
+  if (look.mask && !costume) part(box(0.52, 0.18, 0.06), mat(0x212121), 0, 1.78, 0.25, h.root); // 忍者の覆面
   // マント
   if (cape != null) part(box(0.66, 0.9, 0.06), mat(cape), 0, 1.1, -0.26, h.root);
   // 腕の左右：前を向いた体の右手は -X 側。武器を持つ armR を体の右側へ置く

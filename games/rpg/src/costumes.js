@@ -1,17 +1,17 @@
 // 職業ごとの衣装スキン（周りから見える三人称の体だけ。一人称の腕と手に持つ武器は変えない）
-// COSTUMES[職業id] = { body: 服の色（体と腕。被弾の赤い光る色はこの材質に乗る）, cape: マントの色（null でなし）, build(h, kit) }
-// build では髪・鎧・小物を体の各部（h.root／腕／脚）に付け足す。髪とはちまきは衣装側で描くので、標準のものは付けない
+// COSTUMES[職業id] = { body: 服の色（体と腕。被弾の赤い光る色はこの材質に乗る）, cape: マントの色（省くとなし）, pants, skin, build(h) }
+// 中身は costumes_*.js の make(k, h)（k は costume_kit.js の道具）。髪とはちまきは衣装側で描くので、標準のものは付けない
 import { box, cone, mat, part } from './models.js';
+import { kit, metal } from './costume_kit.js';
+import { COSTUMES_A } from './costumes_a.js';
+import { COSTUMES_B } from './costumes_b.js';
 
-/** 金属の材質（少し光る） */
-const metal = (c) => mat(c, { metalness: 0.55, roughness: 0.45 });
-
-export const COSTUMES = {
+const DEFS = {
   // 剣士：黄色の服に鉛色の軽い鎧。金髪
   swordsman: {
     body: 0xffff33,
     cape: 0xf2d22e,
-    build(h) {
+    make(k, h) {
       const lead = metal(0x8c97a3); // 鉛色の鎧
       const leadDark = metal(0x5f6973);
       const gold = metal(0xffd23a);
@@ -58,4 +58,9 @@ export const COSTUMES = {
       }
     },
   },
+  ...COSTUMES_A,
+  ...COSTUMES_B,
 };
+
+export const COSTUMES = {};
+for (const [id, d] of Object.entries(DEFS)) COSTUMES[id] = { ...d, build: (h) => d.make(kit(h), h) };
