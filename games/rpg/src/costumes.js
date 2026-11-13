@@ -10,6 +10,7 @@ import { COSTUMES_D } from './costumes_d.js';
 import { COSTUMES_E } from './costumes_e.js';
 import { COSTUMES_F } from './costumes_f.js';
 import { COSTUMES_G } from './costumes_g.js';
+import { COSTUMES_H } from './costumes_h.js';
 
 const DEFS = {
   // 剣士：黄色の服に鉛色の軽い鎧。金髪
@@ -70,6 +71,7 @@ const DEFS = {
   ...COSTUMES_E,
   ...COSTUMES_F,
   ...COSTUMES_G,
+  ...COSTUMES_H,
 };
 
 export const COSTUMES = {};
