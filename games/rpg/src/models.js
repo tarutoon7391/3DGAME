@@ -107,12 +107,13 @@ export function makeHero(look) {
   // 衣装スキン（costumes.js）がある職業は、服の色・髪・マントを衣装側に任せる
   const costume = COSTUMES[look.jobId] || null;
   const armorMat = new THREE.MeshStandardMaterial({ color: costume?.body ?? look.armorColor, roughness: 0.7, flatShading: true, emissive: 0x000000 });
+  armorMat.userData.own = true;
   const h = humanoid({ clothMat: armorMat, pants: costume?.pants ?? 0x3e2f23, skin: costume?.skin });
   const hair = mat(0x5a3a1a);
   const cape = costume ? costume.cape : look.cape ?? 0xb71c1c;
   const weapon = look.weapon || 'sword';
-  if (costume) costume.build(h); // 髪・鎧・小物は衣装側
-  else {
+  const ticks = costume ? costume.build(h) : []; // 髪・鎧・小物は衣装側
+  if (!costume) {
     part(box(0.56, 0.16, 0.56), hair, 0, 2.13, -0.02, h.root);
     part(box(0.56, 0.32, 0.12), hair, 0, 1.96, -0.24, h.root);
     if (look.hat) {
@@ -131,6 +132,7 @@ export function makeHero(look) {
   h.armL.position.x = 0.47;
   // 武器（右腕の延長方向に伸びる）
   const sword = new THREE.Group();
+  sword.userData.weapon = true; // 色を寄せる（変化師）ときに武器は除く
   sword.position.set(0, -0.72, 0);
   h.armR.add(sword);
   let blade;
@@ -152,6 +154,7 @@ export function makeHero(look) {
       if (arm === h.armR) sword.add(holder);
       else {
         holder.position.y = -0.68;
+        holder.userData.weapon = true;
         arm.add(holder);
       }
       return w;
@@ -207,7 +210,33 @@ export function makeHero(look) {
   if (look.bigShield) shield = part(box(0.1, 1.0, 0.7), shieldMat, 0.16, -0.5, 0.05, h.armL);
   else if (weapon === 'sword' || weapon === 'mace' || weapon === 'spear') shield = part(box(0.08, 0.55, 0.46), shieldMat, 0.14, -0.42, 0.05, h.armL);
   h.armR.rotation.x = -0.9;
-  return { ...h, sword, blade, swordMat, armorMat, shield }; // shield：盾（聖騎士の神の盾で大きくなる）
+  if (look.tint != null) tintModel(h.group, look.tint);
+  // tick(t)：衣装の動く飾りを動かす（毎フレーム）
+  const tick = ticks.length ? (t) => { for (const f of ticks) f(t); } : null;
+  return { ...h, sword, blade, swordMat, armorMat, shield, tick }; // shield：盾（聖騎士の神の盾で大きくなる）
+}
+
+/** 体（武器を除く）の色を tint へ寄せる（変化師が変化している間）。材質は写して変える */
+const tinted = new Map();
+function tintModel(group, tint, k = 0.55) {
+  const to = new THREE.Color(tint);
+  const walk = (o) => {
+    if (o.userData.weapon) return;
+    if (o.isMesh) {
+      if (o.material.userData.own) o.material.color.lerp(to, k); // 個体ごとの材質（服）はそのまま変える
+      else {
+        let m = tinted.get(o.material);
+        if (!m) {
+          m = o.material.clone();
+          m.color.lerp(to, k);
+          tinted.set(o.material, m);
+        }
+        o.material = m;
+      }
+    }
+    o.children.forEach(walk);
+  };
+  walk(group);
 }
 
 // ---------------- 敵 ----------------

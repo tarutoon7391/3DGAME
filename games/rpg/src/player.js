@@ -4,6 +4,9 @@
 // remote: true のプレイヤーは「他の人の分身」。自分では動かさず、届いた位置へなめらかに寄せて描くだけ
 import * as THREE from 'three';
 import { makeHero, animateWalk } from './models.js';
+
+/** 変化師が変化している間の衣装の色（変化師のテーマカラー） */
+const SHIFT_TINT = 0xe1bee7;
 import { PLAYER, STAMINA, CLOSE } from './data/player.js';
 import { JOBS, DEFAULT_JOB, GAUGE, REVIVE } from './data/jobs.js';
 import { lerpAngle, lerpAngle as la } from './util.js';
@@ -22,9 +25,10 @@ export function emptyIntent(out = {}) {
 /**
  * @param {object} o { job, remote, id, name }
  */
-export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = false, id = 'local', name = '' } = {}) {
+export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = false, id = 'local', name = '', shifted = false } = {}) {
   const J = JOBS[job] || JOBS[DEFAULT_JOB];
-  const model = makeHero({ ...J.look, jobId: job in JOBS ? job : DEFAULT_JOB, accent: parseInt(String(J.color || '#ffd54f').replace('#', ''), 16) }); // 一人称と同じ武器を右手に
+  // shifted：変化師が変化している間。衣装の色を変化師の淡い紫へ寄せる
+  const model = makeHero({ ...J.look, jobId: job in JOBS ? job : DEFAULT_JOB, accent: parseInt(String(J.color || '#ffd54f').replace('#', ''), 16), tint: shifted ? SHIFT_TINT : null }); // 一人称と同じ武器を右手に
   // 重騎士の盾構え：体の前に半透明の光の盾（体の子なので向きは体と同じ。一人称の自分は画面の縁で見せる）
   let guardMesh = null;
   if (J.guard) {
@@ -41,6 +45,7 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
     index, id, name, remote,
     jobId: job in JOBS ? job : DEFAULT_JOB,
     job: J,
+    shifted, // 変化師の変化中（衣装が淡い紫）
     model,
     pos: model.group.position,
     radius: PLAYER.radius,
@@ -678,6 +683,7 @@ export function createPlayer(game, index = 0, { job = DEFAULT_JOB, remote = fals
 
   function animate(dt, walk) {
     const m = model;
+    m.tick?.(performance.now() / 1000); // 衣装の動く飾り
     m.root.rotation.y = 0;
     m.root.rotation.x = p.tired && walk ? 0.18 : 0; // バテ中は前かがみ
     if (p.action === 'attack') {

@@ -16,8 +16,12 @@ export const glow = (c) => mat(c, { emissive: c, emissiveIntensity: 0.8 });
 export function kit(h) {
   const R = h.root;
   const M = (c) => (typeof c === 'number' ? mat(c) : c);
+  const ticks = [];
   const k = {
     R,
+    ticks,
+    /** 毎フレーム動かす処理を足す（fn(t)：t は秒） */
+    tick(fn) { ticks.push(fn); },
     arms: [h.armL, h.armR], // [左腕, 右腕（武器を持つ側）]
     /** 色以外も指定した材質（{ color, transparent, opacity, emissive … }） */
     mat: ({ color, ...rest }) => mat(color, rest),
