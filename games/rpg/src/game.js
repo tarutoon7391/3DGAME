@@ -33,6 +33,7 @@ import { AREAS, AREA_ORDER, COURSES, courseOf } from './data/areas.js';
 import { JOBS, JOB_ORDER, REVIVE, DEFAULT_JOB } from './data/jobs.js';
 import { updateJobZones, inAegis, scaleSupport } from './jobs.js';
 import { hurtPlayer } from './combat.js';
+import { createEraser } from './erase.js';
 import { createRaid } from './raid.js';
 import { createTouch, isTouchDevice } from './ui/touch.js';
 import { fmtTime, clamp } from './util.js';
@@ -104,6 +105,7 @@ export function createGame() {
   game.lights = createLights(scene);
   game.enemies = createEnemies(game);
   game.projectiles = createProjectiles(game);
+  game.eraser = createEraser(game); // 敵の攻撃を消す技の範囲（src/erase.js）
   game.auras = createAuras(game); // 回復・強化のオーラとエリアの見た目
   game.enemyFx = createEnemyFx(game); // 敵の攻撃の見た目（弾の形・衝撃波・壁）
   game.skillFx = createSkillFx(game); // 味方の技エフェクト（斬撃・突進・光線・強化など）
@@ -938,6 +940,7 @@ export function createGame() {
     game.hazards.update(dt);
     game.bossVfx.update(dt);
     updateJobZones(game, dt);
+    game.eraser.update(dt);
     if (game.raid) {
       updateRevive(dt, me);
       checkWipe();

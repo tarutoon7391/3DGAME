@@ -813,9 +813,9 @@ export const JOBS = {
     name: 'メイド', role: '敵弾のお掃除', color: '#f8bbd0',
     power: 1.39, support: 1.33, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.45, speed: 24, mult: 0.75, color: 0xf8bbd0, size: 0.26, range: 22 },
-    q: { id: 'sweepup', kind: 'cleanse', name: 'お掃除', desc: '周り6mの敵弾を一瞬で消して、近くの敵を叩く', cd: 6, radius: 6, mult: 1.2, color: 0xf8bbd0 },
+    q: { id: 'sweepup', kind: 'cleanse', name: 'お掃除', desc: '周り6mの敵の攻撃を一瞬で消して、近くの敵を叩く', cd: 6, radius: 6, mult: 1.2, color: 0xf8bbd0 },
     e: { id: 'teatime', kind: 'teamheal', name: 'お茶の時間', desc: '周囲8mの味方の HP を 20% 回復', cd: 12, radius: 8, amount: 0.2, color: 0xf8bbd0 },
-    r: { id: 'springclean', kind: 'cleanse', name: '大掃除', desc: '周り14mの敵弾をすべて消し、周りの味方に8秒のバリア', radius: 14, mult: 9, color: 0xff80ab, team: { name: 'barrier', dur: 8, vals: { shield: 0.3 }, msg: 'メイドの大掃除！ バリアが張られた' } },
+    r: { id: 'springclean', kind: 'cleanse', name: '大掃除', desc: '周り14mの敵の攻撃をすべて消し、周りの味方に8秒のバリア', radius: 14, mult: 9, color: 0xff80ab, team: { name: 'barrier', dur: 8, vals: { shield: 0.3 }, msg: 'メイドの大掃除！ バリアが張られた' } },
     trait: '身のこなし：回避の無敵時間 +0.1秒',
     dodgeInvulnBonus: 0.1, breakMul: 1,
     look: { armorColor: 0x212121, swordColor: 0xf8bbd0, swordLen: 0.6, cape: 0xffffff, weapon: 'staff', hat: 0xffffff },
@@ -1098,7 +1098,7 @@ export const JOBS = {
     power: 1.48, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.45, speed: 26, mult: 0.8, color: 0xfffde7, size: 0.26, range: 22 },
     q: { id: 'holybind', kind: 'debuff', name: '聖なる縛り', desc: 'ボスを6秒間 鈍らせる', cd: 12, color: 0xfff9c4, debuffs: [{ name: 'slow', dur: 6, mul: 0.65 }] },
-    e: { id: 'purgelight', kind: 'cleanse', name: '祓いの光', desc: '周り6mの敵弾を消し、周りの敵を打つ', cd: 9, radius: 6, mult: 1.4, color: 0xfff59d },
+    e: { id: 'purgelight', kind: 'cleanse', name: '祓いの光', desc: '周り6mの敵の攻撃を消し、周りの敵を打つ', cd: 9, radius: 6, mult: 1.4, color: 0xfff59d },
     r: { id: 'exorcism', kind: 'beam', name: '大祓', desc: '前方に聖なる光線を2秒間 浴びせ続ける', len: 18, width: 2.4, mult: 0.9, ticks: 14, every: 0.14, color: 0xffffff },
     trait: '怒り状態・気絶中のボスへのダメージ 1.6倍',
     vsRage: 1.6, breakMul: 1,

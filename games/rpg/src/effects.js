@@ -130,27 +130,41 @@ export function createEffects(scene, camera) {
     return handle;
   }
 
+  /** 半径 r の円にかかっている予兆のうち、いちばん遅く終わるものの残り秒（なければ 0）。攻撃を消す技（src/erase.js）で使う */
+  function teleLeftNear(x, z, r) {
+    let left = 0;
+    for (const t of teles) {
+      if (t.active && hitsTele(t, x, z, r)) left = Math.max(left, t.dur - t.t);
+    }
+    return left;
+  }
+
   /** (x,z) がいま出ている予兆の範囲内か（一人称で足元の予兆が見えないときの警告用） */
   function danger(x, z, pad = 0.4) {
     for (const t of teles) {
-      if (!t.active) continue;
-      const dx = x - t.x;
-      const dz = z - t.z;
-      if (t.kind === 'circle') {
-        if (dx * dx + dz * dz < (t.sx + pad) ** 2) return true;
-      } else if (t.kind === 'sector') {
-        const d = Math.hypot(dx, dz);
-        if (d > t.sx + pad) continue;
-        let da = Math.atan2(dx, dz) - t.angle;
-        da = Math.atan2(Math.sin(da), Math.cos(da));
-        if (d < pad + 0.6 || Math.abs(da) < t.arc / 2) return true;
-      } else {
-        const s = Math.sin(t.angle);
-        const c = Math.cos(t.angle);
-        const along = dx * s + dz * c;
-        const side = dx * c - dz * s;
-        if (along > -pad && along < t.sz + pad && Math.abs(side) < t.sx / 2 + pad) return true;
-      }
+      if (t.active && hitsTele(t, x, z, pad)) return true;
+    }
+    return false;
+  }
+
+  /** 予兆 t の範囲に、(x,z) の半径 pad の円がかかるか */
+  function hitsTele(t, x, z, pad) {
+    const dx = x - t.x;
+    const dz = z - t.z;
+    if (t.kind === 'circle') {
+      if (dx * dx + dz * dz < (t.sx + pad) ** 2) return true;
+    } else if (t.kind === 'sector') {
+      const d = Math.hypot(dx, dz);
+      if (d > t.sx + pad) return false;
+      let da = Math.atan2(dx, dz) - t.angle;
+      da = Math.atan2(Math.sin(da), Math.cos(da));
+      if (d < pad + 0.6 || Math.abs(da) < t.arc / 2 + pad / Math.max(1, d)) return true;
+    } else {
+      const s = Math.sin(t.angle);
+      const c = Math.cos(t.angle);
+      const along = dx * s + dz * c;
+      const side = dx * c - dz * s;
+      if (along > -pad && along < t.sz + pad && Math.abs(side) < t.sx / 2 + pad) return true;
     }
     return false;
   }
@@ -244,6 +258,7 @@ export function createEffects(scene, camera) {
     text,
     telegraph,
     danger,
+    teleLeftNear,
     setTeleOpacity,
     update,
     clear,
