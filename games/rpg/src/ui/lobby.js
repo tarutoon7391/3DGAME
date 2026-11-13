@@ -7,6 +7,7 @@ import { jobGridParts, tabOf } from './jobgrid.js';
 import { headerHtml, fillPixelText } from './menu.js';
 import { installTextures } from './pixelart.js';
 import { esc } from '../util.js';
+import { getChat, mountLobby } from './chat.js';
 
 const MAX_PLAYERS = MAX_RAID_PLAYERS;
 const JOBS_COUNT = Object.keys(JOBS).length;
@@ -28,6 +29,8 @@ export function openLobby({ settings, save, onSolo, onStart, onBack, area = 'cas
   const offs = [];
   let closed = false;
   let msg = '';
+  let chat = null; // ルームのチャット（ui/chat.js）
+  let chatView = null;
 
   installTextures();
   const el = document.createElement('div');
@@ -93,11 +96,13 @@ export function openLobby({ settings, save, onSolo, onStart, onBack, area = 'cas
         </section>
         <section class="rpg-jobsel-right" data-keep>
           ${msg ? `<p class="rpg-lobby-msg">${esc(msg)}</p>` : ''}
+          ${inRoom ? '<div class="rpg-chat-slot"></div>' : ''}
           ${parts.info}
           ${side}
         </section>
       </main>`;
     fillPixelText(el);
+    if (inRoom) chatView?.attach(el.querySelector('.rpg-chat-slot'));
     el.querySelectorAll('[data-keep]').forEach((n, i) => { n.scrollTop = keep[i] || 0; });
   }
 
@@ -148,6 +153,8 @@ export function openLobby({ settings, save, onSolo, onStart, onBack, area = 'cas
         render();
         net = createNet('rpg', { name });
         listen();
+        chat = getChat(net, () => ({ name, color: JOBS[job]?.color || '#cfd8dc' }));
+        chatView = mountLobby(chat);
         if (act === 'create') await net.createRoom({ maxPlayers: MAX_PLAYERS });
         else await net.joinRoom(code);
         ready = false;
@@ -189,6 +196,7 @@ export function openLobby({ settings, save, onSolo, onStart, onBack, area = 'cas
     offs.push(net.onMessage('start', (d) => startWith(d)));
     offs.push(net.onDisconnect(() => {
       if (closed) return;
+      dropChat();
       net = null;
       msg = '接続が切れました';
       render();
@@ -202,7 +210,15 @@ export function openLobby({ settings, save, onSolo, onStart, onBack, area = 'cas
     onStart({ net: n, roster: d.roster, step: d.step || 0, area: d.area || area });
   }
 
+  /** チャットをやめる（ルームを出た・切れた） */
+  function dropChat() {
+    chatView?.destroy();
+    chat?.dispose();
+    chatView = chat = null;
+  }
+
   function leave() {
+    dropChat();
     offs.forEach((f) => f());
     offs.length = 0;
     info.clear();
@@ -216,6 +232,8 @@ export function openLobby({ settings, save, onSolo, onStart, onBack, area = 'cas
     closed = true;
     offs.forEach((f) => f());
     offs.length = 0;
+    if (leaveRoom) dropChat();
+    else chatView?.destroy(); // 出発するときはチャットを遊んでいる間へ引き継ぐ
     if (leaveRoom && net) net.leaveRoom();
     el.remove();
     document.body.classList.remove('rpg-menu-on');
