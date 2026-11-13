@@ -320,7 +320,7 @@ export function createHudView(game) {
         m.el.style.opacity = String(Math.min(1, m.t / 0.4));
       }
       const me = game.me();
-      danger.style.display = fps && me.alive && game.fx.danger(me.pos.x, me.pos.z) ? 'flex' : 'none';
+      danger.style.display = fps && me.alive && game.fx.danger(me.pos.x, me.pos.z) && !game.eraser?.covers(me.pos.x, me.pos.z) ? 'flex' : 'none';
       supportMarks.update();
       recallMark.update();
       deadeyeView.update();

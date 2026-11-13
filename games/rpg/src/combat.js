@@ -163,6 +163,8 @@ export function radiusHit(game, pl, mult, radius, opts = {}, cx = pl.pos.x, cz =
  */
 export function hurtPlayer(game, pl, frac, fromX, fromZ) {
   if (!pl.alive) return false;
+  // 攻撃を消した範囲（メイドのお掃除など。src/erase.js）の中なら当たらない
+  if (game.eraser?.covers(pl.pos.x, pl.pos.z)) return false;
   if (pl.remote) {
     if (pl.invuln > 0) return false;
     game.raid?.sendHurt(pl, frac, fromX, fromZ);

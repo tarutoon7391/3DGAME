@@ -1275,7 +1275,7 @@ const GENERIC = {
     // 吸収術士：周りの敵弾を吸い込み、1発ごとに必殺ゲージと HP に変える
     startAction(p, 'cast', 0.35);
     game.sound.se('seal');
-    const n = game.projectiles.clearShotsNear(p.pos.x, p.pos.z, sk.radius);
+    const n = game.eraser.erase(p.pos.x, p.pos.z, sk.radius);
     ringFx(game, p.pos.x, p.pos.z, sk.radius, sk.color);
     if (local && n) {
       p.addGauge(Math.min(sk.gaugeMax ?? Infinity, n * sk.gaugePer));
@@ -1287,7 +1287,7 @@ const GENERIC = {
     // 反射術士：周りの敵弾をはね返し、数に応じて一番近い敵にダメージ
     startAction(p, 'cast', 0.35);
     game.sound.se('wave');
-    const n = game.projectiles.clearShotsNear(p.pos.x, p.pos.z, sk.radius);
+    const n = game.eraser.erase(p.pos.x, p.pos.z, sk.radius);
     ringFx(game, p.pos.x, p.pos.z, sk.radius, sk.color);
     if (!local) return;
     let best = null;
@@ -1338,7 +1338,7 @@ const GENERIC = {
     // メイドのお掃除：周りの敵弾を一瞬で消す（弾は各自のブラウザにあるので、見た人のブラウザでもそれぞれ消える）
     startAction(p, 'spin', 0.4);
     game.sound.se('seal');
-    const n = game.projectiles.clearShotsNear(p.pos.x, p.pos.z, sk.radius);
+    const n = game.eraser.erase(p.pos.x, p.pos.z, sk.radius);
     ringFx(game, p.pos.x, p.pos.z, sk.radius, sk.color);
     if (local) {
       if (sk.mult) radiusHit(game, p, sk.mult, sk.radius * 0.6, { gauge: GAUGE.gainSkill, color: sk.color, melee: false });
@@ -1903,6 +1903,7 @@ function addZone(game, z) {
     ring.position.y = -0.06;
     z.mesh.add(ring);
   } else if (z.kind === 'aegis') {
+    game.eraser?.erase(z.x, z.z, z.r); // 張った瞬間、中にある敵の攻撃を消す（src/erase.js）
     geoCache.dome ||= new THREE.SphereGeometry(1, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2);
     z.mat = new THREE.MeshBasicMaterial({ color: 0x90caf9, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide });
     z.mesh = new THREE.Mesh(geoCache.dome, z.mat);
