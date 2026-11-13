@@ -41,7 +41,7 @@ const SWORD_COMBO = [
 export const JOBS = {
   swordsman: {
     name: '剣士', role: '近接アタッカー', color: '#ffd54f',
-    power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.39, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: SWORD_COMBO, range: 2.8, arc: 2.2, heavyBonus: 0.4 },
     q: { id: 'hayabusa', name: '隼斬り', desc: '前へ踏み込みながら高速の3連撃（3撃目は強い）', cd: 5, mult: 0.85, last: 1.3, range: 3.4, arc: 1.7, step: 0.6, every: 0.13 },
     e: { id: 'galethrust', name: '疾風突き', desc: '前方へ12m 踏み込んで突く', cd: 6, mult: 1.9, dist: 12, time: 0.3, width: 1.3 },
@@ -52,7 +52,7 @@ export const JOBS = {
   },
   knight: {
     name: '重騎士', role: '盾役（タンク）', color: '#90a4ae',
-    power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.62, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.45, hit: 0.16, mult: 1.2 }, { dur: 0.6, hit: 0.25, mult: 2.0 }], range: 2.6, arc: 2.4, heavyBonus: 0.3 },
     q: { id: 'taunt', name: '挑発の雄叫び', desc: 'ボスの狙いを自分に集め、6秒間 被ダメージ半減', cd: 14, dur: 6 },
     e: { id: 'bash', name: '盾構え／バッシュ', desc: 'E 押しっぱなしで盾を構え、前からの攻撃を完全に防ぐ（盾の耐久が尽きると壊れ、しまって回復するまで出せない）。構え中に左クリックでシールドバッシュ：前へ6m 突撃し、ぶつかったボスの動きと攻撃力を下げる', cd: 10, mult: 1.8, dist: 6, time: 0.28, width: 1.8, brkMul: 3,
@@ -70,7 +70,7 @@ export const JOBS = {
     basic: { type: 'shot', cd: 0.45, speed: 22, mult: 0.9, color: 0x64b5f6, size: 0.3, range: 26 },
     q: { id: 'fireball', name: '火球', desc: '着弾点で爆発する火の玉', cd: 6, mult: 2.4, radius: 3.5, speed: 18 },
     e: { id: 'icelance', name: '氷の槍', desc: '敵を貫通する氷の槍を放つ', cd: 5, mult: 2.0, speed: 30, range: 28 },
-    r: { id: 'meteor', name: 'メテオ', desc: '狙った場所に巨大な隕石を落とす（1.2秒後）', mult: 6, radius: 6, delay: 1.2, dist: 11 },
+    r: { id: 'meteor', name: 'メテオ', desc: '狙った場所に巨大な隕石を落とす（1.2秒後）', mult: 14, radius: 6, delay: 1.2, dist: 11 },
     trait: '立ち止まって撃つと通常攻撃・火球の威力 +30%',
     stillBonus: 1.3, breakMul: 1,
     look: { armorColor: 0x283593, swordColor: 0x64b5f6, swordLen: 0.9, cape: 0x1a237e, weapon: 'staff', hat: 0x283593 },
@@ -78,7 +78,7 @@ export const JOBS = {
   priest: {
     name: '僧侶', role: '回復・蘇生', color: '#fff59d',
     healer: true, // 回復ができる：ピンチの味方が赤く光って見える
-    power: 1.3, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.95, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.55, speed: 18, mult: 0.75, color: 0xfff59d, size: 0.28, range: 22 },
     q: { id: 'heal', name: '癒しの光', desc: '周囲8mの味方（自分も）の HP を最大の 40% 回復', cd: 10, radius: 8, amount: 0.4 },
     e: { id: 'sanctuary', name: '聖なる守り', desc: '周囲8mの味方（自分も）の被ダメージ -30%（6秒）', cd: 16, radius: 8, dur: 6, mul: 0.7 },
@@ -101,9 +101,9 @@ export const JOBS = {
   },
   ninja: {
     name: '忍者', role: '高速アタッカー', color: '#b39ddb',
-    power: 0.97, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.19, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.2, hit: 0.07, mult: 0.75 }, { dur: 0.2, hit: 0.07, mult: 0.75 }, { dur: 0.22, hit: 0.08, mult: 0.85 }, { dur: 0.38, hit: 0.14, mult: 1.4 }], range: 2.4, arc: 2.0, heavyBonus: 0.2 },
-    q: { id: 'shadowstep', name: '瞬影斬', desc: '前方へ9m 駆け抜け、通り道の敵を斬る（その間 無敵）', cd: 6, mult: 2.2, dist: 9, time: 0.22, width: 1.6 },
+    q: { id: 'shadowstep', name: '瞬影斬', desc: '前方へ9m 駆け抜け、通り道の敵を斬る（その間 無敵）', cd: 6, mult: 5.5, dist: 9, time: 0.22, width: 1.6 },
     e: { id: 'shuriken', name: '手裏剣', desc: '扇状に3枚の手裏剣を投げる（貫通）', cd: 4, mult: 0.9, count: 3, spread: 0.2, speed: 30 },
     r: { id: 'clone', name: '影分身', desc: '8秒間、攻撃のたびに分身が追い打ち（威力60%）＋足が速くなる', dur: 8, cloneMult: 0.6, speedMul: 1.2 },
     trait: '回避のスタミナ消費が半分。回避直後の1撃は必ず会心',
@@ -113,7 +113,7 @@ export const JOBS = {
   bard: {
     name: '吟遊詩人', role: '強化（バフ）', color: '#f48fb1',
     healer: true, // 回復ができる：ピンチの味方が赤く光って見える
-    power: 1.1, support: 0.74, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.88, support: 0.74, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.5, speed: 16, mult: 0.75, color: 0xf48fb1, size: 0.3, range: 20, wobble: true },
     q: { id: 'courage', name: '勇気の歌', desc: '周囲10mの味方の攻撃力 +30%（10秒）', cd: 15, radius: 10, dur: 10, atkMul: 1.3 },
     e: { id: 'dissonance', name: '不協和音', desc: '前方6mの扇に音の衝撃。ブレイク値が大きく溜まる', cd: 8, mult: 1.4, range: 6, arc: 1.6, brkMul: 3 },
@@ -124,7 +124,7 @@ export const JOBS = {
   },
   summoner: {
     name: '召喚士', role: '召喚・おとり', color: '#80cbc4',
-    power: 0.8, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 0.99, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.55, speed: 20, mult: 0.75, color: 0x80cbc4, size: 0.28, range: 22 },
     q: { id: 'spirit', name: '精霊召喚', desc: 'その場に12秒間、ボスを撃ち続ける精霊を出す（最大2体）', cd: 9, dur: 12, every: 0.6, mult: 0.7, max: 2 },
     e: { id: 'healspirit', name: '癒しの精霊召喚', desc: 'その場に10秒間、HP の減った味方へ回復の球を飛ばす緑の精霊を出す（1球で 6% 回復・最大1体）', cd: 14, dur: 10, every: 1.2, amount: 0.06, range: 14 },
@@ -137,7 +137,7 @@ export const JOBS = {
   // ---------------- 追加の8職 ----------------
   lancer: {
     name: '槍兵', role: '長いリーチの近接', color: '#ffab91',
-    power: 1.06, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.72, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     // 細く長い突き（arc が狭いぶん range が長い）
     basic: { type: 'melee', combo: [{ dur: 0.36, hit: 0.13, mult: 1.05 }, { dur: 0.36, hit: 0.13, mult: 1.1 }, { dur: 0.55, hit: 0.22, mult: 1.9 }], range: 4.0, arc: 0.9, heavyBonus: 0.6 },
     q: { id: 'lunge', name: '突進突き', desc: '前方へ7m 踏み込み、通り道の敵を貫く（ブレイク大）', cd: 6, mult: 2.4, dist: 7, time: 0.25, width: 1.4 },
@@ -149,7 +149,7 @@ export const JOBS = {
   },
   monk: {
     name: '格闘家', role: '連打で加速する近接', color: '#ffcc80',
-    power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.21, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.18, hit: 0.06, mult: 0.6 }, { dur: 0.18, hit: 0.06, mult: 0.6 }, { dur: 0.18, hit: 0.06, mult: 0.65 }, { dur: 0.2, hit: 0.07, mult: 0.7 }, { dur: 0.36, hit: 0.13, mult: 1.3 }], range: 2.2, arc: 1.8, heavyBonus: 0.2 },
     q: { id: 'kiblast', name: '気功波', desc: '前方10mへ気の玉を放ち、敵を吹き飛ばす', cd: 5, mult: 2.0, range: 10, arc: 0.9 },
     e: { id: 'uppercut', name: '昇龍拳', desc: '無敵で飛び上がりながら周りを打ち上げる（ブレイク値が溜まりやすい）', cd: 6, mult: 2.2, radius: 2.8, time: 0.45, brkMul: 1.6 },
@@ -166,18 +166,18 @@ export const JOBS = {
   },
   alchemist: {
     name: '錬金術師', role: '弱体化（デバフ）', color: '#c5e1a5',
-    power: 0.82, support: 0.66, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.01, support: 0.66, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.7, speed: 15, mult: 1.0, color: 0xaed581, size: 0.32, range: 18, explode: 2.2 },
     q: { id: 'corrode', name: '腐食の瓶', desc: '当てたボスを8秒間 腐食させ、全員の与えるダメージ +25%', cd: 14, dur: 8, mul: 1.25, speed: 18 },
     e: { id: 'triflask', name: '爆裂瓶3連', desc: '3方向に爆発する瓶を投げる', cd: 7, mult: 1.2, count: 3, spread: 0.3, speed: 16, radius: 2.4 },
-    r: { id: 'bigflask', name: '大爆発フラスコ', desc: '巨大な瓶を投げる。着弾点で大爆発し、ボスも腐食させる', mult: 5, radius: 6, speed: 16, dur: 6, mul: 1.25 },
+    r: { id: 'bigflask', name: '大爆発フラスコ', desc: '巨大な瓶を投げる。着弾点で大爆発し、ボスも腐食させる', mult: 12, radius: 6, speed: 16, dur: 6, mul: 1.25 },
     trait: '腐食しているボスへの自分の攻撃はさらに +20%',
     vulnBonus: 1.2, breakMul: 1,
     look: { armorColor: 0x558b2f, swordColor: 0xaed581, swordLen: 0.6, cape: 0x33691e, weapon: 'flask', hat: 0x33691e },
   },
   berserker: {
     name: '狂戦士', role: '捨て身の火力', color: '#ef9a9a',
-    power: 0.88, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.08, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.5, hit: 0.2, mult: 1.5 }, { dur: 0.7, hit: 0.3, mult: 2.4 }], range: 3.0, arc: 2.6, heavyBonus: 0.4 },
     q: { id: 'warcry', name: '怒号', desc: '8秒間 攻撃力 +50%。そのかわり被ダメージ +25%', cd: 16, dur: 8, atkMul: 1.5, dmgMul: 1.25 },
     e: { id: 'earthsplit', name: '大地割り', desc: '前方へ4か所、続けざまに地面を割る', cd: 8, mult: 1.4, count: 4, step: 2, radius: 1.8, every: 0.1 },
@@ -200,7 +200,7 @@ export const JOBS = {
   },
   gunner: {
     name: '砲術士', role: '一撃の重い射撃', color: '#ffd180',
-    power: 0.91, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 0.67, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     // 連射できないかわりに1発が重く、貫通する
     basic: { type: 'shot', cd: 0.9, speed: 48, mult: 2.2, color: 0xffd180, size: 0.2, range: 36, pierce: true },
     // 威力の目安（防御 10 のボスに会心なし）：大砲 約200・地雷 約250・大花火 約700
@@ -219,7 +219,7 @@ export const JOBS = {
     basic: { type: 'shot', cd: 0.55, speed: 18, mult: 0.6, color: 0xce93d8, size: 0.3, range: 22, dot: { mult: 0.15, every: 0.5, dur: 3 } },
     q: { id: 'hex', name: '呪いの刻印', desc: '当てた敵に8秒間の強い呪い（0.5秒ごとにダメージ）', cd: 9, speed: 20, dot: { mult: 0.4, every: 0.5, dur: 8 } },
     e: { id: 'cursespread', name: '呪いの拡散', desc: '自分の呪いがかかった敵すべてに追加ダメージを与え、呪いを延長する', cd: 9, mult: 1.6, extend: 3 },
-    r: { id: 'drain', name: '生命吸収', desc: '2秒間 前方の敵から命を吸い取り、周り10mの味方を少しずつ回復（合計 最大16%）', dur: 2, every: 0.25, mult: 0.7, range: 14, heal: 0.02, healRadius: 10 },
+    r: { id: 'drain', name: '生命吸収', desc: '2秒間 前方の敵から命を吸い取り、周り10mの味方を少しずつ回復（合計 最大16%）', dur: 2, every: 0.25, mult: 1.3, range: 14, heal: 0.02, healRadius: 10 },
     trait: '与えたダメージの 3% だけ HP 回復（1回の回復は最大 HP の 1.5% まで）',
     lifesteal: 0.03, lifestealCap: 0.015, breakMul: 1,
     look: { armorColor: 0x311b92, swordColor: 0xce93d8, swordLen: 0.9, cape: 0x1a0026, weapon: 'staff', hat: 0x1a0026 },
@@ -231,7 +231,7 @@ export const JOBS = {
     basic: { type: 'melee', combo: [{ dur: 0.48, hit: 0.2, mult: 1.25 }, { dur: 0.48, hit: 0.2, mult: 1.3 }, { dur: 0.65, hit: 0.28, mult: 2.0 }], range: 3.3, arc: 3.2, heavyBonus: 0.4 },
     q: { id: 'soulreap', name: '魂刈り', desc: '大鎌を大きく振りかぶり、周り6.5mを広く刈る。当たれば必殺ゲージ +30%', cd: 7, mult: 2.4, range: 6.5, arc: 5.0, windup: 0.3, gauge: 30 },
     e: { id: 'scythethrow', name: '鎌投げ', desc: '大きな鎌を投げる（約150ダメージ）。12m 先で戻ってきて往復で当たる（貫通）', cd: 6, mult: 4.0, speed: 22, range: 12, size: 1.8 },
-    r: { id: 'verdict', name: '死の宣告', desc: '前方の敵1体に、減っている HP が多いほど強い一撃（最大で通常の3倍以上）', mult: 3, missingMult: 9, range: 6 },
+    r: { id: 'verdict', name: '死の宣告', desc: '前方の敵1体に、減っている HP が多いほど強い一撃（最大で通常の3倍以上）', mult: 5, missingMult: 9, range: 6 },
     trait: '必殺ゲージが 30% 溜まりやすい',
     gaugeMul: 1.3, breakMul: 1,
     look: { armorColor: 0x263238, swordColor: 0xb0bec5, swordLen: 1.0, cape: 0x000000, weapon: 'scythe' },
@@ -240,7 +240,7 @@ export const JOBS = {
   // ================= 追加の16職（技は jobs.js の汎用の型 kind をデータで組み合わせている） =================
   trapper: {
     name: '罠士', role: '罠・妨害', color: '#a1887f',
-    power: 0.81, support: 0.83, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.07, support: 0.83, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.4, speed: 26, mult: 0.75, color: 0xbcaaa4, size: 0.2, range: 22 },
     q: { id: 'beartrap', kind: 'zone', zone: 'trap', name: 'トラバサミ', desc: '足元に罠を置く。ボスが踏むと挟んで大ダメージ＋5秒間 動きが鈍る', cd: 7, radius: 2.5, trigger: 1.6, mult: 3, dur: 25, color: 0x8d6e63, debuff: { name: 'slow', dur: 5, mul: 0.6 } },
     e: { id: 'blasttrap', kind: 'zone', zone: 'trap', name: '爆薬罠', desc: '狙った場所に爆薬罠を置く。踏むと爆発し、ボスを8秒間 腐食させる', cd: 10, at: 'aim', dist: 5, radius: 4, trigger: 2, mult: 3.5, dur: 25, color: 0xff7043, debuff: { name: 'vuln', dur: 8, mul: 1.2 } },
@@ -251,7 +251,7 @@ export const JOBS = {
   },
   samurai: {
     name: '侍', role: '居合・反撃', color: '#e0e0e0',
-    power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.29, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.32, hit: 0.11, mult: 1.0 }, { dur: 0.32, hit: 0.11, mult: 1.05 }, { dur: 0.5, hit: 0.2, mult: 1.8 }], range: 2.9, arc: 2.0, heavyBonus: 0.4 },
     q: { id: 'iai', kind: 'cone', name: '居合', desc: '前方へ一閃。必ず会心', cd: 6, mult: 2.4, range: 8, arc: 1.2, crit: true, color: 0xffffff },
     e: { id: 'mikiri', kind: 'counter', name: '見切り', desc: '1秒間 構える。その間に攻撃されると無傷で受け流し、強烈に反撃', cd: 7, dur: 1, mult: 4, range: 6 },
@@ -262,7 +262,7 @@ export const JOBS = {
   },
   dancer: {
     name: '踊り子', role: '回避で溜める', color: '#f8bbd0',
-    power: 1.11, support: 0.53, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.78, support: 0.53, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.24, hit: 0.08, mult: 0.8 }, { dur: 0.24, hit: 0.08, mult: 0.8 }, { dur: 0.24, hit: 0.08, mult: 0.85 }, { dur: 0.4, hit: 0.15, mult: 1.4 }], range: 2.5, arc: 2.6, heavyBonus: 0.2 },
     q: { id: 'swordance', kind: 'burst', name: '剣の舞', desc: '回りながら周りを3回斬る', cd: 5, ticks: 3, every: 0.15, mult: 0.9, radius: 3.2, color: 0xf48fb1 },
     e: { id: 'glide', kind: 'dash', name: 'ステップ', desc: '軽やかに12m 滑り込み、通り道を斬る（無敵）', cd: 5, mult: 1.2, dist: 12, time: 0.32, width: 1.3, color: 0xf8bbd0 },
@@ -284,7 +284,7 @@ export const JOBS = {
   },
   barrier: {
     name: '結界師', role: 'バリア（防御支援）', color: '#80d8ff',
-    power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.75, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.55, speed: 20, mult: 0.75, color: 0x80d8ff, size: 0.3, range: 22 },
     q: { id: 'ward', kind: 'teambuff', name: '守りの結界', desc: '周囲8mの味方にバリア（最大 HP の 25% を吸収・8秒）', cd: 12, radius: 8, buff: 'barrier', dur: 8, vals: { shield: 0.25 }, color: 0x80d8ff, msg: 'バリアが張られた！' },
     e: { id: 'wardburst', kind: 'burst', name: '結界破裂', desc: '自分の周りにバリアを張り、砕いた衝撃で攻撃する', cd: 7, windup: 0.35, anim: 'cast', mult: 1.8, radius: 4.5, color: 0x80d8ff, melee: false, knock: 2 },
@@ -295,7 +295,7 @@ export const JOBS = {
   },
   thief: {
     name: '盗賊', role: 'ゲージ稼ぎ・配る', color: '#bcaaa4',
-    power: 0.99, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.72, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.22, hit: 0.07, mult: 0.75 }, { dur: 0.22, hit: 0.07, mult: 0.8 }, { dur: 0.36, hit: 0.13, mult: 1.25 }], range: 2.4, arc: 2.0, heavyBonus: 0.2 },
     q: { id: 'steal', kind: 'cone', name: '盗む', desc: '前方を素早く斬りつけ、必殺ゲージを大きく奪う', cd: 6, mult: 1.2, range: 3.2, arc: 1.4, gaugeSelf: 22, color: 0xffd54f },
     e: { id: 'smoke', kind: 'selfbuff', name: '煙玉', desc: '煙に紛れて1.5秒 無敵。4秒間 足が速くなる', cd: 10, buff: 'smoke', dur: 4, vals: { speedMul: 1.35 }, invuln: 1.5, color: 0x9e9e9e, sound: 'dodge' },
@@ -306,7 +306,7 @@ export const JOBS = {
   },
   astrologer: {
     name: '占星術師', role: 'ランダム強化', color: '#b39ddb',
-    power: 0.71, support: 1.7, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 0.52, support: 1.7, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.5, speed: 20, mult: 0.8, color: 0xd1c4e9, size: 0.3, range: 22 },
     q: { id: 'card', kind: 'random', name: '星のカード', desc: 'カードを引く：攻撃・守り・速さ・回復のどれかを周りの味方に（10秒）', cd: 9, pool: [
       { name: '太陽（攻撃 +25%）', kind: 'teambuff', radius: 9, buff: 'card', dur: 10, vals: { atkMul: 1.25 }, color: 0xffd54f },
@@ -323,7 +323,7 @@ export const JOBS = {
   },
   spellblade: {
     name: '魔剣士', role: '魔力付与の近接', color: '#9575cd',
-    power: 0.97, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 0.64, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.34, hit: 0.11, mult: 1.0 }, { dur: 0.34, hit: 0.11, mult: 1.1 }, { dur: 0.5, hit: 0.2, mult: 1.6 }], range: 2.8, arc: 2.2, heavyBonus: 0.4 },
     // 威力の目安（防御 10 のボスに会心なし）：魔刃一閃 約200（魔力付与中は約400）／魔剣解放 約400〜1000
     q: { id: 'enchant', kind: 'selfbuff', name: '魔力付与', desc: '10秒間 近接攻撃が当たるたびに、同じダメージの魔力の追撃がもう一度入る', cd: 14, buff: 'enchant', dur: 10, vals: { echo: true, color: 0x7c4dff }, color: 0x7c4dff, msg: '魔力付与！ 近接攻撃が2回当たる' },
@@ -335,7 +335,7 @@ export const JOBS = {
   },
   dragonkin: {
     name: '竜人', role: '変身', color: '#ff8a65',
-    power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.3, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.38, hit: 0.13, mult: 1.1 }, { dur: 0.38, hit: 0.13, mult: 1.15 }, { dur: 0.55, hit: 0.22, mult: 1.8 }], range: 2.8, arc: 2.4, heavyBonus: 0.4 },
     q: { id: 'breath', kind: 'cone', name: '竜の息吹', desc: '前方に炎を吐き、焼き続ける（継続ダメージ）', cd: 7, mult: 1.2, range: 6, arc: 1.2, color: 0xff7043, melee: false, sound: 'wave', dot: { mult: 0.3, every: 0.5, dur: 4 } },
     e: { id: 'wingdash', kind: 'leap', name: '翼撃', desc: '翼を広げてその場でゆっくり舞い上がり、狙った場所へ斜めに急降下して周りを打つ', cd: 8, dist: 6, time: 2, rise: 1.2, height: 4.5, radius: 3.5, mult: 2.2, color: 0xff8a65 },
@@ -346,7 +346,7 @@ export const JOBS = {
   },
   jester: {
     name: '道化師', role: '運まかせ', color: '#ffeb3b',
-    power: 0.96, support: 0.45, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.37, support: 0.45, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.45, speed: 22, mult: 0.8, color: 0xffeb3b, size: 0.3, range: 22, wobble: true },
     q: { id: 'jugglebomb', kind: 'shots', name: 'ジャグリング爆弾', desc: '右回りに回る3つの玉が飛んでいく（1つずつ当たって爆発）', cd: 6, count: 3, orbit: { r: 0.6, w: 9 }, colors: [0xffeb3b, 0xff5252, 0x40c4ff], speed: 16, mult: 1.2, size: 0.35, range: 14, explode: 2.4, color: 0xffeb3b },
     e: { id: 'trick', kind: 'random', name: '手品', desc: '何が起きるかはお楽しみ（攻撃・強化・回復のどれか）', cd: 7, pool: [
@@ -367,7 +367,7 @@ export const JOBS = {
   paladin: {
     name: '聖騎士', role: '守りのオーラ', color: '#ffe082',
     healer: true, // 回復ができる：ピンチの味方が赤く光って見える
-    power: 0.95, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.47, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.4, hit: 0.14, mult: 1.1 }, { dur: 0.4, hit: 0.14, mult: 1.15 }, { dur: 0.55, hit: 0.22, mult: 1.8 }], range: 2.7, arc: 2.3, heavyBonus: 0.3 },
     q: { id: 'holysmite', kind: 'burst', name: '聖撃', desc: '剣を振りかぶり、聖なる力をまとった縦斬りで周りを打つ', cd: 6, windup: 0.15, anim: 'cast', mult: 1.8, radius: 3.8, color: 0xffe082 },
     e: { id: 'consecrate', kind: 'zone', zone: 'field', name: '聖別', desc: '足元を6秒間 聖地にする（敵に継続ダメージ・中の味方は毎秒少し回復）', cd: 12, radius: 5, dur: 6, every: 0.5, mult: 0.5, heal: 0.01, color: 0xffe082 },
@@ -391,7 +391,7 @@ export const JOBS = {
   },
   chainer: {
     name: '鎖鎌使い', role: '飛びつき', color: '#90a4ae',
-    power: 1.09, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.52, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.3, hit: 0.1, mult: 0.95 }, { dur: 0.3, hit: 0.1, mult: 1.0 }, { dur: 0.48, hit: 0.18, mult: 1.6 }], range: 3.2, arc: 2.2, heavyBonus: 0.4 },
     q: { id: 'grapple', kind: 'dash', name: '鎖の飛びつき', desc: '一番近いボスへ鎖を飛ばし、一気に飛びつきながら斬る（最大14m・無敵）', cd: 7, toBoss: true, dist: 14, time: 0.3, mult: 1.8, width: 1.5, color: 0x90a4ae },
     e: { id: 'chainbind', kind: 'debuff', name: '鎖縛り', desc: 'ボスを鎖で縛り、5秒間 動きを鈍らせる', cd: 14, color: 0x90a4ae, debuffs: [{ name: 'slow', dur: 5, mul: 0.65 }] },
@@ -402,7 +402,7 @@ export const JOBS = {
   },
   darkknight: {
     name: '暗黒騎士', role: 'HP を削って攻める', color: '#880e4f',
-    power: 1.04, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.42, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.42, hit: 0.15, mult: 1.2 }, { dur: 0.42, hit: 0.15, mult: 1.25 }, { dur: 0.6, hit: 0.24, mult: 2.0 }], range: 2.9, arc: 2.4, heavyBonus: 0.4 },
     q: { id: 'darkblade', kind: 'cone', name: '暗黒剣', desc: 'HP を 8% 払って、前方に強烈な闇の斬撃', cd: 5, hpCost: 0.08, mult: 2.8, range: 4.5, arc: 1.8, color: 0x880e4f },
     e: { id: 'darkveil', kind: 'selfbuff', name: '闇の衣', desc: 'HP を 5% 払って、5秒間 被ダメージ -40%', cd: 12, hpCost: 0.05, buff: 'veil', dur: 5, vals: { dmgMul: 0.6 }, color: 0x4a148c },
@@ -414,7 +414,7 @@ export const JOBS = {
   shaman: {
     name: '祈祷師', role: 'トーテム', color: '#aed581',
     healer: true, // 回復ができる：ピンチの味方が赤く光って見える
-    power: 1.36, support: 0.43, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.93, support: 0.43, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.55, speed: 18, mult: 0.75, color: 0xaed581, size: 0.3, range: 22 },
     q: { id: 'wartotem', kind: 'zone', zone: 'totem', name: '戦いのトーテム', desc: 'そばの味方の攻撃力 +20% のトーテムを12秒置く', cd: 13, radius: 7, dur: 12, color: 0xff7043, buff: { name: 'wartotem', vals: { atkMul: 1.2 } } },
     e: { id: 'healtotem', kind: 'zone', zone: 'totem', name: '癒しのトーテム', desc: 'そばの味方が毎秒 HP 3% 回復するトーテムを10秒置く', cd: 14, radius: 7, dur: 10, color: 0x69f0ae, buff: { name: 'healtotem', vals: { regen: 0.03 } } },
@@ -425,7 +425,7 @@ export const JOBS = {
   },
   whip: {
     name: '鞭使い', role: '中距離の近接', color: '#d7ccc8',
-    power: 1.18, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.72, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     // 6m 届くが細い
     basic: { type: 'melee', combo: [{ dur: 0.34, hit: 0.13, mult: 0.9 }, { dur: 0.34, hit: 0.13, mult: 0.95 }, { dur: 0.5, hit: 0.2, mult: 1.5 }], range: 6, arc: 1.0, heavyBonus: 0.5 },
     q: { id: 'lash', kind: 'cone', name: '薙ぎ打ち', desc: '鞭を大きく振って前方7mを薙ぐ', cd: 5, mult: 1.6, range: 7, arc: 2.2, color: 0xd7ccc8 },
@@ -454,7 +454,7 @@ export const JOBS = {
   },
   gambler: {
     name: 'ギャンブラー', role: '一か八か', color: '#ffd740',
-    power: 1.05, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.46, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.45, speed: 26, mult: 0.85, color: 0xffd740, size: 0.24, range: 24 },
     q: { id: 'dice', kind: 'random', name: 'サイコロ', desc: '出目で威力が変わる攻撃（1〜6）', cd: 5, pool: [
       { name: '1の目（しょぼい）', kind: 'shots', speed: 24, mult: 0.4, size: 0.2, range: 20, color: 0x9e9e9e },
@@ -480,7 +480,7 @@ export const JOBS = {
   },
   bomber: {
     name: '爆弾魔', role: '全部爆発', color: '#ff9e80',
-    power: 1.06, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 2.12, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.75, speed: 16, mult: 0.8, color: 0x424242, size: 0.32, range: 16, explode: 2.6 },
     q: { id: 'clusterbomb', kind: 'shots', name: '散弾爆弾', desc: '爆弾を4つばらまく', cd: 6, count: 4, spread: 0.3, speed: 15, mult: 1.1, size: 0.32, range: 14, explode: 2.6, color: 0x424242 },
     e: { id: 'timebomb', kind: 'zone', zone: 'strike', name: '時限爆弾', desc: '足元に2秒後に大爆発する爆弾を置く', cd: 8, radius: 5, dur: 2, mult: 4, color: 0xff3d00 },
@@ -491,7 +491,7 @@ export const JOBS = {
   },
   souleater: {
     name: '魂喰い', role: '当てるほど永久に強く', color: '#80cbc4',
-    power: 0.9, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.3, hit: 0.1, mult: 0.9 }, { dur: 0.3, hit: 0.1, mult: 0.95 }, { dur: 0.46, hit: 0.18, mult: 1.5 }], range: 2.8, arc: 2.2, heavyBonus: 0.3 },
     q: { id: 'soulrend', kind: 'cone', name: '魂裂き', desc: '前方を裂いて魂を奪う', cd: 5, mult: 1.6, range: 4, arc: 1.6, color: 0x80cbc4 },
     e: { id: 'soulstep', kind: 'dash', name: '魂渡り', desc: '5m すり抜けながら斬る（無敵）', cd: 6, mult: 1.4, dist: 5, time: 0.2, width: 1.4, color: 0x80cbc4 },
@@ -502,7 +502,7 @@ export const JOBS = {
   },
   mirror: {
     name: '鏡術師', role: '弾を消す', color: '#e0f7fa',
-    power: 1.22, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.45, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.5, speed: 24, mult: 0.8, color: 0xe0f7fa, size: 0.28, range: 22 },
     q: { id: 'mirrorshard', kind: 'shots', name: '鏡の破片', desc: '鏡の破片を扇に5枚飛ばす（貫通）', cd: 5, count: 5, spread: 0.2, speed: 28, mult: 0.8, size: 0.24, range: 20, pierce: true, color: 0xe0f7fa },
     e: { id: 'mirrorwall', kind: 'zone', zone: 'aegis', name: '鏡の盾', desc: '足元に3秒間の鏡の盾。入ってきた敵弾を消し、中の味方の被ダメ半減', cd: 9, radius: 3.6, dur: 3, color: 0xe0f7fa },
@@ -513,9 +513,9 @@ export const JOBS = {
   },
   gravity: {
     name: '重力術師', role: 'ボスを引き寄せる', color: '#9fa8da',
-    power: 0.84, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.28, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.55, speed: 18, mult: 0.85, color: 0x9fa8da, size: 0.34, range: 22 },
-    q: { id: 'gravwell', kind: 'zone', zone: 'field', name: '重力井戸', desc: '狙った場所にボスを最大6m 引き寄せ、4秒間 継続ダメージ', cd: 10, at: 'aim', dist: 7, radius: 4, dur: 4, every: 0.4, mult: 0.5, color: 0x5c6bc0, pullBoss: 6 },
+    q: { id: 'gravwell', kind: 'zone', zone: 'field', name: '重力井戸', desc: '狙った場所にボスを最大6m 引き寄せ、4秒間 継続ダメージ', cd: 10, at: 'aim', dist: 7, radius: 4, dur: 4, every: 0.4, mult: 1.0, color: 0x5c6bc0, pullBoss: 6 },
     e: { id: 'graviton', kind: 'debuff', name: '重圧', desc: 'ボスを重くして5秒間 鈍らせる', cd: 12, color: 0x5c6bc0, debuffs: [{ name: 'slow', dur: 5, mul: 0.6 }] },
     r: { id: 'blackhole', kind: 'zone', zone: 'field', name: 'ブラックホール', desc: '狙った場所にボスを最大12m 引き寄せ、6秒間 強い継続ダメージ', at: 'aim', dist: 8, radius: 6, dur: 6, every: 0.3, mult: 0.9, color: 0x1a237e, pullBoss: 12 },
     trait: 'ブレイク値 1.3倍（重さで押しつぶす）',
@@ -524,7 +524,7 @@ export const JOBS = {
   },
   speedster: {
     name: '韋駄天', role: '止まると弱い', color: '#ffff8d',
-    power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.53, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.18, hit: 0.06, mult: 0.7 }, { dur: 0.18, hit: 0.06, mult: 0.7 }, { dur: 0.3, hit: 0.1, mult: 1.1 }], range: 2.4, arc: 2.2, heavyBonus: 0.2 },
     q: { id: 'sonicdash', kind: 'dash', name: '音速突破', desc: '10m を一瞬で駆け抜けて斬る（無敵）', cd: 4, mult: 1.5, dist: 10, time: 0.18, width: 1.4, color: 0xffff8d },
     e: { id: 'afterimage', kind: 'selfbuff', name: '残像', desc: '6秒間 さらに足が速くなり、被ダメージ -30%', cd: 12, buff: 'afterimage', dur: 6, vals: { speedMul: 1.25, dmgMul: 0.7 }, color: 0xffff8d, sound: 'dodge' },
@@ -535,7 +535,7 @@ export const JOBS = {
   },
   cursed: {
     name: '呪いの騎士', role: 'HP が減り続ける', color: '#b71c1c',
-    power: 0.93, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.02, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.38, hit: 0.13, mult: 1.2 }, { dur: 0.38, hit: 0.13, mult: 1.25 }, { dur: 0.55, hit: 0.22, mult: 2.0 }], range: 2.9, arc: 2.4, heavyBonus: 0.4 },
     q: { id: 'cursedblade', kind: 'cone', name: '呪剣', desc: '前方を斬り、与えたダメージの25% を吸う', cd: 5, mult: 2.0, range: 4, arc: 1.8, color: 0xb71c1c, lifesteal: 0.25 },
     e: { id: 'bloodpact', kind: 'selfbuff', name: '血の契約', desc: '8秒間 攻撃力 +40%（HP の減りは止まらない）', cd: 14, buff: 'pact', dur: 8, vals: { atkMul: 1.4 }, color: 0xb71c1c, sound: 'roar' },
@@ -546,7 +546,7 @@ export const JOBS = {
   },
   desperado: {
     name: '背水の剣士', role: '仲間が倒れるほど強い', color: '#ff8a80',
-    power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.3, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.32, hit: 0.11, mult: 1.0 }, { dur: 0.32, hit: 0.11, mult: 1.05 }, { dur: 0.5, hit: 0.2, mult: 1.7 }], range: 2.8, arc: 2.2, heavyBonus: 0.4 },
     q: { id: 'lastcut', kind: 'cone', name: '捨て身斬り', desc: '前方を大きく斬る', cd: 6, mult: 2.2, range: 4, arc: 1.6, color: 0xff8a80 },
     e: { id: 'rally', kind: 'teamheal', name: '奮起', desc: '周囲8mの味方を 20% 回復', cd: 14, radius: 8, amount: 0.2, color: 0xff8a80 },
@@ -558,7 +558,7 @@ export const JOBS = {
   cook: {
     healer: true,
     name: '料理人', role: 'ごはんで支援', color: '#ffcc80',
-    power: 1, support: 1.66, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.4, support: 1.66, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.5, speed: 18, mult: 0.75, color: 0xffcc80, size: 0.3, range: 20, wobble: true },
     q: { id: 'picnic', kind: 'zone', zone: 'field', name: 'お弁当', desc: '足元に8秒間の食事の場。中の味方は毎秒 HP 3% 回復', cd: 14, radius: 5, dur: 8, every: 0.5, heal: 0.015, mult: 0, color: 0xffcc80 },
     e: { id: 'spicy', kind: 'teambuff', name: '激辛カレー', desc: '周囲9mの味方の攻撃力 +25%・移動 +10%（10秒）', cd: 16, radius: 9, buff: 'spicy', dur: 10, vals: { atkMul: 1.25, speedMul: 1.1 }, color: 0xff7043, msg: '激辛カレー！ 攻撃力アップ' },
@@ -569,7 +569,7 @@ export const JOBS = {
   },
   drunkard: {
     name: '酔拳家', role: 'ふらふら回避', color: '#ffab91',
-    power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.23, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.3, hit: 0.1, mult: 0.9 }, { dur: 0.36, hit: 0.14, mult: 1.1 }, { dur: 0.3, hit: 0.1, mult: 0.9 }, { dur: 0.5, hit: 0.2, mult: 1.7 }], range: 2.4, arc: 2.4, heavyBonus: 0.3 },
     q: { id: 'drunkpalm', kind: 'random', name: '酔いどれ拳', desc: 'ふらつきながら何かの技が出る', cd: 5, pool: [
       { name: '千鳥足', kind: 'dash', mult: 1.4, dist: 5, time: 0.25, width: 1.4, color: 0xffab91 },
@@ -600,14 +600,14 @@ export const JOBS = {
     basic: { type: 'shot', cd: 0.5, speed: 20, mult: 0.85, color: 0xfff9c4, size: 0.3, range: 22 },
     q: { id: 'prophecy', kind: 'zone', zone: 'strike', name: '予言', desc: '一番近いボスの足元に、2.5秒後に大きな一撃が落ちる', cd: 8, at: 'boss', dist: 8, radius: 4.5, dur: 2.5, mult: 5, color: 0xfff176 },
     e: { id: 'foresight', kind: 'selfbuff', name: '未来視', desc: '4秒間 足が速くなり、被ダメージ -40%', cd: 12, buff: 'foresight', dur: 4, vals: { speedMul: 1.2, dmgMul: 0.6 }, color: 0xfff9c4 },
-    r: { id: 'doomsday', kind: 'zone', zone: 'strike', name: '終末の予言', desc: 'ボスの周りに4秒後、巨大な一撃を5つ落とす', at: 'boss', dist: 8, count: 5, scatter: 3, radius: 4, dur: 4, mult: 5, color: 0xffee58 },
+    r: { id: 'doomsday', kind: 'zone', zone: 'strike', name: '終末の予言', desc: 'ボスの周りに4秒後、巨大な一撃を5つ落とす', at: 'boss', dist: 8, count: 5, scatter: 3, radius: 4, dur: 4, mult: 3, color: 0xffee58 },
     trait: 'ブレイク値 1.2倍',
     breakMul: 1.2,
     look: { armorColor: 0xf9a825, swordColor: 0xfff9c4, swordLen: 0.9, cape: 0xfff59d, weapon: 'staff', hat: 0xf57f17 },
   },
   oni: {
     name: '鬼', role: '回避できない巨体', color: '#ef5350',
-    power: 0.67, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.05, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.55, hit: 0.22, mult: 1.6 }, { dur: 0.75, hit: 0.32, mult: 2.6 }], range: 3.2, arc: 2.6, heavyBonus: 0.5 },
     q: { id: 'onismash', kind: 'burst', name: '鬼の金棒', desc: '金棒で周りを叩き潰す', cd: 6, mult: 2.6, radius: 4.2, color: 0xef5350, brkMul: 1.5 },
     e: { id: 'oniroar', kind: 'selfbuff', name: '鬼の雄叫び', desc: '6秒間 被ダメージ -40%', cd: 12, buff: 'oniroar', dur: 6, vals: { dmgMul: 0.6 }, color: 0xef5350, sound: 'roar' },
@@ -618,7 +618,7 @@ export const JOBS = {
   },
   ghost: {
     name: '幽霊', role: 'すり抜ける', color: '#eceff1',
-    power: 1.17, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.84, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.45, speed: 20, mult: 0.85, color: 0xeceff1, size: 0.3, range: 22, wobble: true },
     q: { id: 'haunt', kind: 'cone', name: '憑依', desc: '前方の敵に取り憑いて継続ダメージ', cd: 6, mult: 1.0, range: 5, arc: 1.4, color: 0xeceff1, melee: false, dot: { mult: 0.35, every: 0.5, dur: 5 } },
     e: { id: 'phase', kind: 'selfbuff', name: '透過', desc: '2秒間 完全に無敵', cd: 12, buff: 'phase', dur: 2, vals: {}, invuln: 2, color: 0xeceff1, sound: 'dodge' },
@@ -629,7 +629,7 @@ export const JOBS = {
   },
   twins: {
     name: '双子', role: 'いつも2発', color: '#f48fb1',
-    power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 0.86, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     // 通常攻撃が2発同時（1発は弱め）
     basic: { type: 'shot', cd: 0.4, speed: 26, mult: 0.55, color: 0xf48fb1, size: 0.24, range: 22, count: 2, spread: 0.1 },
     q: { id: 'twinshot', kind: 'shots', name: 'ふたり撃ち', desc: '左右から3発ずつ撃つ', cd: 5, count: 6, spread: 0.12, speed: 28, mult: 0.7, size: 0.24, range: 22, color: 0xf48fb1 },
@@ -643,7 +643,7 @@ export const JOBS = {
   // ================= 追加の16職（今までの職業と仕組みがかぶらないもの） =================
   machinegunner: {
     name: 'マシンガンナー', role: '超連射', color: '#bdbdbd',
-    power: 0.52, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 0.61, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.08, speed: 38, mult: 0.28, color: 0xffe082, size: 0.12, range: 26, jitter: 0.12 },
     q: { id: 'suppress', kind: 'shots', name: '制圧射撃', desc: '2秒間 弾をばらまきながらボスを鈍らせる', cd: 9, count: 24, every: 0.08, jitter: 0.25, speed: 38, mult: 0.4, size: 0.13, range: 26, color: 0xffe082, debuff: { name: 'slow', dur: 3, mul: 0.75 } },
     e: { id: 'reloadroll', kind: 'selfbuff', move: true, name: '弾込め回避', desc: '転がって回避し（回避と同じ移動）、0.6秒 無敵・6秒間 攻撃力 +25%', cd: 9, buff: 'reload', dur: 6, vals: { atkMul: 1.25 }, invuln: 0.6, color: 0xbdbdbd, sound: 'dodge' },
@@ -654,7 +654,7 @@ export const JOBS = {
   },
   flamer: {
     name: '火炎放射兵', role: '近距離で焼く', color: '#ff7043',
-    power: 0.96, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.17, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     // 射程が短く、当たると燃える（継続ダメージ）
     basic: { type: 'shot', cd: 0.12, speed: 16, mult: 0.3, color: 0xff7043, size: 0.35, range: 8, pierce: true, jitter: 0.25, dot: { mult: 0.12, every: 0.5, dur: 3 } },
     q: { id: 'napalm', kind: 'shots', name: 'ナパーム', desc: '大きな火の玉を撃ち、落ちた所を5秒間 燃やし続ける', cd: 8, count: 1, speed: 20, mult: 0.8, size: 0.6, range: 18, landZone: { radius: 4, dur: 5, every: 0.3, mult: 0.5 }, color: 0xff5722 },
@@ -678,7 +678,7 @@ export const JOBS = {
   medic: {
     healer: true,
     name: '衛生兵', role: '回復（素早い）', color: '#ef9a9a',
-    power: 1, support: 0.76, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.87, support: 0.76, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.4, speed: 30, mult: 0.7, color: 0xffffff, size: 0.2, range: 24 },
     q: { id: 'firstaid', kind: 'teamheal', name: '救急キット', desc: '周囲6mの味方の HP を 30% 回復', cd: 7, radius: 6, amount: 0.3, color: 0xef9a9a },
     e: { id: 'stimpack', kind: 'teambuff', name: '興奮剤', desc: '周囲8mの味方を 6秒間 移動 +25%・毎秒 HP 2% 回復', cd: 12, radius: 8, buff: 'stim', dur: 6, vals: { speedMul: 1.25, regen: 0.02 }, color: 0xef9a9a, msg: '興奮剤：足が速くなり回復' },
@@ -689,7 +689,7 @@ export const JOBS = {
   },
   hammer: {
     name: '大槌使い', role: 'ブレイク特化', color: '#a1887f',
-    power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.21, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.6, hit: 0.26, mult: 1.8 }, { dur: 0.85, hit: 0.38, mult: 3.0 }], range: 3.2, arc: 2.4, heavyBonus: 0.5 },
     q: { id: 'quake', kind: 'burst', name: '地震', desc: '地面を叩いて周りを揺らす（ブレイク大）', cd: 7, mult: 2.4, radius: 4.8, color: 0xa1887f, brkMul: 2.5 },
     e: { id: 'hammerleap', kind: 'leap', name: '飛び叩き', desc: '跳んで狙った場所に叩きつける', cd: 9, dist: 6, time: 0.55, radius: 3.8, mult: 2.8, color: 0x8d6e63, brkMul: 2 },
@@ -700,7 +700,7 @@ export const JOBS = {
   },
   dualblade: {
     name: '双剣士', role: '高速6段コンボ', color: '#80deea',
-    power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.5, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.16, hit: 0.05, mult: 0.6 }, { dur: 0.16, hit: 0.05, mult: 0.6 }, { dur: 0.16, hit: 0.05, mult: 0.65 }, { dur: 0.16, hit: 0.05, mult: 0.65 }, { dur: 0.18, hit: 0.06, mult: 0.7 }, { dur: 0.34, hit: 0.12, mult: 1.4 }], range: 2.5, arc: 2.4, heavyBonus: 0.2 },
     q: { id: 'crosscut', kind: 'cone', name: '十字斬り', desc: '前方を十字に斬る', cd: 5, mult: 2.0, range: 3.6, arc: 1.6, color: 0x80deea },
     e: { id: 'spinrush', kind: 'dash', name: '回転突進', desc: '回りながら6m 突っ込む（無敵）', cd: 6, mult: 1.5, dist: 6, time: 0.22, width: 1.6, color: 0x80deea },
@@ -711,7 +711,7 @@ export const JOBS = {
   },
   shielder: {
     name: '盾投げ士', role: '盾で守って投げる', color: '#90caf9',
-    power: 1.12, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 2.08, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.7, speed: 22, mult: 1.1, color: 0x90caf9, size: 0.5, range: 14, pierce: true },
     q: { id: 'shieldrush', kind: 'dash', name: '盾の突撃', desc: '盾を構えて5m 突進（ブレイク大）', cd: 6, mult: 1.6, dist: 5, time: 0.25, width: 1.8, color: 0x90caf9, brkMul: 2.5 },
     e: { id: 'shieldwall', kind: 'selfbuff', name: '盾構え', desc: '3秒間 被ダメージ -60%', cd: 9, buff: 'shieldwall', dur: 3, vals: { dmgMul: 0.4, speedMul: 0.7 }, color: 0x90caf9 },
@@ -733,7 +733,7 @@ export const JOBS = {
   },
   laser: {
     name: '光線術士', role: '一直線のビーム', color: '#e1f5fe',
-    power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.15, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.5, speed: 50, mult: 0.85, color: 0xe1f5fe, size: 0.18, range: 28, pierce: true },
     q: { id: 'ray', kind: 'beam', name: '光線', desc: '前方20m に光線を走らせる（即着弾・貫通）', cd: 5, len: 20, width: 1.6, mult: 2.2, color: 0xe1f5fe },
     e: { id: 'prism', kind: 'beam', name: 'プリズム', desc: '光線を扇状に3本', cd: 7, len: 16, width: 1.4, mult: 1.4, fan: 3, fanSpread: 0.3, color: 0xb3e5fc },
@@ -744,7 +744,7 @@ export const JOBS = {
   },
   cryo: {
     name: '氷結術士', role: '当てるたびに鈍らせる', color: '#b3e5fc',
-    power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.58, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     // 当たったボスが少し鈍る
     basic: { type: 'shot', cd: 0.55, speed: 22, mult: 0.8, color: 0xb3e5fc, size: 0.3, range: 22, debuff: { name: 'slow', dur: 1.5, mul: 0.85 } },
     q: { id: 'frostnova', kind: 'burst', name: '凍てつく波', desc: '周りを凍らせる', cd: 7, mult: 1.8, radius: 4.5, color: 0xb3e5fc, melee: false },
@@ -756,7 +756,7 @@ export const JOBS = {
   },
   asura: {
     name: '修羅', role: '受けるほど強い', color: '#ff5252',
-    power: 0.53, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.06, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.3, hit: 0.1, mult: 1.0 }, { dur: 0.3, hit: 0.1, mult: 1.05 }, { dur: 0.48, hit: 0.18, mult: 1.7 }], range: 2.8, arc: 2.3, heavyBonus: 0.3 },
     q: { id: 'asurastrike', kind: 'cone', name: '修羅の一撃', desc: '前方を力いっぱい打つ', cd: 5, mult: 2.4, range: 3.8, arc: 1.4, color: 0xff5252 },
     e: { id: 'endure', kind: 'selfbuff', name: '耐え忍ぶ', desc: '5秒間 被ダメージ -50%', cd: 12, buff: 'endure', dur: 5, vals: { dmgMul: 0.5 }, color: 0xff5252 },
@@ -767,9 +767,9 @@ export const JOBS = {
   },
   falconer: {
     name: '鷹匠', role: '鷹が自動で攻撃', color: '#bcaaa4',
-    power: 0.88, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.05, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.45, speed: 28, mult: 0.75, color: 0xbcaaa4, size: 0.22, range: 24 },
-    q: { id: 'divebomb', kind: 'zone', zone: 'strike', name: '鷹の急襲', desc: '一番近いボスへ0.6秒後 鷹が急降下', cd: 5, at: 'boss', dist: 8, radius: 2.5, dur: 0.6, mult: 2.6, color: 0xbcaaa4 },
+    q: { id: 'divebomb', kind: 'zone', zone: 'strike', name: '鷹の急襲', desc: '一番近いボスへ0.6秒後 鷹が急降下', cd: 5, at: 'boss', dist: 8, radius: 2.5, dur: 0.6, mult: 1.6, color: 0xbcaaa4 },
     e: { id: 'hawkfrenzy', kind: 'selfbuff', name: '鷹の猛攻', desc: '8秒間 鷹の攻撃が2.5倍速', cd: 14, buff: 'hawkfrenzy', dur: 8, vals: {}, color: 0xbcaaa4 },
     r: { id: 'hawkflock', kind: 'shots', name: '鷹の群れ', desc: '一番近いボスへ鷹の群れ（8羽）が襲いかかる', aim: true, count: 8, spread: 0.12, speed: 30, mult: 1.5, size: 0.35, range: 30, color: 0x8d6e63 },
     trait: '鷹が1.2秒ごとに一番近い敵（20m以内）を自動で攻撃する',
@@ -778,7 +778,7 @@ export const JOBS = {
   },
   vampire: {
     name: '吸血鬼', role: '吸血と蝙蝠化', color: '#ce93d8',
-    power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.25, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.26, hit: 0.09, mult: 0.9 }, { dur: 0.26, hit: 0.09, mult: 0.95 }, { dur: 0.42, hit: 0.16, mult: 1.5 }], range: 2.6, arc: 2.2, heavyBonus: 0.3 },
     q: { id: 'bite', kind: 'cone', name: '吸血', desc: '噛みついて、与えたダメージの30% を吸う', cd: 6, mult: 2, range: 3, arc: 1.2, color: 0xb71c1c, lifesteal: 0.3 },
     e: { id: 'batswarm', kind: 'dash', name: '蝙蝠の群れ', desc: '蝙蝠になって7m すり抜ける（無敵）', cd: 6, mult: 1.2, dist: 7, time: 0.22, width: 1.6, color: 0x4a148c },
@@ -803,7 +803,7 @@ export const JOBS = {
     power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.75, speed: 26, mult: 1.4, color: 0xffe0b2, size: 0.3, range: 26, pierce: true },
     q: { id: 'burstjavelin', kind: 'shots', name: '爆裂槍', desc: '当たると爆発する槍', cd: 6, speed: 26, mult: 2.4, size: 0.35, range: 24, explode: 3.2, color: 0xffab40 },
-    e: { id: 'javelinrain', kind: 'zone', zone: 'strike', name: '槍の雨', desc: '狙った場所の周りに1秒後 槍を5本降らせる', cd: 9, at: 'aim', dist: 8, count: 5, scatter: 2.5, radius: 2.4, dur: 1, mult: 2, color: 0xffe0b2 },
+    e: { id: 'javelinrain', kind: 'zone', zone: 'strike', name: '槍の雨', desc: '狙った場所の周りに1秒後 槍を5本降らせる', cd: 9, at: 'aim', dist: 8, count: 5, scatter: 2.5, radius: 2.4, dur: 1, mult: 1.3, color: 0xffe0b2 },
     r: { id: 'godspear', kind: 'shots', name: '神槍', desc: '巨大な槍を投げる（貫通・とても強い）', speed: 30, mult: 7, size: 0.9, range: 34, pierce: true, color: 0xffd54f, sound: 'wave' },
     trait: 'ブレイク値 1.2倍',
     breakMul: 1.2,
@@ -811,11 +811,11 @@ export const JOBS = {
   },
   maid: {
     name: 'メイド', role: '敵弾のお掃除', color: '#f8bbd0',
-    power: 1, support: 1.33, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.39, support: 1.33, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.45, speed: 24, mult: 0.75, color: 0xf8bbd0, size: 0.26, range: 22 },
     q: { id: 'sweepup', kind: 'cleanse', name: 'お掃除', desc: '周り6mの敵弾を一瞬で消して、近くの敵を叩く', cd: 6, radius: 6, mult: 1.2, color: 0xf8bbd0 },
     e: { id: 'teatime', kind: 'teamheal', name: 'お茶の時間', desc: '周囲8mの味方の HP を 20% 回復', cd: 12, radius: 8, amount: 0.2, color: 0xf8bbd0 },
-    r: { id: 'springclean', kind: 'cleanse', name: '大掃除', desc: '周り14mの敵弾をすべて消し、周りの味方に8秒のバリア', radius: 14, mult: 1.5, color: 0xff80ab, team: { name: 'barrier', dur: 8, vals: { shield: 0.3 }, msg: 'メイドの大掃除！ バリアが張られた' } },
+    r: { id: 'springclean', kind: 'cleanse', name: '大掃除', desc: '周り14mの敵弾をすべて消し、周りの味方に8秒のバリア', radius: 14, mult: 9, color: 0xff80ab, team: { name: 'barrier', dur: 8, vals: { shield: 0.3 }, msg: 'メイドの大掃除！ バリアが張られた' } },
     trait: '身のこなし：回避の無敵時間 +0.1秒',
     dodgeInvulnBonus: 0.1, breakMul: 1,
     look: { armorColor: 0x212121, swordColor: 0xf8bbd0, swordLen: 0.6, cape: 0xffffff, weapon: 'staff', hat: 0xffffff },
@@ -824,7 +824,7 @@ export const JOBS = {
   // ================= 追加の16職（65〜80） =================
   mimic: {
     name: 'ものまね師', role: '他の職業の技を借りる', color: '#ffe0b2',
-    power: 1.2, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 0.98, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.45, speed: 24, mult: 0.85, color: 0xffe0b2, size: 0.28, range: 22 },
     q: { id: 'copycat', kind: 'mimic', name: 'ものまね', desc: 'ランダムな職業の Q スキルを借りて使う（変身中はボスの技）', cd: 4 },
     e: { id: 'copycat2', kind: 'mimic', name: 'ものまね（もう一回）', desc: 'Q とは別に、もう一度ランダムな職業の Q スキルを借りる（変身中はボスの技）', cd: 6 },
@@ -835,7 +835,7 @@ export const JOBS = {
   },
   phoenix: {
     name: '不死鳥使い', role: '一度だけ蘇る', color: '#ff8a65',
-    power: 1.3, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 2.08, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.5, speed: 22, mult: 0.85, color: 0xff8a65, size: 0.3, range: 22 },
     q: { id: 'phoenixflame', kind: 'cone', name: '不死鳥の炎', desc: '前方を焼き、燃やし続ける', cd: 6, mult: 1.6, range: 6, arc: 1.3, color: 0xff7043, melee: false, sound: 'wave', dot: { mult: 0.3, every: 0.5, dur: 4 } },
     e: { id: 'emberheal', kind: 'selfbuff', name: '灰の癒し', desc: '6秒間 毎秒 HP 5% 回復', cd: 14, buff: 'ember', dur: 6, vals: { regen: 0.05 }, color: 0xff8a65 },
@@ -846,7 +846,7 @@ export const JOBS = {
   },
   weather: {
     name: '天候術士', role: '空模様を変える', color: '#90caf9',
-    power: 0.59, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 0.7, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.5, speed: 22, mult: 0.85, color: 0x90caf9, size: 0.3, range: 22 },
     q: { id: 'thunderstorm', kind: 'zone', zone: 'field', name: '雷雨', desc: '狙った場所に5秒間 雷雨を降らせる', cd: 9, at: 'aim', dist: 8, radius: 5, dur: 5, every: 0.35, mult: 0.6, color: 0x90caf9 },
     e: { id: 'sunshine', kind: 'teambuff', name: '晴れ間', desc: '周囲10mの味方 8秒間 毎秒 HP 2% 回復・移動 +15%', cd: 15, radius: 10, buff: 'sunshine', dur: 8, vals: { regen: 0.02, speedMul: 1.15 }, color: 0xffee58, msg: '晴れ間がさした' },
@@ -857,7 +857,7 @@ export const JOBS = {
   },
   assassin: {
     name: '暗殺者', role: '背後から', color: '#616161',
-    power: 0.88, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.05, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.22, hit: 0.07, mult: 0.85 }, { dur: 0.22, hit: 0.07, mult: 0.85 }, { dur: 0.36, hit: 0.13, mult: 1.5 }], range: 2.4, arc: 2.0, heavyBonus: 0.2 },
     q: { id: 'shadowwalk', kind: 'blinkbehind', name: '影渡り', desc: '一番近いボスの背後へ回り込んで斬る', cd: 6, mult: 1.8, color: 0x424242 },
     e: { id: 'vanish', kind: 'selfbuff', name: '消失', desc: '1.5秒 無敵になり、5秒間 会心率 +40%', cd: 11, buff: 'vanish', dur: 5, vals: { critAdd: 0.4 }, invuln: 1.5, color: 0x424242, sound: 'dodge' },
@@ -879,7 +879,7 @@ export const JOBS = {
   },
   dimension: {
     name: '次元術士', role: '瞬間移動', color: '#b388ff',
-    power: 1.24, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.73, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.5, speed: 26, mult: 0.85, color: 0xb388ff, size: 0.28, range: 22 },
     q: { id: 'warp', kind: 'blink', name: '次元跳躍', desc: '狙った場所（8m 先）へ一瞬で移動し、着いた場所の周りを打つ', cd: 5, dist: 8, mult: 1.4, radius: 3, color: 0xb388ff },
     e: { id: 'riftbeam', kind: 'beam', name: '次元の裂け目', desc: '前方18m を裂く（即着弾）', cd: 6, len: 18, width: 2, mult: 2.2, color: 0x7c4dff },
@@ -890,7 +890,7 @@ export const JOBS = {
   },
   onmyoji: {
     name: '陰陽師', role: '札を3枚そろえる', color: '#fff8e1',
-    power: 0.91, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.15, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.5, speed: 22, mult: 0.85, color: 0xfff8e1, size: 0.26, range: 22 },
     q: { id: 'talisman', kind: 'zone', zone: 'talisman', name: '札を置く', desc: '狙った場所に札を置く。3枚そろうと一斉に大爆発', cd: 3, at: 'aim', dist: 6, radius: 4, dur: 30, mult: 3, color: 0xfff176, need: 3 },
     e: { id: 'shikigami', kind: 'shots', name: '式神', desc: '紙の式神を5羽 飛ばす', cd: 6, count: 5, spread: 0.2, speed: 22, mult: 0.9, size: 0.3, range: 22, color: 0xfffde7 },
@@ -901,7 +901,7 @@ export const JOBS = {
   },
   hunter: {
     name: '狩人', role: '印を付けて狩る', color: '#a5d6a7',
-    power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 0.89, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.4, speed: 32, mult: 0.8, color: 0xa5d6a7, size: 0.22, range: 28, pierce: true },
     q: { id: 'huntmark', kind: 'mark', name: '獲物の印', desc: '一番近いボスに印。12秒間 そのボスへの自分のダメージ 1.5倍', cd: 14, dur: 12 },
     e: { id: 'netshot', kind: 'shots', name: '投網', desc: '当たったボスを4秒間 鈍らせる網を撃つ', cd: 8, speed: 24, mult: 0.8, size: 0.5, range: 20, color: 0x8d6e63, debuff: { name: 'slow', dur: 4, mul: 0.6 } },
@@ -912,7 +912,7 @@ export const JOBS = {
   },
   gladiator: {
     name: '剣闘士', role: '正面に強い', color: '#ffcc80',
-    power: 0.78, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.5, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.34, hit: 0.12, mult: 1.05 }, { dur: 0.34, hit: 0.12, mult: 1.1 }, { dur: 0.52, hit: 0.2, mult: 1.8 }], range: 2.8, arc: 2.2, heavyBonus: 0.3 },
     q: { id: 'arenaslash', kind: 'cone', name: '闘技の一閃', desc: '前方を大きく斬る', cd: 5, mult: 2.2, range: 4, arc: 1.8, color: 0xffcc80 },
     e: { id: 'netthrow', kind: 'debuff', name: '投げ網', desc: 'ボスに網をかけ、4秒間 鈍らせる', cd: 12, color: 0x8d6e63, debuffs: [{ name: 'slow', dur: 4, mul: 0.6 }] },
@@ -923,7 +923,7 @@ export const JOBS = {
   },
   elementalist: {
     name: '精霊術士', role: '順番に属性が変わる', color: '#80cbc4',
-    power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.33, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.5, speed: 22, mult: 0.85, color: 0x80cbc4, size: 0.3, range: 22 },
     q: { id: 'elemcycle', kind: 'cycle', name: '属性術', desc: '使うたびに 炎（範囲）→ 氷（鈍化）→ 雷（連鎖）と順番に変わる', cd: 4, pool: [
       { name: '炎：火柱', kind: 'zone', zone: 'strike', at: 'aim', dist: 7, radius: 4, dur: 0.6, mult: 2.6, color: 0xff7043 },
@@ -938,7 +938,7 @@ export const JOBS = {
   },
   werewolf: {
     name: '人狼', role: '追い込まれると獣化', color: '#a1887f',
-    power: 0.97, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.16, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.26, hit: 0.09, mult: 0.9 }, { dur: 0.26, hit: 0.09, mult: 0.95 }, { dur: 0.42, hit: 0.16, mult: 1.6 }], range: 2.6, arc: 2.4, heavyBonus: 0.3 },
     q: { id: 'clawrake', kind: 'cone', name: '爪裂き', desc: '前方を爪で引き裂く', cd: 5, mult: 2.2, range: 3.4, arc: 1.8, color: 0xa1887f },
     e: { id: 'pounce', kind: 'leap', name: '飛びかかり', desc: '狙った場所へ飛びかかる', cd: 7, dist: 6, time: 0.45, radius: 3, mult: 2.2, color: 0x8d6e63 },
@@ -949,7 +949,7 @@ export const JOBS = {
   },
   fortress: {
     name: '要塞兵', role: '止まると硬い', color: '#90a4ae',
-    power: 0.67, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 0.76, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.6, speed: 30, mult: 1.0, color: 0x90a4ae, size: 0.26, range: 26 },
     q: { id: 'cannonshot', kind: 'shots', name: '砲撃', desc: '爆発する砲弾を撃つ', cd: 5, speed: 26, mult: 2.2, size: 0.4, range: 26, explode: 3, color: 0x78909c },
     e: { id: 'entrench', kind: 'selfbuff', name: '陣地構築', desc: '6秒間 被ダメージ -40%・攻撃力 +20%（足は遅くなる）', cd: 12, buff: 'entrench', dur: 6, vals: { dmgMul: 0.6, atkMul: 1.2, speedMul: 0.6 }, color: 0x90a4ae },
@@ -961,7 +961,7 @@ export const JOBS = {
   healfist: {
     healer: true,
     name: '治癒拳士', role: '殴って回復', color: '#a5d6a7',
-    power: 0.66, support: 1.92, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 0.95, support: 1.92, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.24, hit: 0.08, mult: 0.8 }, { dur: 0.24, hit: 0.08, mult: 0.85 }, { dur: 0.24, hit: 0.08, mult: 0.85 }, { dur: 0.4, hit: 0.15, mult: 1.4 }], range: 2.4, arc: 2.2, heavyBonus: 0.2 },
     q: { id: 'chipalm', kind: 'cone', name: '気功掌', desc: '前方を打つ（与えたダメージも仲間の回復に回る）', cd: 5, mult: 2.0, range: 3.4, arc: 1.4, color: 0xa5d6a7 },
     e: { id: 'chiwave', kind: 'teamheal', name: '気の波', desc: '周囲8mの味方の HP を 12% 回復（自分は半分）', cd: 12, radius: 8, amount: 0.12, selfMul: 0.5, color: 0xa5d6a7 },
@@ -972,7 +972,7 @@ export const JOBS = {
   },
   sage: {
     name: '賢者', role: 'スキルの回転が速い', color: '#fff59d',
-    power: 0.54, support: 0.54, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 0.88, support: 0.54, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.5, speed: 24, mult: 0.8, color: 0xfff59d, size: 0.28, range: 22 },
     q: { id: 'wisdombolt', kind: 'shots', name: '叡智の矢', desc: '光の矢を3本 撃つ', cd: 3, count: 3, spread: 0.12, speed: 28, mult: 1.0, size: 0.28, range: 24, color: 0xfff59d },
     e: { id: 'wisdomfield', kind: 'zone', zone: 'field', name: '知恵の泉', desc: '足元を6秒間 回復の場にする（敵には継続ダメージ）', cd: 9, radius: 5, dur: 6, every: 0.5, mult: 0.4, heal: 0.015, color: 0xfff59d },
@@ -983,7 +983,7 @@ export const JOBS = {
   },
   acrobat: {
     name: '曲芸師', role: '回避で爆発', color: '#ffd54f',
-    power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.41, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.24, hit: 0.08, mult: 0.85 }, { dur: 0.24, hit: 0.08, mult: 0.9 }, { dur: 0.4, hit: 0.15, mult: 1.5 }], range: 2.5, arc: 2.4, heavyBonus: 0.2 },
     q: { id: 'cartwheel', kind: 'dash', name: '側転斬り', desc: '回りながら6m 斬り抜ける（無敵）', cd: 4, mult: 1.4, dist: 6, time: 0.22, width: 1.5, color: 0xffd54f },
     e: { id: 'juggleknives', kind: 'shots', name: '曲芸ナイフ', desc: '全方向に8本 ナイフを投げる', cd: 7, count: 8, spread: 0.785, speed: 26, mult: 0.9, size: 0.22, range: 16, color: 0xffd54f },
@@ -994,11 +994,11 @@ export const JOBS = {
   },
   driller: {
     name: 'ドリル使い', role: '至近距離で削る', color: '#bdbdbd',
-    power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.43, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.2, hit: 0.07, mult: 0.75 }, { dur: 0.2, hit: 0.07, mult: 0.75 }, { dur: 0.2, hit: 0.07, mult: 0.8 }, { dur: 0.36, hit: 0.13, mult: 1.3 }], range: 2.4, arc: 1.6, heavyBonus: 0.2 },
-    q: { id: 'drillrush', kind: 'beam', name: 'ドリル突撃', desc: '前方3.5m を2秒間 ガリガリ削る（ブレイク大）', cd: 7, len: 3.5, width: 2.2, mult: 0.7, ticks: 14, every: 0.14, color: 0xbdbdbd, brkMul: 3, gaugeSelf: 2 },
+    q: { id: 'drillrush', kind: 'beam', name: 'ドリル突撃', desc: '前方3.5m を2秒間 ガリガリ削る（ブレイク大）', cd: 7, len: 3.5, width: 2.2, mult: 0.4, ticks: 14, every: 0.14, color: 0xbdbdbd, brkMul: 3, gaugeSelf: 2 },
     e: { id: 'drilldive', kind: 'dash', name: '掘り進み', desc: '地面にもぐって6m 進む（無敵）', cd: 6, mult: 1.2, dist: 6, time: 0.3, width: 1.4, color: 0x8d6e63 },
-    r: { id: 'gigadrill', kind: 'beam', name: 'ギガドリル', desc: '巨大なドリルで前方5m を3秒間 削り続ける', len: 5, width: 3.4, mult: 1.1, ticks: 20, every: 0.15, color: 0xe0e0e0, brkMul: 3 },
+    r: { id: 'gigadrill', kind: 'beam', name: 'ギガドリル', desc: '巨大なドリルで前方5m を3秒間 削り続ける', len: 5, width: 3.4, mult: 0.8, ticks: 20, every: 0.15, color: 0xe0e0e0, brkMul: 3 },
     trait: 'ドリルの攻撃はブレイク値が大きい',
     breakMul: 1.3,
     look: { armorColor: 0x616161, swordColor: 0xbdbdbd, swordLen: 0.8, cape: 0xffa000, weapon: 'spear' },
@@ -1006,7 +1006,7 @@ export const JOBS = {
   // ================= 追加の16職（第6弾：独特なしくみ） =================
   absorber: {
     name: '吸収術士', role: '敵弾を吸ってゲージに', color: '#80cbc4',
-    power: 1.36, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.71, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.45, speed: 24, mult: 0.8, color: 0x80cbc4, size: 0.26, range: 22 },
     q: { id: 'devour', kind: 'absorb', name: '弾喰らい', desc: '周り5mの敵弾を吸い込む。1発ごとに必殺ゲージ +4（最大 +24）・HP 1% 回復', cd: 7, radius: 5, gaugePer: 4, gaugeMax: 24, healPer: 0.01, color: 0x80cbc4 },
     e: { id: 'releasebolt', kind: 'shots', name: '放出弾', desc: '吸った力を3発の大きな弾にして撃ち出す（貫通）', cd: 6, count: 3, spread: 0.15, speed: 26, mult: 1.4, size: 0.4, range: 24, pierce: true, color: 0x4db6ac },
@@ -1017,7 +1017,7 @@ export const JOBS = {
   },
   reflector: {
     name: '反射術士', role: '敵弾をはね返す', color: '#b3e5fc',
-    power: 1.6, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.93, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.45, speed: 26, mult: 0.8, color: 0xb3e5fc, size: 0.24, range: 22 },
     q: { id: 'reflectwall', kind: 'reflect', name: '鏡返し', desc: '周り5mの敵弾をはね返す。返した数だけ一番近い敵に大ダメージ', cd: 7, radius: 5, base: 1.0, per: 0.4, cap: 15, color: 0xb3e5fc },
     e: { id: 'prismguard', kind: 'selfbuff', name: 'プリズムの盾', desc: '4秒間 被ダメージ -50%', cd: 12, buff: 'prism', dur: 4, vals: { dmgMul: 0.5 }, color: 0x81d4fa, msg: 'プリズムの盾！' },
@@ -1028,7 +1028,7 @@ export const JOBS = {
   },
   drummer: {
     name: '太鼓叩き', role: 'リズムで殴る', color: '#ffeb3b',
-    power: 0.52, support: 0.38, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 0.89, support: 0.38, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.3, hit: 0.1, mult: 1.0 }, { dur: 0.3, hit: 0.1, mult: 1.0 }, { dur: 0.42, hit: 0.15, mult: 1.4 }], range: 2.6, arc: 2.4, heavyBonus: 0.3 },
     q: { id: 'warbeat', kind: 'teambuff', name: '戦太鼓', desc: '周り10mの味方 8秒間 攻撃力 +20%', cd: 14, radius: 10, buff: 'warbeat', dur: 8, vals: { atkMul: 1.2 }, color: 0xffeb3b, msg: '戦太鼓！ 攻撃力アップ' },
     e: { id: 'thunderdrum', kind: 'burst', name: '轟き打ち', desc: '太鼓を強く叩き、周りを4回 衝撃で打つ', cd: 7, ticks: 4, every: 0.2, mult: 1.3, radius: 4.2, color: 0xfff176 },
@@ -1039,7 +1039,7 @@ export const JOBS = {
   },
   charger: {
     name: '溜め斬り士', role: '待つほど重い一撃', color: '#ffab40',
-    power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.29, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.45, hit: 0.18, mult: 1.3 }, { dur: 0.6, hit: 0.26, mult: 2.0 }], range: 3.0, arc: 2.6, heavyBonus: 0.4 },
     q: { id: 'iaidash', kind: 'dash', name: '踏み込み斬り', desc: '前へ6m 踏み込んで斬る（無敵）', cd: 6, mult: 2.4, dist: 6, time: 0.24, width: 1.8, color: 0xffab40 },
     e: { id: 'waitstance', kind: 'counter', name: '待ちの構え', desc: '1.2秒 構える。攻撃されると受け流して強烈に反撃', cd: 9, dur: 1.2, mult: 4.5, range: 6 },
@@ -1050,7 +1050,7 @@ export const JOBS = {
   },
   thornknight: {
     name: '棘の騎士', role: '殴られて反撃', color: '#8bc34a',
-    power: 0.77, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.09, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     dmgTaken: 0.85,
     basic: { type: 'melee', combo: [{ dur: 0.32, hit: 0.12, mult: 1.0 }, { dur: 0.32, hit: 0.12, mult: 1.05 }, { dur: 0.48, hit: 0.18, mult: 1.6 }], range: 2.6, arc: 2.4, heavyBonus: 0.3 },
     q: { id: 'briarbash', kind: 'burst', name: '茨払い', desc: '周りを茨で2回 打つ', cd: 6, ticks: 2, every: 0.2, mult: 1.6, radius: 3.6, color: 0x8bc34a },
@@ -1075,7 +1075,7 @@ export const JOBS = {
     name: 'ブーメラン使い', role: '行って帰って2回当てる', color: '#ffcc80',
     power: 0.88, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.55, speed: 22, mult: 0.75, color: 0xffcc80, size: 0.32, range: 13, pierce: true, boomerang: true },
-    q: { id: 'tripleboom', kind: 'shots', name: '三連ブーメラン', desc: '3本のブーメランを投げる（行きと帰りで当たる）', cd: 5, count: 3, spread: 0.3, speed: 22, mult: 1.0, size: 0.34, range: 14, pierce: true, boomerang: true, color: 0xffb74d },
+    q: { id: 'tripleboom', kind: 'shots', name: '三連ブーメラン', desc: '3本のブーメランを投げる（行きと帰りで当たる）', cd: 5, count: 3, spread: 0.3, speed: 22, mult: 0.55, size: 0.34, range: 14, pierce: true, boomerang: true, color: 0xffb74d },
     e: { id: 'boomroll', kind: 'dash', name: '転がり投げ', desc: '前へ転がって6m 進む（無敵）', cd: 6, mult: 1.0, dist: 6, time: 0.25, width: 1.4, color: 0xffcc80 },
     r: { id: 'boomstorm', kind: 'shots', name: 'ブーメラン乱舞', desc: '全方向に12本 ブーメランを投げる', count: 12, spread: 0.524, speed: 22, mult: 1.6, size: 0.4, range: 15, pierce: true, boomerang: true, color: 0xff9800 },
     trait: '通常攻撃のブーメランは戻ってくる（貫通・往復で当たる）',
@@ -1084,7 +1084,7 @@ export const JOBS = {
   },
   shredder: {
     name: '鎧砕き', role: '殴るほどボスがもろく', color: '#90a4ae',
-    power: 0.6, support: 0.68, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 0.89, support: 0.68, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.36, hit: 0.14, mult: 1.1 }, { dur: 0.36, hit: 0.14, mult: 1.1 }, { dur: 0.55, hit: 0.22, mult: 1.8 }], range: 2.7, arc: 2.4, heavyBonus: 0.3 },
     q: { id: 'armorbreak', kind: 'cone', name: '鎧割り', desc: '前方を叩き割る（ブレイク大）', cd: 6, mult: 2.6, range: 3.6, arc: 1.4, color: 0x90a4ae, brkMul: 2.5 },
     e: { id: 'quakeleap', kind: 'leap', name: '地割り跳び', desc: '跳んで狙った場所に叩きつける', cd: 8, dist: 6, time: 0.45, radius: 3.6, mult: 2.4, color: 0x78909c },
@@ -1095,7 +1095,7 @@ export const JOBS = {
   },
   exorcist: {
     name: 'エクソシスト', role: '怒ったボスに強い', color: '#fffde7',
-    power: 1.14, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.48, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.45, speed: 26, mult: 0.8, color: 0xfffde7, size: 0.26, range: 22 },
     q: { id: 'holybind', kind: 'debuff', name: '聖なる縛り', desc: 'ボスを6秒間 鈍らせる', cd: 12, color: 0xfff9c4, debuffs: [{ name: 'slow', dur: 6, mul: 0.65 }] },
     e: { id: 'purgelight', kind: 'cleanse', name: '祓いの光', desc: '周り6mの敵弾を消し、周りの敵を打つ', cd: 9, radius: 6, mult: 1.4, color: 0xfff59d },
@@ -1117,7 +1117,7 @@ export const JOBS = {
   },
   bellringer: {
     name: '鐘撞き', role: '弾幕を遅くする', color: '#ffe082',
-    power: 0.85, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.26, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.38, hit: 0.15, mult: 1.1 }, { dur: 0.38, hit: 0.15, mult: 1.1 }, { dur: 0.55, hit: 0.22, mult: 1.7 }], range: 2.7, arc: 2.6, heavyBonus: 0.3 },
     q: { id: 'slowbell', kind: 'bell', name: '眠りの鐘', desc: '鐘を鳴らして4秒間 敵弾を半分の速さにする', cd: 12, mul: 0.5, dur: 4, mult: 1.2, radius: 4, color: 0xffe082 },
     e: { id: 'bellslam', kind: 'burst', name: '鐘打ち', desc: '鐘を振り回して周りを3回 打つ', cd: 7, ticks: 3, every: 0.22, mult: 1.6, radius: 4, color: 0xffd54f },
@@ -1128,7 +1128,7 @@ export const JOBS = {
   },
   gardener: {
     name: '庭師', role: '花を植えて咲かせる', color: '#f8bbd0',
-    power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.64, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.45, speed: 22, mult: 0.8, color: 0xf8bbd0, size: 0.26, range: 22 },
     q: { id: 'flowerbed', kind: 'zone', zone: 'field', name: '花壇', desc: '狙った場所に5秒の花壇（敵に継続ダメージ・味方を少し回復）。咲き終わると爆発', cd: 8, at: 'aim', dist: 5, radius: 3.5, dur: 5, every: 0.5, mult: 0.3, heal: 0.005, endBurst: 3, color: 0xf48fb1 },
     e: { id: 'vinewhip', kind: 'cone', name: 'つる打ち', desc: '前方をつるで打つ', cd: 5, mult: 1.8, range: 4.5, arc: 1.2, color: 0x66bb6a, melee: false },
@@ -1139,7 +1139,7 @@ export const JOBS = {
   },
   echomage: {
     name: '残響術士', role: '技がもう一度響く', color: '#b388ff',
-    power: 1, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.23, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.5, speed: 24, mult: 0.8, color: 0xb388ff, size: 0.26, range: 22 },
     q: { id: 'echobolt', kind: 'shots', name: '響きの矢', desc: '3本の矢を撃つ（1秒後にもう一度）', cd: 5, count: 3, spread: 0.14, speed: 26, mult: 1.1, size: 0.28, range: 24, color: 0xb388ff },
     e: { id: 'echopulse', kind: 'burst', name: '共鳴波', desc: '周りに音の波（1秒後にもう一度）', cd: 7, ticks: 2, every: 0.2, mult: 1.4, radius: 4.5, color: 0x7c4dff, melee: false },
@@ -1150,7 +1150,7 @@ export const JOBS = {
   },
   vanguard: {
     name: '先駆け', role: 'ボス戦の出だしに強い', color: '#ef5350',
-    power: 1, support: 0.31, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.69, support: 0.31, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.3, hit: 0.1, mult: 1.0 }, { dur: 0.3, hit: 0.1, mult: 1.05 }, { dur: 0.48, hit: 0.18, mult: 1.6 }], range: 3.2, arc: 1.8, heavyBonus: 0.4 },
     q: { id: 'spearcharge', kind: 'dash', name: '一番槍', desc: '前へ8m 突撃する（無敵）', cd: 6, mult: 2.2, dist: 8, time: 0.26, width: 1.6, color: 0xef5350 },
     e: { id: 'sweepspear', kind: 'cone', name: '薙ぎ払い', desc: '槍で前方を大きく薙ぐ', cd: 5, mult: 2.0, range: 4.2, arc: 2.6, color: 0xe57373 },
@@ -1161,7 +1161,7 @@ export const JOBS = {
   },
   conductor: {
     name: '指揮者', role: 'みんなの技を回す', color: '#ce93d8',
-    power: 1.29, support: 2, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.81, support: 2, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.45, speed: 24, mult: 0.75, color: 0xe1bee7, size: 0.24, range: 22 },
     q: { id: 'tempoup', kind: 'teambuff', name: 'アッチェレランド', desc: '周り10mの味方 8秒間 移動 +25%・攻撃力 +10%', cd: 13, radius: 10, buff: 'tempo', dur: 8, vals: { speedMul: 1.25, atkMul: 1.1 }, color: 0xce93d8, msg: 'テンポアップ！' },
     e: { id: 'crescendo', kind: 'teamgauge', name: 'クレッシェンド', desc: '周り10mの味方の必殺ゲージ +12', cd: 14, radius: 10, amount: 12, color: 0xba68c8 },
@@ -1172,7 +1172,7 @@ export const JOBS = {
   },
   sacrifice: {
     name: '献身者', role: '身を削って仲間を起こす', color: '#ef9a9a',
-    power: 1.13, support: 2.6, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
+    power: 1.64, support: 2.6, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.5, speed: 22, mult: 0.8, color: 0xef9a9a, size: 0.26, range: 22 },
     q: { id: 'bloodward', kind: 'teambuff', name: '血の盾', desc: '周り8mの味方にバリア（最大 HP の 20%・6秒）', cd: 14, radius: 8, buff: 'barrier', dur: 6, vals: { shield: 0.2 }, color: 0xe57373, msg: '血の盾が張られた！' },
     e: { id: 'offering', kind: 'teamgauge', name: '捧げもの', desc: '周り10mの味方の必殺ゲージ +10', cd: 14, radius: 10, amount: 10, color: 0xef5350 },
