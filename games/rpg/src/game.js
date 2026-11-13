@@ -25,6 +25,7 @@ import { createHudView } from './ui/hudview.js';
 import { createModalHost, createDialog } from './ui/dialog.js';
 import { openLobby } from './ui/lobby.js';
 import { openTitleMenu, openStageSelect, closeMenu } from './ui/menu.js';
+import { getChat, mountGame } from './ui/chat.js';
 import { openJobPicker } from './ui/jobpick.js';
 import { createNameplates } from './ui/nameplates.js';
 import { createLights, loadArea, updateAreaLogic, checkSeals, bossDown, makeRoom } from './area.js';
@@ -44,6 +45,7 @@ const CONTROLS = [
   'Q・E：スキル（クールダウン）　R：必殺技（攻撃を当てて溜める。近接ほど早く溜まる）',
   'ダッシュと回避はスタミナを使う。0 になるとバテて、満タンに戻るまで使えない',
   'ホイール：カメラ距離（三人称）　Esc：ポーズ',
+  'Enter：チャット（協力プレイ中。定型文もある）',
 ].join('\n');
 /** スマホ（横持ち）の操作説明 */
 const TOUCH_CONTROLS = [
@@ -51,6 +53,7 @@ const TOUCH_CONTROLS = [
   '攻撃ボタン：通常攻撃（長押しで出し続ける。押したままドラッグで狙いも動く）',
   '回避・Q・E：スキル　R：必殺技（攻撃を当てて溜める）　調べる：看板の前で出る',
   '上のボタン：視点の切り替え（一人称／三人称）・全画面・ポーズ',
+  '💬：チャット（協力プレイ中。定型文もある）',
 ].join('\n');
 
 export function createGame() {
@@ -372,7 +375,8 @@ export function createGame() {
 
   // ---- ポインタロックとモーダル ----
   let expectUnlock = false;
-  const canLock = () => !touch && game.playing && !game.modal.open && !isOverlayOpen() && !game.down;
+  let gameChat = null; // 協力プレイ中のチャット（ui/chat.js）
+  const canLock = () => !touch && game.playing && !game.modal.open && !isOverlayOpen() && !game.down && !gameChat?.isOpen();
   renderer.domElement.addEventListener('click', () => {
     if (canLock()) input.lockPointer();
   });
@@ -672,6 +676,22 @@ export function createGame() {
     setPlayers(roster, net.myId);
     game.isClient = !net.isHost;
     game.raid = createRaid(game, net, raidHandlers);
+    // チャット（準備画面から引き継ぐ）
+    const chat = getChat(net, () => { const me = game.me(); return { name: me?.name || saveData.settings.name || '???', color: JOBS[me?.jobId]?.color || '#cfd8dc' }; });
+    gameChat = mountGame(chat, {
+      touch: !!touch,
+      onOpen: () => {
+        if (document.pointerLockElement) {
+          expectUnlock = true;
+          input.unlockPointer();
+        }
+      },
+      onClose: () => {
+        input.endFrame();
+        setTimeout(() => { if (canLock()) input.lockPointer(); }, 0);
+      },
+    });
+    gameChat.chat = chat;
     const pr = newProgress(AREAS[area] ? area : 'castle');
     pr.bossStep = stepN || 0;
     begin(pr);
@@ -679,6 +699,11 @@ export function createGame() {
   }
 
   function leaveRaid() {
+    if (gameChat) {
+      gameChat.destroy();
+      gameChat.chat.dispose();
+      gameChat = null;
+    }
     if (!game.raid) return;
     const r = game.raid;
     game.raid = null;
@@ -941,6 +966,8 @@ export function createGame() {
       } else pause();
     }
     const active = game.playing && !isPaused() && !game.modal.open && !isOverlayOpen();
+    gameChat?.update(dt);
+    if (active && gameChat && !gameChat.isOpen() && input.wasPressed('Enter')) gameChat.open(); // Enter：チャット
     if (active && !game.down && input.wasPressed('KeyV')) game.setView(game.cam.fps ? 'tps' : 'fps', true);
 
     // カメラ操作（ロック中、または右ドラッグ）

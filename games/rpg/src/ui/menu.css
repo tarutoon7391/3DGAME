@@ -201,3 +201,49 @@ body .g3-btns{gap:14px}
   .rpg-stage-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .rpg-jobsel-body{grid-template-columns:1fr;overflow:auto}
 }
+
+/* ================= チャット（ui/chat.js） ================= */
+.rpg-chat-line{font-size:13px;line-height:1.45;word-break:break-all}
+.rpg-chat-line b{margin-right:6px;text-shadow:1px 1px 0 #0008}
+.rpg-chat-quick{display:flex;flex-wrap:wrap;gap:5px}
+.rpg-chat-quick button{font:inherit;font-size:12px;cursor:pointer;border:0;border-radius:0;padding:4px 8px;background:var(--paper2);color:var(--ink);box-shadow:0 0 0 2px var(--line)}
+.rpg-chat-quick button:active{transform:translateY(1px)}
+/* 準備画面 */
+.rpg-chat-lobby{display:flex;flex-direction:column;gap:8px}
+.rpg-chat-head{font-weight:bold;font-size:14px}
+.rpg-chat-lobby .rpg-chat-log{height:120px;overflow:auto;background:var(--wood);color:var(--cream);padding:6px 8px;box-shadow:inset 0 0 0 2px var(--line)}
+.rpg-chat-lobby .rpg-chat-line.mine{color:#fff3c4}
+.rpg-chat-empty{color:#bfae8a;font-size:12px}
+.rpg-chat-form{display:flex;gap:8px}
+.rpg-chat-form .rpg-b{flex:none;min-height:36px;padding:4px 14px}
+/* 遊んでいる間 */
+.rpg-chat-game{position:fixed;left:12px;bottom:200px;z-index:25;width:min(380px,46vw);font-family:var(--ui-font);pointer-events:none}
+.rpg-chat-game .rpg-chat-log{display:flex;flex-direction:column;gap:3px}
+.rpg-chat-game .rpg-chat-line{color:#fff;background:#1a0e06a6;padding:3px 8px;width:fit-content;max-width:100%;text-shadow:1px 1px 0 #000}
+.rpg-chat-game.open .rpg-chat-log{max-height:40vh;overflow:auto}
+.rpg-chat-bar{pointer-events:auto;margin-top:8px;display:flex;flex-direction:column;gap:6px;background:#1a0e06d9;padding:8px;box-shadow:0 0 0 2px var(--line)}
+.rpg-chat-bar[hidden]{display:none}
+.rpg-chat-row{display:flex;gap:6px}
+.rpg-chat-row input{flex:1;min-width:0;font:inherit;font-size:16px;padding:6px 8px;border:0;border-radius:0;background:#fffaf0;color:var(--ink)}
+.rpg-chat-row button{font:inherit;font-weight:bold;border:0;border-radius:0;padding:6px 12px;background:var(--grass);color:var(--cream);box-shadow:inset 0 -3px 0 var(--grass-lo);cursor:pointer}
+.rpg-chat-row .rpg-chat-x{background:var(--brick);box-shadow:inset 0 -3px 0 var(--brick-lo)}
+.rpg-chat-btn[hidden]{display:none}
+.rpg-chat-hint{margin-top:4px;font-size:11px;color:#fff;opacity:.55;text-shadow:1px 1px 0 #000}
+.rpg-chat-game.open .rpg-chat-row .rpg-chat-x{background:var(--brick);box-shadow:inset 0 -3px 0 var(--brick-lo)}
+.rpg-chat-btn[hidden]{display:none}
+.rpg-chat-hint{display:none}
+.rpg-chat-btn{z-index:26;font-family:var(--ui-font);pointer-events:auto;position:fixed;top:60px;right:12px;width:44px;height:44px;font-size:22px;border:0;border-radius:0;background:#1a0e06b3;box-shadow:0 0 0 2px var(--line);cursor:pointer}
+@media (max-height:520px){
+  /* スマホ：発言は下の真ん中（スティックとボタンの間）、入力は上の真ん中 */
+  .rpg-chat-game{bottom:10px;left:50%;transform:translateX(-50%);width:min(300px,34vw)}
+  .rpg-chat-game .rpg-chat-log{align-items:center}
+  .rpg-chat-game.open{bottom:auto;top:8px;width:min(480px,56vw)}
+  .rpg-chat-game.open .rpg-chat-log{align-items:flex-start;max-height:22vh}
+  .rpg-chat-line{font-size:11px}
+  .rpg-chat-btn{top:8px;right:auto;left:calc(50% - 160px);width:40px;height:40px;font-size:20px}
+  /* 準備画面：チャットがあるときは右の欄ごとスクロール */
+  .rpg-jobsel-right:has(.rpg-chat-lobby){overflow:auto}
+  .rpg-jobsel-right:has(.rpg-chat-lobby) .rpg-jobinfo{flex:none;overflow:visible}
+  .rpg-chat-lobby .rpg-chat-log{height:64px}
+  .rpg-chat-lobby .rpg-chat-quick button{font-size:11px;padding:3px 6px}
+}
