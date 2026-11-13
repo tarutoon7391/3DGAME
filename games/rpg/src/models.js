@@ -112,7 +112,8 @@ export function makeHero(look) {
   const hair = mat(0x5a3a1a);
   const cape = costume ? costume.cape : look.cape ?? 0xb71c1c;
   const weapon = look.weapon || 'sword';
-  const ticks = costume ? costume.build(h) : []; // 髪・鎧・小物は衣装側
+  const extra = costume ? costume.build(h) : { ticks: [], onShot: null }; // 髪・鎧・小物は衣装側
+  const ticks = extra.ticks;
   if (!costume) {
     part(box(0.56, 0.16, 0.56), hair, 0, 2.13, -0.02, h.root);
     part(box(0.56, 0.32, 0.12), hair, 0, 1.96, -0.24, h.root);
@@ -213,7 +214,7 @@ export function makeHero(look) {
   if (look.tint != null) tintModel(h.group, look.tint);
   // tick(t)：衣装の動く飾りを動かす（毎フレーム）
   const tick = ticks.length ? (t) => { for (const f of ticks) f(t); } : null;
-  return { ...h, sword, blade, swordMat, armorMat, shield, tick }; // shield：盾（聖騎士の神の盾で大きくなる）
+  return { ...h, sword, blade, swordMat, armorMat, shield, tick, onShot: extra.onShot }; // shield：盾（聖騎士の神の盾で大きくなる）
 }
 
 /** 体（武器を除く）の色を tint へ寄せる（変化師が変化している間）。材質は写して変える */

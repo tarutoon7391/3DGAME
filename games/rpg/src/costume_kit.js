@@ -22,6 +22,10 @@ export function kit(h) {
     ticks,
     /** 毎フレーム動かす処理を足す（fn(t)：t は秒） */
     tick(fn) { ticks.push(fn); },
+    /** 弾を撃ったときに呼ばれる処理（fn(color)：弾の色。双子の色の切り替え） */
+    onShot: null,
+    /** 個体ごとの材質（色をあとで変えるもの） */
+    own: (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.75, flatShading: true }),
     arms: [h.armL, h.armR], // [左腕, 右腕（武器を持つ側）]
     /** 色以外も指定した材質（{ color, transparent, opacity, emissive … }） */
     mat: ({ color, ...rest }) => mat(color, rest),

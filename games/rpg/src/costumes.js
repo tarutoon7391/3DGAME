@@ -6,6 +6,7 @@ import { kit, metal } from './costume_kit.js';
 import { COSTUMES_A } from './costumes_a.js';
 import { COSTUMES_B } from './costumes_b.js';
 import { COSTUMES_C } from './costumes_c.js';
+import { COSTUMES_D } from './costumes_d.js';
 
 const DEFS = {
   // 剣士：黄色の服に鉛色の軽い鎧。金髪
@@ -62,10 +63,11 @@ const DEFS = {
   ...COSTUMES_A,
   ...COSTUMES_B,
   ...COSTUMES_C,
+  ...COSTUMES_D,
 };
 
 export const COSTUMES = {};
 for (const [id, d] of Object.entries(DEFS)) {
-  // build(h) → 毎フレーム動かす処理の一覧（浮かぶ小石・魂の炎など。なければ空）
-  COSTUMES[id] = { ...d, build: (h) => { const k = kit(h); d.make(k, h); return k.ticks; } };
+  // build(h) → { ticks：毎フレーム動かす処理（浮かぶ小石・魂の炎など）, onShot：弾を撃ったとき（双子） }
+  COSTUMES[id] = { ...d, build: (h) => { const k = kit(h); d.make(k, h); return { ticks: k.ticks, onShot: k.onShot }; } };
 }
