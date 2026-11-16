@@ -80,13 +80,18 @@ export function createSound(audio) {
       playBgm(name);
     },
     get current() { return current; },
-    /** 音量を変える（{ master, bgm, se, mute } のうち変えたいものだけ） */
-    setVolume(o) {
+    /**
+     * 音量を変える（{ master, bgm, se, mute } のうち変えたいものだけ）
+     * BGM の音量が変わったら鳴らし直す（鳴っている音の音量は後から変えられないため）。
+     * later: true なら鳴らし直さない（つまみを動かしている間。止まったら refreshBgm を呼ぶ）
+     */
+    setVolume(o, { later = false } = {}) {
       const before = bgmK();
       Object.assign(vol, o);
-      // BGM の音量が変わったら鳴らし直す（鳴っている音の音量は後から変えられないため）
-      if (Math.abs(bgmK() - before) > 0.001) playBgm(current);
+      if (!later && Math.abs(bgmK() - before) > 0.001) playBgm(current);
     },
+    /** BGM を今の音量で鳴らし直す */
+    refreshBgm() { playBgm(current); },
     get volume() { return { ...vol }; },
   };
 }

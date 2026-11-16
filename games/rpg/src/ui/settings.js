@@ -14,8 +14,8 @@ export function createSettings({ settings, save, sound, touch, onOpen }) {
   const opts = { ...DEFAULT_OPTS, ...(settings.opts || {}) };
   let open = false;
 
-  function apply() {
-    sound.setVolume({ master: opts.master, bgm: opts.bgm, se: opts.se, mute: opts.mute });
+  function apply(later = false) {
+    sound.setVolume({ master: opts.master, bgm: opts.bgm, se: opts.se, mute: opts.mute }, { later });
     VIEW.sensMul = opts.sens; // camera.js がマウスの動きに掛ける
     VIEW.touchSensMul = opts.touchSens; // ui/touch.js が視点ドラッグに掛ける
     gear.textContent = opts.mute ? '🔇' : '⚙';
@@ -71,6 +71,13 @@ export function createSettings({ settings, save, sound, touch, onOpen }) {
   }
   function hide() {
     if (!open) return;
+    // 試し聞きを待っている途中で閉じたら、すぐ反映する
+    if (testTimer) {
+      clearTimeout(testTimer);
+      testTimer = 0;
+      if (testBgm) sound.refreshBgm();
+      testBgm = testSe = false;
+    }
     open = false;
     panel.hidden = true;
   }
@@ -79,14 +86,26 @@ export function createSettings({ settings, save, sound, touch, onOpen }) {
     e.stopPropagation();
     open ? hide() : show();
   });
+  // 音量のつまみ：動かしている間は鳴らさず、0.5 秒止まったら BGM を新しい音量で鳴らし直し、効果音を試しに鳴らす
+  let testTimer = 0;
+  let testBgm = false;
+  let testSe = false;
   panel.addEventListener('input', (e) => {
     const k = e.target.dataset?.k;
     if (!k) return;
     opts[k] = Number(e.target.value);
     const v = panel.querySelector(`[data-v="${k}"]`);
     if (v) v.textContent = k === 'sens' || k === 'touchSens' ? `×${opts[k].toFixed(1)}` : pct(opts[k]);
-    apply();
-    if (k === 'se') sound.se('hit'); // 効果音の大きさを試し聞き
+    apply(true);
+    if (k === 'bgm' || k === 'master') testBgm = true;
+    if (k === 'se' || k === 'master') testSe = true;
+    if (!testBgm && !testSe) return;
+    clearTimeout(testTimer);
+    testTimer = setTimeout(() => {
+      if (testBgm) sound.refreshBgm();
+      if (testSe) sound.se('hit'); // 効果音の大きさを試し聞き
+      testBgm = testSe = false;
+    }, 500);
   });
   panel.addEventListener('change', () => store()); // つまみを離したときに保存
   panel.addEventListener('click', (e) => {
