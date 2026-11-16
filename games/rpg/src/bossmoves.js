@@ -3,6 +3,7 @@
 // ホストだけが当たり判定をし、見た目は vfx（参加者にも送る）・予兆（ミラー）・弾（ミラー）で揃える
 // 参加者のボスは姿勢だけ poseSeq で同じ台本から作る（b.t と pattern は届いた状態）
 import { angleDiff, yawTo, rand } from './util.js';
+import { armExt, fireExt, activeExt, poseExt } from './bossmoves_ext.js';
 
 const DEF_TELE = { hit: 0.5, zones: 0.6, mover: 0.5, rot: 0.6, safe: 0, check: 0, facing: 0, all: 0, still: 0.8 };
 
@@ -113,6 +114,7 @@ export function poseSeq(m, p, t, mul) {
       if (m.heads) for (const h of m.heads) h.rotation.x = (h.userData.rx ?? 0) - 0.8;
       break;
     default:
+      poseExt(m, cur, t); // 追加の姿勢（src/bossmoves_ext.js）
       break;
   }
 }
@@ -161,6 +163,16 @@ export function createMoveRunner(ctx) {
           const ang = a + (i - ((s.n || 3) - 1) / 2) * (s.spread || 0.5);
           return fwd(b.pos.x, b.pos.z, ang, s.dist || 0);
         });
+      case 'around': { // 包囲：標的を囲む輪の上から、標的へ向かう向き
+        const c = tgt || b;
+        const n = s.n || 4;
+        const off = s.off ?? rand(0, Math.PI * 2);
+        return Array.from({ length: n }, (_, i) => {
+          const ang = off + (i / n) * Math.PI * 2;
+          const d = s.dist || 10;
+          return { x: c.pos.x + Math.sin(ang) * d, z: c.pos.z + Math.cos(ang) * d, yaw: ang + Math.PI };
+        });
+      }
       case 'grid': { // 裂け目：標的を通る十字・平行線
         const c = tgt || b;
         const n = s.n || 3;
@@ -174,6 +186,9 @@ export function createMoveRunner(ctx) {
     }
   }
 
+  /** 追加の技（src/bossmoves_ext.js）に渡す道具 */
+  const extApi = () => ({ game, b, ctx, run, spots, color, fracOf });
+
   // 台本が終わったあとに時間差で当たる分（emit）もあるので、run は見ない
   const fracOf = (s) => ctx.meleeHit * (s.k ?? (s.ultK ? 3 : 1));
 
@@ -185,6 +200,10 @@ export function createMoveRunner(ctx) {
         return d < s.r + pr && (d < 1.2 || Math.abs(angleDiff(sp.yaw, yawTo(sp.x, sp.z, x, z))) < s.arc / 2);
       };
       case 'rect': return ctx.inRect(sp.x, sp.z, sp.yaw, s.len, s.w);
+      case 'cross': { // 十字：中心から4方向へ伸びる帯
+        const arms = [0, 1, 2, 3].map((k) => ctx.inRect(sp.x, sp.z, sp.yaw + (k * Math.PI) / 2, s.len, s.w));
+        return (x, z, pr) => arms.some((f) => f(x, z, pr));
+      }
       case 'donut': return (x, z, pr) => {
         const d = Math.hypot(x - sp.x, z - sp.z);
         return d > s.rIn - pr * 0.5 && d < s.rOut + pr;
@@ -198,6 +217,10 @@ export function createMoveRunner(ctx) {
     switch (s.shape) {
       case 'sector': return game.fx.telegraph('sector', { x: sp.x, z: sp.z, r: s.r, arc: s.arc, angle: sp.yaw, dur });
       case 'rect': return game.fx.telegraph('rect', { x: sp.x, z: sp.z, len: s.len, width: s.w, angle: sp.yaw, dur });
+      case 'cross': {
+        const ts = [0, 1, 2, 3].map((k) => game.fx.telegraph('rect', { x: sp.x, z: sp.z, len: s.len, width: s.w, angle: sp.yaw + (k * Math.PI) / 2, dur }));
+        return { end() { ts.forEach((t) => t.end()); }, follow() {} };
+      }
       case 'donut':
         ctx.hazard('donut', { x: +sp.x.toFixed(2), z: +sp.z.toFixed(2), rIn: s.rIn, rOut: s.rOut, dur });
         return null;
@@ -262,7 +285,7 @@ export function createMoveRunner(ctx) {
         ctx.vfx('safe', { list, dur: s.show ?? 3 });
         break;
       }
-      default: break;
+      default: armExt(st, tgt, extApi()); break; // 追加の技（src/bossmoves_ext.js）
     }
   }
 
@@ -343,7 +366,7 @@ export function createMoveRunner(ctx) {
         });
         break;
       case 'pull':
-        ctx.hazard('pull', { x: +b.pos.x.toFixed(2), z: +b.pos.z.toFixed(2), strength: s.strength, t: s.dur * run.mul, color: col });
+        ctx.hazard('pull', { x: +b.pos.x.toFixed(2), z: +b.pos.z.toFixed(2), strength: s.strength, spin: s.spin || 0, t: s.dur * run.mul, color: col });
         game.sound.se('roar');
         break;
       case 'wall': {
@@ -442,7 +465,7 @@ export function createMoveRunner(ctx) {
         game.sound.se(s.se);
         if (s.shake) game.fx.shake(s.shake);
         break;
-      default: break;
+      default: fireExt(st, tgt, extApi()); break;
     }
   }
 
@@ -659,7 +682,7 @@ export function createMoveRunner(ctx) {
           done = a.t >= s.dur;
           break;
         }
-        default: done = true;
+        default: done = activeExt(a, dt, extApi())?.done ?? true;
       }
       if (done) run.active.splice(i, 1);
     }

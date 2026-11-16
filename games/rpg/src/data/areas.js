@@ -20,6 +20,44 @@ function mazeArea(o) {
   };
 }
 
+/**
+ * ボス5連戦の回廊（ステージ7〜9）。部屋の区切りはステージ3〜6 と同じで、最後の部屋だけ縦横 big 倍に広げる
+ * 狭い部屋の横（最後の部屋の幅まで）は岩盤でふさぐ。bosses は5部屋ぶん（4番目は pair で複数体）
+ */
+function bossHall(o) {
+  const f = o.big || 1;
+  const hw = 22 * f;
+  const lastZ = -114;
+  const minZ = lastZ - 50 * f;
+  const bz = (lastZ + minZ) / 2 - 4; // 最後の部屋の真ん中より少し奥
+  const solids = [
+    { minX: -22, maxX: -5, minZ: 30, maxZ: 50 },
+    { minX: 5, maxX: 22, minZ: 30, maxZ: 50 },
+  ];
+  if (f > 1) solids.push({ minX: -hw, maxX: -22, minZ: lastZ, maxZ: 50 }, { minX: 22, maxX: hw, minZ: lastZ, maxZ: 50 });
+  const rooms = [
+    { x: 0, z: 12, triggerZ: 25, door: 0, respawn: { x: 0, z: 44 } },
+    { x: 0, z: -22, triggerZ: -9, door: 1, respawn: { x: 0, z: -0.5 } },
+    { x: 0, z: -56, triggerZ: -43, door: 2, respawn: { x: 0, z: -34.5 } },
+    { x: 0, z: -94, triggerZ: -77, door: 3, respawn: { x: 0, z: -68.5 } },
+    { x: 0, z: bz, triggerZ: -120, door: 4, respawn: { x: 0, z: -110.5 } },
+  ];
+  return {
+    castle: true, wallH: 3.2, gates: [], pillars: [], torches: [], carpet: false,
+    ...o,
+    bounds: { minX: -hw, maxX: hw, minZ, maxZ: 50 },
+    spawn: { x: 0, z: 44 },
+    solids,
+    doors: [{ z: 30, gap: 3 }, { z: -4, gap: 3 }, { z: -38, gap: 3 }, { z: -72, gap: 3.5 }, { z: lastZ, gap: 3.5 }],
+    bosses: o.bosses.map((bd, i) => {
+      const r = { ...rooms[i], ...bd };
+      // pair の位置は部屋の中心からのずれ（dx, dz）で書く
+      if (bd.pair) r.pair = bd.pair.map((m) => ({ key: m.key, x: r.x + (m.dx || 0), z: r.z + (m.dz || 0) }));
+      return r;
+    }),
+  };
+}
+
 export const AREAS = {
   forest: mazeArea({
     name: '1-1　迷いの森', stage: 1, bgm: 'village', next: 'canyon', nextLabel: '岩の迷宮へ',
@@ -215,11 +253,63 @@ export const AREAS = {
     ],
     signs: [{ x: 3.5, z: 42, key: 'frost' }],
   },
+
+  // ステージ7：蒼海の神殿（海の底の神殿）。最後の部屋は縦横2倍で、クラーケンも2倍
+  sea: bossHall({
+    name: 'ステージ7　蒼海の神殿', stage: 9, bgm: 'castle', dark: true, wallH: 7, big: 2,
+    sky: 0x04223a, fog: [14, 70], ground: 0x0d3b4f,
+    sun: { color: 0x80deea, intensity: 0.7, hemi: 0.55, sky: 0x4dd0e1, ground: 0x0d2b3a },
+    palette: { wall: 0x1c4f63, trim: 0x4dd0e1, rock: 0x123847, pillar: 0x1f5c70, tileA: 0x15495b, tileB: 0x0f3a4a, flame: 0x84ffff, flameGlow: 0x00e5ff, light: 0x80deea, carpet: 0x006064 },
+    torches: [[-4.6, 40], [4.6, 40], [-21.5, 13], [21.5, 13], [-21.5, -21], [21.5, -21], [-21.5, -55], [21.5, -55], [-21.5, -90], [21.5, -90], [-43.5, -140], [43.5, -140], [-43.5, -190], [43.5, -190]],
+    deco: 'sea',
+    bosses: [
+      { key: 'siren', circle: 0x4dd0e1, label: '第1の間' },
+      { key: 'kingcrab', circle: 0xff7043, label: '第2の間' },
+      { key: 'leviath', circle: 0x1e88e5, label: '第3の間' },
+      { circle: 0x26a69a, label: '第4の間（2体同時）', pair: [{ key: 'triton', dx: -7 }, { key: 'gazer', dx: 7, dz: -4 }] },
+      { key: 'kraken', circle: 0x7b1fa2, label: '深淵の大広間' },
+    ],
+    signs: [{ x: 3.5, z: 42, key: 'sea' }],
+  }),
+
+  // ステージ8：灼熱の火山（屋外の火口）。最後の部屋は縦横2倍で、ムスペルも2倍
+  lava: bossHall({
+    name: 'ステージ8　灼熱の火山', stage: 10, bgm: 'field', outdoor: true, big: 2,
+    sky: 0x3e1c14, fog: [45, 160], ground: 0x3e2723,
+    sun: { color: 0xff8a50, intensity: 2.2, hemi: 0.8, sky: 0xff7043, ground: 0x3e2723, offset: { x: 25, y: 22, z: 15 } },
+    palette: { wall: 0x4e342e, trim: 0xff6d00, rock: 0x3e2723, pillar: 0x4e342e, tileA: 0x4e342e, tileB: 0x3e2723, flame: 0xff9100, flameGlow: 0xff3d00, light: 0xffab40, carpet: 0x8d6e63 },
+    deco: 'lava',
+    bosses: [
+      { key: 'salamander', circle: 0xff5722, label: '第1の火口' },
+      { key: 'lavaworm', circle: 0xff9100, label: '第2の火口' },
+      { key: 'ifrit', circle: 0xffab00, label: '第3の火口' },
+      { circle: 0xd50000, label: '第4の火口（2体同時）', pair: [{ key: 'vulcan', dx: -7 }, { key: 'blaze', dx: 7, dz: -4 }] },
+      { key: 'muspel', circle: 0xff3d00, label: '巨神の火口' },
+    ],
+    signs: [{ x: 3.5, z: 42, key: 'lava' }],
+  }),
+
+  // ステージ9：星海の果て（宇宙）。4番目は3体同時。最後の部屋は縦横3倍で、宇宙怪獣も3倍
+  space: bossHall({
+    name: 'ステージ9　星海の果て', stage: 11, bgm: 'castle', outdoor: true, big: 3,
+    sky: 0x05030f, fog: [80, 320], ground: 0x1a1433,
+    sun: { color: 0xd1c4e9, intensity: 2.0, hemi: 0.9, sky: 0x9575cd, ground: 0x1a1433, offset: { x: -15, y: 35, z: 10 } },
+    palette: { wall: 0x311b92, trim: 0x7c4dff, rock: 0x1a1240, pillar: 0x311b92, tileA: 0x221a44, tileB: 0x16112e, flame: 0xb388ff, flameGlow: 0x7c4dff, light: 0xb388ff, carpet: 0x4527a0 },
+    deco: 'space',
+    bosses: [
+      { key: 'xeno', circle: 0x18ffff, label: '第1の宙域' },
+      { key: 'oculus', circle: 0xb388ff, label: '第2の宙域' },
+      { key: 'orion', circle: 0xffd740, label: '第3の宙域' },
+      { circle: 0xff4081, label: '第4の宙域（3体同時）', pair: [{ key: 'luna', dx: -9, dz: 2 }, { key: 'sol', dx: 0, dz: -6 }, { key: 'nova', dx: 9, dz: 2 }] },
+      { key: 'galactos', circle: 0xff4081, label: '銀河の果て' },
+    ],
+    signs: [{ x: 3.5, z: 42, key: 'space' }],
+  }),
 };
 
 
 /** ステージの順番（つづきから・移行用） */
-export const AREA_ORDER = ['forest', 'canyon', 'dungeon', 'castle', 'abyss', 'wilds', 'dusk', 'frost'];
+export const AREA_ORDER = ['forest', 'canyon', 'dungeon', 'castle', 'abyss', 'wilds', 'dusk', 'frost', 'sea', 'lava', 'space'];
 
 /** 古いセーブ（version 1）のエリア id → 新しい id */
 export const OLD_AREA_MAP = { village: 'forest', field: 'canyon', dungeon: 'dungeon' };
@@ -248,6 +338,15 @@ export const COURSES = [
   },  {
     key: 'frost', label: 'ステージ6', name: '星降る氷原', start: 'frost', areas: ['frost'], recKey: 'records6',
     desc: '夜の雪原で5連戦。4戦目は2体同時、最後は星喰いの竜アストラル', clearMsg: '星喰いの竜アストラルを打ち倒した！',
+  },  {
+    key: 'sea', label: 'ステージ7', name: '蒼海の神殿', start: 'sea', areas: ['sea'], recKey: 'records7',
+    desc: '海の底の神殿で5連戦。4戦目は2体同時、最後は2倍の広間で巨大なクラーケン', clearMsg: '深淵の主クラーケンを沈めた！',
+  },  {
+    key: 'lava', label: 'ステージ8', name: '灼熱の火山', start: 'lava', areas: ['lava'], recKey: 'records8',
+    desc: '溶岩の火口で5連戦。残る溶岩に注意。最後は2倍の火口で巨神ムスペル', clearMsg: '溶岩の巨神ムスペルを打ち砕いた！',
+  },  {
+    key: 'space', label: 'ステージ9', name: '星海の果て', start: 'space', areas: ['space'], recKey: 'records9',
+    desc: '宇宙で5連戦。4戦目は3体同時、最後は9倍の宙域で宇宙怪獣ギャラクトス', clearMsg: '宇宙怪獣ギャラクトスを打ち倒した！',
   },
 
 

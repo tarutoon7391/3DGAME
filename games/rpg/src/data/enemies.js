@@ -4,6 +4,9 @@
 // 速度・予備動作・攻撃間隔は旧仕様から 速さ×1.3、予備動作×0.8、硬直×0.7、攻撃間隔×0.65 程度にした
 import { S5_MOVES } from './bossmoves_s5.js';
 import { S6_BOSSES } from './bossmoves_s6.js';
+import { S7_BOSSES } from './bossmoves_s7.js';
+import { S8_BOSSES } from './bossmoves_s8.js';
+import { S9_BOSSES } from './bossmoves_s9.js';
 
 /** ボスの HP にかける倍率（調整中の一時的なもの。1 で元どおり） */
 export const BOSS_HP_MUL = 0.5;
@@ -682,6 +685,8 @@ for (const [k, v] of Object.entries(S5_MOVES)) {
 
 // ステージ6のボス（強さ・見た目・技をまるごと data/bossmoves_s6.js に持つ）
 Object.assign(BOSSES, S6_BOSSES);
+// ステージ7〜9（海・溶岩・宇宙。data/bossmoves_s7〜s9.js）
+Object.assign(BOSSES, S7_BOSSES, S8_BOSSES, S9_BOSSES);
 
 /** 1-3のボス（旧コードとの互換用） */
 export const BOSS = BOSSES.galdra;

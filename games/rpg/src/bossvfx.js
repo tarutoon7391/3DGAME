@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { columnGeo, ringGeo, glow, hotOf, ease } from './fxkit.js';
 import { slashTexture, streakTexture, noteTexture } from './fxtex.js';
 import { wallTexture } from './auratex.js';
+import { extraBossVfx } from './bossvfx_ext.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
 
@@ -540,6 +541,8 @@ export function createBossVfx(game) {
       }, [m, note]);
     },
   };
+
+  Object.assign(T, extraBossVfx({ add, burst, disc, G })); // ステージ7〜9 の追加分
 
   /** 動くもの（竜巻・斧）の位置：from → to を speed で進み、back なら折り返して戻る */
   function moverPos(d, t) {
