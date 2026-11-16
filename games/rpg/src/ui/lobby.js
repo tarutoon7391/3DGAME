@@ -1,9 +1,10 @@
 // 職業選択（タイトル → ステージ選択 → ここ）：左に職業の一覧、右に説明と「ひとりで挑む」／ルームを作る・合言葉で参加
 // ルームの中では参加者・職業・準備完了の一覧を見せ、全員が「準備完了」を押すとホストが「出発！」できる
-// 職業は16職ずつのタブに分けて（ui/jobgrid.js）並べる。ステージ1 はひとり用（multi=false）なのでルームは出さない
+// 職業はロールごとのタブに分けて（ui/jobgrid.js）並べる。ルームでは職業の制限（data/partyrules.js）をかける。ステージ1 はひとり用（multi=false）なのでルームは出さない
 import { createNet } from '/shared/net.js';
 import { JOBS, MAX_RAID_PLAYERS, RAID_SCALE } from '../data/jobs.js';
 import { jobGridParts, tabOf } from './jobgrid.js';
+import { pickBlock, partyProblem } from '../data/partyrules.js';
 import { headerHtml, fillPixelText } from './menu.js';
 import { installTextures } from './pixelart.js';
 import { esc } from '../util.js';
@@ -39,6 +40,12 @@ export function openLobby({ settings, save, onSolo, onStart, onBack, area = 'cas
   document.body.classList.add('rpg-menu-on');
 
   const allReady = () => !!net?.room && net.players.every((p) => info.get(p.id)?.ready);
+  /** ルームのほかの人の職業（まだ届いていない人は数えない） */
+  const othersJobs = () => (net?.room ? net.players.filter((p) => p.id !== net.myId).map((p) => info.get(p.id)?.job).filter(Boolean) : null);
+  /** いまの自分の職業が制限にかかっているか（同時に選んだときなど） */
+  const myBlock = () => (net?.room ? pickBlock(job, othersJobs()) : null);
+  /** ルーム全員の職業が制限を守っているか */
+  const roomProblem = () => (net?.room ? partyProblem(net.players.map((p) => info.get(p.id)?.job)) : null);
   // 自分の職業・準備完了を配る。ホストはルームのステージ（area）も一緒に配る
   const announce = () => {
     info.set(net.myId, { name, job, ready });
@@ -57,7 +64,7 @@ export function openLobby({ settings, save, onSolo, onStart, onBack, area = 'cas
     const inRoom = net?.room;
     // 職業欄・説明・右の欄はスクロール位置を残して描き直す
     const keep = [...el.querySelectorAll('[data-keep]')].map((n) => n.scrollTop);
-    const parts = jobGridParts(job, tab);
+    const parts = jobGridParts(job, tab, othersJobs());
     let side;
     if (!inRoom) {
       side = `<div class="rpg-sheet rpg-side-act">
@@ -76,13 +83,17 @@ export function openLobby({ settings, save, onSolo, onStart, onBack, area = 'cas
           <span style="color:${J?.color || '#9fb1c2'}">${J ? esc(J.name) : '選択中…'}</span>${i.ready ? '<i class="rpg-check">✔</i>' : ''}</span>`;
       }).join('');
       const nReady = net.players.filter((p) => info.get(p.id)?.ready).length;
+      const mine = myBlock();
+      const prob = roomProblem();
+      const canGo = allReady() && !prob;
       side = `<div class="rpg-sheet rpg-side-act">
           <div class="rpg-room-head">合言葉 <b class="rpg-room-code">${esc(net.room.code)}</b></div>
           <div class="rpg-small">${net.players.length}/${MAX_PLAYERS} 人・ボス HP ×${RAID_SCALE(net.players.length).toFixed(2)}・準備完了 ${nReady}/${net.players.length}</div>
           <div class="rpg-members">${members}</div>
-          <button type="button" class="rpg-b ${ready ? 'rpg-b-sub' : 'rpg-b-main'}" data-act="ready">${ready ? '準備完了を取り消す' : '準備完了'}</button>
+          ${mine ? `<div class="rpg-lobby-msg">いまの職業は選べません（${esc(mine)}）。別の職業にしてください</div>` : ''}
+          <button type="button" class="rpg-b ${ready ? 'rpg-b-sub' : 'rpg-b-main'}" data-act="ready" ${mine && !ready ? 'disabled' : ''}>${ready ? '準備完了を取り消す' : '準備完了'}</button>
           ${net.isHost
-            ? `<button type="button" class="rpg-b rpg-b-main" data-act="go" ${allReady() ? '' : 'disabled'}>${allReady() ? '出発！' : '全員の準備完了を待っています'}</button>`
+            ? `<button type="button" class="rpg-b rpg-b-main" data-act="go" ${canGo ? '' : 'disabled'}>${canGo ? '出発！' : prob ? `職業の制限：${esc(prob)}` : '全員の準備完了を待っています'}</button>`
             : `<div class="rpg-small">${allReady() ? 'ホストの「出発！」を待っています…' : '全員が準備完了するとホストが出発できます'}</div>`}
           <button type="button" class="rpg-b rpg-b-plain" data-act="leave">ルームを出る</button>
         </div>`;
@@ -122,6 +133,12 @@ export function openLobby({ settings, save, onSolo, onStart, onBack, area = 'cas
     }
     const card = e.target.closest('[data-job]');
     if (card) {
+      if (card.dataset.block) {
+        msg = `${JOBS[card.dataset.job].name}は選べません（${card.dataset.block}）`;
+        render();
+        return;
+      }
+      msg = '';
       job = card.dataset.job;
       settings.job = job;
       save();
@@ -162,6 +179,7 @@ export function openLobby({ settings, save, onSolo, onStart, onBack, area = 'cas
         announce();
         render();
       } else if (act === 'ready') {
+        if (!ready && myBlock()) return;
         ready = !ready;
         announce();
         render();
@@ -170,7 +188,7 @@ export function openLobby({ settings, save, onSolo, onStart, onBack, area = 'cas
         msg = 'ルームを出ました';
         render();
       } else if (act === 'go') {
-        if (!net?.isHost || !allReady()) return;
+        if (!net?.isHost || !allReady() || roomProblem()) return;
         const roster = net.players.map((p) => ({ id: p.id, name: info.get(p.id)?.name || p.name, job: info.get(p.id)?.job || 'swordsman' }));
         net.send('start', { roster, step: 0, area });
         startWith({ roster, step: 0, area });
@@ -186,6 +204,12 @@ export function openLobby({ settings, save, onSolo, onStart, onBack, area = 'cas
     offs.push(net.onMessage('lobby', (d, from) => {
       info.set(from, d);
       if (from === net.room?.hostId) matchHostArea(d.area);
+      // 同時に同じ職業（ロール）を選んでいたら、自分の準備完了は取り消す（どちらかが選び直す）
+      if (ready && myBlock()) {
+        ready = false;
+        announce();
+        msg = `職業がかぶりました（${myBlock()}）。選び直してください`;
+      }
       render();
     }));
     offs.push(net.onRoomChange(() => render()));
