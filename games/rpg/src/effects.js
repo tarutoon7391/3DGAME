@@ -139,6 +139,13 @@ export function createEffects(scene, camera) {
     return left;
   }
 
+  /** (x,z) の半径 r の円にかかっている予兆の数（吸収術士が「吸った攻撃」として数える） */
+  function teleCountNear(x, z, r) {
+    let n = 0;
+    for (const t of teles) if (t.active && hitsTele(t, x, z, r)) n++;
+    return n;
+  }
+
   /** (x,z) がいま出ている予兆の範囲内か（一人称で足元の予兆が見えないときの警告用） */
   function danger(x, z, pad = 0.4) {
     for (const t of teles) {
@@ -259,6 +266,7 @@ export function createEffects(scene, camera) {
     telegraph,
     danger,
     teleLeftNear,
+    teleCountNear,
     setTeleOpacity,
     update,
     clear,

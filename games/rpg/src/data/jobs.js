@@ -1005,13 +1005,13 @@ export const JOBS = {
   },
   // ================= 追加の16職（第6弾：独特なしくみ） =================
   absorber: {
-    name: '吸収術士', role: '敵弾を吸ってゲージに', color: '#80cbc4',
+    name: '吸収術士', role: '敵の攻撃を吸ってゲージに', color: '#80cbc4',
     power: 1.71, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.45, speed: 24, mult: 0.8, color: 0x80cbc4, size: 0.26, range: 22 },
-    q: { id: 'devour', kind: 'absorb', name: '弾喰らい', desc: '周り5mの敵弾を吸い込む。1発ごとに必殺ゲージ +4（最大 +24）・HP 1% 回復', cd: 7, radius: 5, gaugePer: 4, gaugeMax: 24, healPer: 0.01, color: 0x80cbc4 },
+    q: { id: 'devour', kind: 'absorb', name: '弾喰らい', desc: '周り5mの敵の攻撃を吸い込む。1つごとに必殺ゲージ +4（最大 +24）・HP 1% 回復', cd: 7, radius: 5, gaugePer: 4, gaugeMax: 24, healPer: 0.01, color: 0x80cbc4 },
     e: { id: 'releasebolt', kind: 'shots', name: '放出弾', desc: '吸った力を3発の大きな弾にして撃ち出す（貫通）', cd: 6, count: 3, spread: 0.15, speed: 26, mult: 1.4, size: 0.4, range: 24, pierce: true, color: 0x4db6ac },
-    r: { id: 'blackmaw', kind: 'absorb', name: '大口', desc: '周り12mの敵弾をすべて吸い込む。1発ごとに必殺ゲージ +2（最大 +30）・HP 1% 回復', radius: 12, gaugePer: 2, gaugeMax: 30, healPer: 0.01, color: 0x26a69a },
-    trait: '弾を吸うたびに強くなる（吸った弾でゲージが溜まる）',
+    r: { id: 'blackmaw', kind: 'absorb', name: '大口', desc: '周り12mの敵の攻撃をすべて吸い込む。1つごとに必殺ゲージ +2（最大 +30）・HP 1% 回復', radius: 12, gaugePer: 2, gaugeMax: 30, healPer: 0.01, color: 0x26a69a },
+    trait: '攻撃を吸うたびに強くなる（吸った攻撃でゲージが溜まる）',
     breakMul: 1,
     look: { armorColor: 0x00695c, swordColor: 0x80cbc4, swordLen: 0.9, cape: 0x004d40, weapon: 'staff', hat: 0x004d40 },
   },

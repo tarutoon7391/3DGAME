@@ -87,7 +87,7 @@ export const C_SKILLS = {
   sage: sb('c_sage', '時短の書', 'Q と E の待ち時間を2秒縮める', 20, 0xfff59d, 'shortcut', 0.5, {}, { after: { cdCut: { q: 2, e: 2 } } }),
   acrobat: { id: 'c_acrobat', kind: 'leap', name: '綱渡り', desc: '攻撃を跳び越えて7m 先へ（無敵）', cd: 10, dist: 7, time: 0.55, height: 4, color: 0xffd54f },
   driller: sb('c_driller', '地中潜り', '地面に潜り、2秒間 無敵・移動 +30%', 14, 0x8d6e63, 'burrow', 2, { speedMul: 1.3 }, { invuln: 2 }),
-  absorber: { id: 'c_absorber', kind: 'absorb', name: '吸収の膜', desc: '周りの敵弾を吸って、必殺ゲージと HP に', cd: 14, radius: 6, gaugePer: 2, gaugeMax: 20, healPer: 0.01, color: 0x4db6ac },
+  absorber: { id: 'c_absorber', kind: 'absorb', name: '吸収の膜', desc: '周りの敵の攻撃を吸って、必殺ゲージと HP に', cd: 14, radius: 6, gaugePer: 2, gaugeMax: 20, healPer: 0.01, color: 0x4db6ac },
   reflector: { id: 'c_reflector', kind: 'reflect', name: '反射板', desc: '周りの敵弾をはね返す', cd: 16, radius: 5, base: 0.6, per: 0.3, cap: 10, color: 0xb3e5fc },
   drummer: sb('c_drummer', '拍子取り', '4秒間 攻撃 +25%', 10, 0xfff176, 'rhythm', 4, { atkMul: 1.25 }),
   charger: sb('c_charger', '溜め移し', '溜めを保ったまま回避する', 8, 0xffab40, 'chargeStep', 0.4, {}, { after: { dodge: 'move', invuln: 0.4 } }),

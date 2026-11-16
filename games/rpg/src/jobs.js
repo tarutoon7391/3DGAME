@@ -1272,22 +1272,22 @@ const GENERIC = {
     }
   },
   absorb(game, p, d, local, sk) {
-    // 吸収術士：周りの敵弾を吸い込み、1発ごとに必殺ゲージと HP に変える
+    // 吸収術士：周りの敵の攻撃（弾・予兆つきの攻撃・炎の壁など）を吸い込み、1つごとに必殺ゲージと HP に変える
     startAction(p, 'cast', 0.35);
     game.sound.se('seal');
-    const n = game.eraser.erase(p.pos.x, p.pos.z, sk.radius);
+    const n = game.eraser.erase(p.pos.x, p.pos.z, sk.radius).total; // 弾だけでなく範囲にかかった攻撃ぜんぶを吸う
     ringFx(game, p.pos.x, p.pos.z, sk.radius, sk.color);
     if (local && n) {
       p.addGauge(Math.min(sk.gaugeMax ?? Infinity, n * sk.gaugePer));
       p.hp = Math.min(p.maxHp, p.hp + p.maxHp * sk.healPer * n);
-      game.toastOnce(`敵弾を ${n} 個 吸収！`, 1200);
+      game.toastOnce(`敵の攻撃を ${n} 個 吸収！`, 1200);
     }
   },
   reflect(game, p, d, local, sk) {
     // 反射術士：周りの敵弾をはね返し、数に応じて一番近い敵にダメージ
     startAction(p, 'cast', 0.35);
     game.sound.se('wave');
-    const n = game.eraser.erase(p.pos.x, p.pos.z, sk.radius);
+    const n = game.eraser.erase(p.pos.x, p.pos.z, sk.radius).shots; // はね返す威力は今までどおり敵弾の数
     ringFx(game, p.pos.x, p.pos.z, sk.radius, sk.color);
     if (!local) return;
     let best = null;
@@ -1338,11 +1338,11 @@ const GENERIC = {
     // メイドのお掃除：周りの敵弾を一瞬で消す（弾は各自のブラウザにあるので、見た人のブラウザでもそれぞれ消える）
     startAction(p, 'spin', 0.4);
     game.sound.se('seal');
-    const n = game.eraser.erase(p.pos.x, p.pos.z, sk.radius);
+    const n = game.eraser.erase(p.pos.x, p.pos.z, sk.radius).total;
     ringFx(game, p.pos.x, p.pos.z, sk.radius, sk.color);
     if (local) {
       if (sk.mult) radiusHit(game, p, sk.mult, sk.radius * 0.6, { gauge: GAUGE.gainSkill, color: sk.color, melee: false });
-      if (n) game.toastOnce(`お掃除！ 敵弾を ${n} 個 消した`, 1200);
+      if (n) game.toastOnce(`お掃除！ 敵の攻撃を ${n} 個 消した`, 1200);
       if (sk.team) game.teamEffect({ kind: 'buff', name: sk.team.name, dur: sk.team.dur, vals: sk.team.vals, x: p.pos.x, z: p.pos.z, r: sk.radius, msg: sk.team.msg });
     }
   },

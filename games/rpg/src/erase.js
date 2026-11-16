@@ -38,7 +38,7 @@ export function createEraser(game) {
 
   return {
     /**
-     * (x,z) の半径 r にある敵の攻撃を消す。消した敵弾の数を返す
+     * (x,z) の半径 r にある敵の攻撃を消す。消した数を返す { shots: 敵弾の数, total: 消した攻撃ぜんぶの数 }
      */
     erase(x, z, r) {
       const shots = game.projectiles.clearShotsNear(x, z, r);
@@ -55,13 +55,15 @@ export function createEraser(game) {
           }
         }
       }
+      // 予兆つきの攻撃・炎の壁・ドーナツは、範囲にかかっている数を数える（吸収術士はこれも吸う）
+      const others = (game.fx.teleCountNear?.(x, z, r) ?? 0) + (game.hazards?.countNear?.(x, z, r) ?? 0);
       // ほかの攻撃は、いまかかっている予兆が終わるまで範囲の中だけ当たらなくする
       const left = game.fx.teleLeftNear?.(x, z, r) ?? 0;
       const life = Math.min(MAX_SAFE, Math.max(MIN_SAFE, left + 0.3));
       const h = { x, z, r, t: life, life };
       show(h);
       holes.push(h);
-      return shots + zones;
+      return { shots, total: shots + zones + others };
     },
     /** (x,z) がいま安全な範囲（攻撃を消した範囲）の中か */
     covers(x, z) {
