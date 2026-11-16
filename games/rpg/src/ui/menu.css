@@ -111,6 +111,17 @@ body.rpg-menu-on .g3-home{display:none}
 .rpg-tab b{font-size:15px;color:var(--brick-lo);margin:0}
 .rpg-tab.on{background:var(--brick);color:var(--cream);box-shadow:0 0 0 2px var(--line),inset 0 -3px 0 var(--brick-lo)}
 .rpg-tab.on b{color:var(--gold)}
+/* ロールのタブ：PC は名前、スマホは短い名前。色の帯はロールの色。協力プレイでは人数（満員は赤） */
+.rpg-tab{box-shadow:0 0 0 2px var(--line),inset 0 3px 0 var(--rc,transparent)}
+.rpg-tab.on{box-shadow:0 0 0 2px var(--line),inset 0 3px 0 var(--rc,transparent),inset 0 -3px 0 var(--brick-lo)}
+.rpg-tab b{display:none}
+.rpg-tabs{flex-wrap:nowrap;gap:4px}
+.rpg-tab{flex:1 1 0;min-width:0;padding:6px 2px;gap:4px;font-size:11px;white-space:nowrap}
+.rpg-tab-n{font-size:11px;font-weight:700;padding:0 4px;background:rgba(0,0,0,.18)}
+.rpg-tab-n.full{background:#b71c1c;color:#fff}
+.rpg-jobc.off{opacity:.42;filter:grayscale(.8);cursor:not-allowed}
+.rpg-jobc.off span{color:#ffab91}
+.rpg-rule{margin-top:6px}
 body .rpg-jobgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 body .rpg-jobgrid .rpg-jobc{min-height:64px;justify-content:center}
 body .rpg-jobgrid .rpg-jobc b{font-size:15px}
@@ -176,7 +187,10 @@ body .g3-btns{gap:14px}
   .rpg-tabs{gap:4px;margin-bottom:6px;flex-wrap:nowrap}
   .rpg-tab{padding:4px 0}
   .rpg-tab span{display:none}
-  .rpg-tab b{font-size:13px}
+  .rpg-tab b{display:inline;font-size:12px}
+  .rpg-tab{flex-direction:column;gap:1px;line-height:1.1;padding:3px 0}
+  .rpg-tab-n{font-size:9px;padding:0 2px}
+  .rpg-rule{display:none}
   body .rpg-scr .rpg-jobgrid{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
   body .rpg-scr .rpg-jobgrid .rpg-jobc{min-height:44px;padding:3px 6px}
   body .rpg-scr .rpg-jobc b{font-size:12px}

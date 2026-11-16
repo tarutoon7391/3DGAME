@@ -1,7 +1,9 @@
-// 職業の選び直し（全滅したとき）。準備画面と同じ16職ずつのタブ（ui/jobgrid.js）で選ぶ
+// 職業の選び直し（全滅したとき）。準備画面と同じロールごとのタブ（ui/jobgrid.js）で選ぶ
+// 協力プレイでは準備画面と同じ職業の制限（data/partyrules.js）をかける
 // 協力プレイ（ready を渡す）：選んだら「準備OK」。全員そろうとホストが「再開」を押せる。時間制限はない
 import { JOBS } from '../data/jobs.js';
 import { jobGridHtml, tabOf } from './jobgrid.js';
+import { pickBlock, partyProblem } from '../data/partyrules.js';
 import { esc } from '../util.js';
 
 /**
@@ -27,12 +29,19 @@ export function openJobPicker({ current, title = '職業を選び直す', second
       <div class="rpg-members">${list.map((m) => `<span class="rpg-mem ${m.ready ? 'ready' : ''}"><b>${esc(m.name || '仲間')}</b>${m.me ? '（あなた）' : ''}
         <span style="color:${JOBS[m.job]?.color || '#9fb1c2'}">${esc(JOBS[m.job]?.name || '')}</span>${m.ready ? '<i class="rpg-check">✔</i>' : ''}</span>`).join('')}</div></div>`;
   }
+  /** 協力プレイ：ほかの人の職業 */
+  const others = () => (ready ? ready.members().filter((m) => !m.me).map((m) => m.job).filter(Boolean) : null);
+  const myBlock = () => (ready ? pickBlock(picked, others()) : null);
+  const problem = () => (ready ? partyProblem(ready.members().map((m) => (m.me ? picked : m.job))) : null);
   function readyBtns() {
     const all = ready.members().every((m) => m.ready);
+    const mine = myBlock();
+    const prob = problem();
     return `<div class="rpg-lobby-btns">
-      <button type="button" class="g3-btn ${iAmReady ? 'sub' : ''}" data-act="ready">${iAmReady ? '準備OKを取り消す' : '準備OK'}</button>
+      ${mine ? `<span class="rpg-small">いまの職業は選べません（${esc(mine)}）</span>` : ''}
+      <button type="button" class="g3-btn ${iAmReady ? 'sub' : ''}" data-act="ready" ${mine && !iAmReady ? 'disabled' : ''}>${iAmReady ? '準備OKを取り消す' : '準備OK'}</button>
       ${ready.isHost()
-        ? `<button type="button" class="g3-btn" data-act="start" ${all ? '' : 'disabled'}>${all ? '再開！（部屋の前から）' : '全員の準備OKを待っています'}</button>`
+        ? `<button type="button" class="g3-btn" data-act="start" ${all && !prob ? '' : 'disabled'}>${all && !prob ? '再開！（部屋の前から）' : prob ? `職業の制限：${esc(prob)}` : '全員の準備OKを待っています'}</button>`
         : `<span class="rpg-small">${all ? 'ホストの「再開」を待っています…' : '全員が準備OKするとホストが再開できます'}</span>`}
     </div>`;
   }
@@ -45,7 +54,7 @@ export function openJobPicker({ current, title = '職業を選び直す', second
       <p class="rpg-small">いまの職業：<b style="color:${JOBS[picked].color}">${esc(JOBS[picked].name)}</b>
       ${seconds ? `　あと <b class="rpg-pick-left">${Math.ceil(left)}</b> 秒でやり直し（選ばなければ今の職業のまま）` : ''}</p>
       ${ready ? readyHtml() : ''}
-      ${jobGridHtml(picked, tab)}
+      ${jobGridHtml(picked, tab, others())}
       ${ready ? readyBtns() : seconds ? '' : '<div class="rpg-lobby-btns"><button type="button" class="g3-btn" data-act="ok">この職業でやり直す</button><button type="button" class="g3-btn sub" data-act="cancel">やめる</button></div>'}
     </div>`;
     el.querySelector('.rpg-lobby-panel').scrollTop = keep;
@@ -60,6 +69,7 @@ export function openJobPicker({ current, title = '職業を選び直す', second
     }
     const card = e.target.closest('[data-job]');
     if (card) {
+      if (card.dataset.block) return; // 協力プレイの制限で選べない
       picked = card.dataset.job;
       onPick?.(picked, false);
       if (ready) ready.onReady(picked, iAmReady); // 職業を変えたことも伝える
@@ -68,13 +78,14 @@ export function openJobPicker({ current, title = '職業を選び直す', second
     }
     const act = e.target.closest('[data-act]')?.dataset.act;
     if (ready && act === 'ready') {
+      if (!iAmReady && myBlock()) return;
       iAmReady = !iAmReady;
       ready.onReady(picked, iAmReady);
       render();
       return;
     }
     if (ready && act === 'start') {
-      if (ready.isHost() && ready.members().every((m) => m.ready)) ready.onStart();
+      if (ready.isHost() && ready.members().every((m) => m.ready) && !problem()) ready.onStart();
       return;
     }
     if (act === 'ok') {
@@ -102,5 +113,15 @@ export function openJobPicker({ current, title = '職業を選び直す', second
   }
 
   render();
-  return { close, refresh: () => { if (!closed) render(); } };
+  /** 仲間の職業が届いたとき：かぶっていたら自分の準備OKは取り消す */
+  function refresh() {
+    if (closed) return;
+    if (ready && iAmReady && myBlock()) {
+      iAmReady = false;
+      ready.onReady(picked, false);
+      return; // onReady から refresh がもう一度呼ばれる
+    }
+    render();
+  }
+  return { close, refresh };
 }
