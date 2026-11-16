@@ -639,6 +639,9 @@ export function createGame() {
     if (pr.area === AREA_ORDER[0]) setTimeout(() => toast('迷路を抜けて北の出口へ。赤い結界は番人を全部倒すと消える', 4000), 800);
     if (pr.area === COURSES[1].start && !pr.bossStep) setTimeout(() => toast('中ボス2体を倒して、最奥の冥王を討て。近接で殴るとボスがブレイク（気絶）する', 4000), 800);
     if (pr.area === 'dusk' && !pr.bossStep) setTimeout(() => toast('夕暮れの5連戦。最後は黄昏竜ラグナ', 4000), 800);
+    if (pr.area === 'sea' && !pr.bossStep) setTimeout(() => toast('海底神殿の5連戦。最後は2倍の広間で巨大クラーケン', 4000), 800);
+    if (pr.area === 'lava' && !pr.bossStep) setTimeout(() => toast('火山の5連戦。溶岩溜まりはしばらく残る。最後は巨神ムスペル', 4000), 800);
+    if (pr.area === 'space' && !pr.bossStep) setTimeout(() => toast('宇宙の5連戦。4戦目は3体同時、最後は宇宙怪獣ギャラクトス', 4000), 800);
     if (pr.area === 'frost' && !pr.bossStep) setTimeout(() => toast('夜の雪原の5連戦。最後は星喰いの竜アストラル', 4000), 800);
     if (pr.area === 'wilds' && !pr.bossStep) setTimeout(() => toast('屋外の5連戦。竜や魔獣が相手。最後は古竜エルドラード', 4000), 800);
     if (pr.area === COURSES[2].start && !pr.bossStep) setTimeout(() => toast('5連戦。4戦目と5戦目はボスが2体同時に出る。攻撃は重い、油断するな', 4000), 800);

@@ -12,6 +12,9 @@ const THEME = {
   wilds: { band: '#b0662a', icon: '🐉' },
   dusk: { band: '#a8402f', icon: '🌅' },
   frost: { band: '#3a7fa6', icon: '❄️' },
+  sea: { band: '#0f6e8c', icon: '🌊' },
+  lava: { band: '#b5361b', icon: '🌋' },
+  space: { band: '#4a2a8f', icon: '🌌' },
 };
 
 let current = null;

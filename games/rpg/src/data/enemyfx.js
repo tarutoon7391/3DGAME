@@ -9,6 +9,9 @@ export const BOSS_THEME = {
   griffon: 'feather', manticore: 'poison', eldragon: 'arcane', cerberus: 'fire', basilisk: 'poison', firebird: 'fire',
   minotaur: 'earth', harpy: 'feather', ragna: 'fire',
   fenrir: 'ice', celsia: 'ice', volt: 'arcane', jotun: 'ice', nox: 'dark', astral: 'arcane',
+  siren: 'water', kingcrab: 'water', leviath: 'water', triton: 'water', gazer: 'dark', kraken: 'water',
+  salamander: 'fire', lavaworm: 'fire', ifrit: 'fire', vulcan: 'earth', blaze: 'fire', muspel: 'fire',
+  xeno: 'arcane', oculus: 'arcane', orion: 'arcane', luna: 'arcane', sol: 'fire', nova: 'arcane', galactos: 'arcane',
 };
 
 /** 雑魚の弾 → テーマ（ENEMIES の shotColor） */

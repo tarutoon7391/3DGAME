@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { buildWeapon, WEAPONS } from './weaponmodel.js';
 import { COSTUMES } from './costumes.js';
+import { EXT_MONSTERS, makeExtMonster } from './models_ext.js';
 
 const WEAPON_SCALE = 1.45; // 一人称の武器の大きさ → 体に持たせる大きさ
 
@@ -340,6 +341,7 @@ function mage(bm) {
  * 武器は右腕の先に付く
  */
 export function makeBossModel(color, look = {}) {
+  if (EXT_MONSTERS.has(look.monster)) return makeExtMonster(color, look); // ステージ7〜9 の新しい体型
   if (look.monster) return makeMonsterModel(color, look);
   const { scale = 2.5, horn: hornColor = 0xf5f0e1, eye = 0xffea00, weapon = 'club', metal = 0x37474f } = look;
   const bodyMat = ownMat(color);

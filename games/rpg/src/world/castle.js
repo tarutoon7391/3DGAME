@@ -50,21 +50,24 @@ export function buildCastle(ctx) {
   carpet.receiveShadow = true;
   group.add(carpet);
   }
-  if (def.outdoor) buildOutdoorDeco(ctx, b);
+  if (def.deco === 'lava') buildLavaDeco(ctx, b);
+  else if (def.deco === 'space') buildSpaceDeco(ctx, b);
+  else if (def.outdoor) buildOutdoorDeco(ctx, b);
 
   // ボスの魔法陣（ボスごとの色）
   const circles = [];
-  for (const bd of def.bosses) {
+  def.bosses.forEach((bd, i) => {
     const mm = ctx.mat(bd.circle, { emissive: bd.circle, emissiveIntensity: 0.8 });
-    const outer = new THREE.Mesh(new THREE.RingGeometry(8, 8.6, 40), mm);
+    const k = i === def.bosses.length - 1 ? def.big || 1 : 1; // 広い最後の部屋は魔法陣も大きく
+    const outer = new THREE.Mesh(new THREE.RingGeometry(8 * k, 8.6 * k, 40), mm);
     outer.rotation.x = -Math.PI / 2;
     outer.position.set(bd.x, 0.02, bd.z);
-    const inner = new THREE.Mesh(new THREE.RingGeometry(4, 4.3, 6), mm);
+    const inner = new THREE.Mesh(new THREE.RingGeometry(4 * k, 4.3 * k, 6), mm);
     inner.rotation.x = -Math.PI / 2;
     inner.position.set(bd.x, 0.02, bd.z);
     group.add(outer, inner);
     circles.push(inner);
-  }
+  });
   ctx.updaters.push((dt) => {
     for (const c of circles) c.rotation.z += dt * 0.4;
   });
@@ -143,4 +146,66 @@ function buildOutdoorDeco(ctx, b) {
   ctx.instanced(leaves, ctx.mat(0x2e7d32), trees, { cast: true });
   const rockGeo = new THREE.DodecahedronGeometry(1, 0);
   ctx.instanced(rockGeo, ctx.mat(0x9e9e9e), rocks, { cast: true });
+}
+
+/** 火山：囲いの外に黒い岩と、光る溶岩の流れ（当たり判定なし） */
+function buildLavaDeco(ctx, b) {
+  const rocks = [];
+  let seed = 777;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let z = b.minZ - 8; z < b.maxZ + 8; z += 3) {
+    for (const side of [-1, 1]) {
+      rocks.push({ x: side * (b.maxX + 2 + rnd() * 12), z: z + rnd() * 2, s: 0.8 + rnd() * 2.2, sy: 0.6 + rnd() * 1.6, ry: rnd() * 6 });
+    }
+  }
+  ctx.instanced(new THREE.DodecahedronGeometry(1, 0), ctx.mat(0x2b1d1a), rocks, { cast: true });
+  // 溶岩の川（囲いの外の左右）
+  const lavaMat = ctx.mat(0xff5722, { emissive: 0xff3d00, emissiveIntensity: 1.6 });
+  for (const side of [-1, 1]) {
+    const len = b.maxZ - b.minZ + 20;
+    const river = new THREE.Mesh(new THREE.PlaneGeometry(6, len), lavaMat);
+    river.rotation.x = -Math.PI / 2;
+    river.position.set(side * (b.maxX + 9), 0.03, (b.minZ + b.maxZ) / 2);
+    ctx.group.add(river);
+  }
+  // 遠くの火山（円すい）
+  const cone = new THREE.ConeGeometry(30, 40, 9);
+  cone.translate(0, 20, 0);
+  const volcano = new THREE.Mesh(cone, ctx.mat(0x3e2723));
+  volcano.position.set(0, 0, b.minZ - 70);
+  ctx.group.add(volcano);
+  const glowCap = new THREE.Mesh(new THREE.ConeGeometry(8, 6, 9), ctx.mat(0xff6d00, { emissive: 0xff3d00, emissiveIntensity: 2 }));
+  glowCap.position.set(0, 38, b.minZ - 70);
+  ctx.group.add(glowCap);
+}
+
+/** 宇宙：星空（点）と、囲いの外に浮かぶ光る結晶 */
+function buildSpaceDeco(ctx, b) {
+  let seed = 4242;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const n = 1800;
+  const pos = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const a = rnd() * Math.PI * 2;
+    const e = rnd() * 1.4 + 0.05;
+    const r = 300;
+    pos.set([Math.cos(a) * Math.cos(e) * r, Math.sin(e) * r, (b.minZ + b.maxZ) / 2 + Math.sin(a) * Math.cos(e) * r], i * 3);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const stars = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffffff, size: 1.6, sizeAttenuation: false, fog: false }));
+  ctx.group.add(stars);
+  ctx.extraDispose.push(() => {
+    g.dispose();
+    stars.material.dispose();
+  });
+  const crystals = [];
+  for (let z = b.minZ - 8; z < b.maxZ + 8; z += 5) {
+    for (const side of [-1, 1]) crystals.push({ x: side * (b.maxX + 3 + rnd() * 14), y: 1 + rnd() * 6, z: z + rnd() * 3, s: 0.6 + rnd() * 1.6, sy: 1.5 + rnd(), ry: rnd() * 6 });
+  }
+  ctx.instanced(new THREE.OctahedronGeometry(1, 0), ctx.mat(0x7c4dff, { emissive: 0x651fff, emissiveIntensity: 1.2 }), crystals, { cast: false });
+  // 遠くの惑星
+  const planet = new THREE.Mesh(new THREE.SphereGeometry(40, 24, 16), ctx.mat(0x5e35b1, { emissive: 0x311b92, emissiveIntensity: 0.6, fog: false }));
+  planet.position.set(-120, 70, b.minZ - 120);
+  ctx.group.add(planet);
 }

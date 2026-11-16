@@ -99,8 +99,10 @@ export function createHazards(game) {
         const dz = pull.z - p.pos.z;
         const d = Math.hypot(dx, dz);
         if (d > 0.6) {
-          p.pos.x += (dx / d) * pull.strength * dt;
-          p.pos.z += (dz / d) * pull.strength * dt;
+          // spin：渦潮のように横へも流す
+          const sp = pull.spin || 0;
+          p.pos.x += ((dx / d) * pull.strength - (dz / d) * sp) * dt;
+          p.pos.z += ((dz / d) * pull.strength + (dx / d) * sp) * dt;
           game.world.collide(p.pos, p.radius);
         }
       }
