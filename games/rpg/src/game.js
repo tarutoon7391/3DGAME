@@ -18,6 +18,7 @@ import { createHazards } from './hazards.js';
 import { createBossVfx } from './bossvfx.js';
 import { createEffects } from './effects.js';
 import { createSound } from './sound.js';
+import { createSettings } from './ui/settings.js';
 import { createCameraRig } from './camera.js';
 import { createViewModel } from './viewmodel.js';
 import { VIEW } from './data/view.js';
@@ -45,7 +46,8 @@ const CONTROLS = [
   '左クリック：通常攻撃（長押しで出し続ける）　Space：回避（無敵時間あり）　F：看板を調べる',
   'Q・E：スキル（クールダウン）　R：必殺技（攻撃を当てて溜める。近接ほど早く溜まる）',
   'ダッシュと回避はスタミナを使う。0 になるとバテて、満タンに戻るまで使えない',
-  'ホイール：カメラ距離（三人称）　Esc：ポーズ',
+  'ホイール：カメラ距離（三人称）　Esc：ポーズ　M：ミュート',
+  '右上の ⚙：音量・ミュート・マウス感度',
   'Enter：チャット（協力プレイ中。定型文もある）',
 ].join('\n');
 /** スマホ（横持ち）の操作説明 */
@@ -53,7 +55,7 @@ const TOUCH_CONTROLS = [
   '左側をドラッグ：移動（いっぱいに倒すとダッシュ）　右側をドラッグ：視点',
   '攻撃ボタン：通常攻撃（長押しで出し続ける。押したままドラッグで狙いも動く）',
   '回避・Q・E：スキル　R：必殺技（攻撃を当てて溜める）　調べる：看板の前で出る',
-  '上のボタン：視点の切り替え（一人称／三人称）・全画面・ポーズ',
+  '上のボタン：視点の切り替え（一人称／三人称）・全画面・ポーズ　右上の ⚙：音量・ミュート・感度',
   '💬：チャット（協力プレイ中。定型文もある）',
 ].join('\n');
 
@@ -378,7 +380,13 @@ export function createGame() {
   // ---- ポインタロックとモーダル ----
   let expectUnlock = false;
   let gameChat = null; // 協力プレイ中のチャット（ui/chat.js）
-  const canLock = () => !touch && game.playing && !game.modal.open && !isOverlayOpen() && !game.down && !gameChat?.isOpen();
+  // 右上の ⚙（音量・感度）。遊んでいる間に開いたらポーズする
+  const settingsUi = createSettings({
+    settings: saveData.settings, save: saveSettings, sound: game.sound, touch,
+    onOpen: () => { if (game.playing && !game.down && !game.modal.open && !isOverlayOpen()) pause(); },
+  });
+  game.settingsUi = settingsUi;
+  const canLock = () => !touch && game.playing && !game.modal.open && !isOverlayOpen() && !game.down && !gameChat?.isOpen() && !settingsUi.isOpen();
   renderer.domElement.addEventListener('click', () => {
     if (canLock()) input.lockPointer();
   });
@@ -975,6 +983,7 @@ export function createGame() {
     gameChat?.update(dt);
     if (active && gameChat && !gameChat.isOpen() && input.wasPressed('Enter')) gameChat.open(); // Enter：チャット
     if (active && !game.down && input.wasPressed('KeyV')) game.setView(game.cam.fps ? 'tps' : 'fps', true);
+    if (active && !gameChat?.isOpen() && input.wasPressed('KeyM')) game.toast(settingsUi.toggleMute() ? '🔇 ミュート（M で戻す）' : '🔊 音を戻しました', 1400); // M：ミュート
 
     // カメラ操作（ロック中、または右ドラッグ）
     if (active && (input.mouse.locked || input.isDown('Mouse2'))) {

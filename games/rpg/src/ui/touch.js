@@ -3,6 +3,7 @@
 // 右：ドラッグで視点。ボタン：攻撃（長押しで出し続ける・押したままドラッグで視点も動く）・回避・Q・E・R・調べる
 // 上：ポーズ・視点切り替え・全画面
 // shared/input.js（共通の契約）は触らず、ここで「押された」をまとめて game.js の readIntent に渡す
+import { VIEW } from '../data/view.js';
 import { supportBadge } from './supportinfo.js';
 import { esc } from '../util.js';
 import { GAUGE } from '../data/jobs.js';
@@ -89,8 +90,9 @@ export function createTouch({ onPause, onView, allowMouse = false }) {
   function lookMove(e) {
     const l = looks.get(e.pointerId);
     if (!l) return;
-    st.lookDx += (e.clientX - l.x) * LOOK_SENS;
-    st.lookDy += (e.clientY - l.y) * LOOK_SENS;
+    const k = LOOK_SENS * (VIEW.touchSensMul ?? 1); // 設定画面のタッチ感度（ui/settings.js）
+    st.lookDx += (e.clientX - l.x) * k;
+    st.lookDy += (e.clientY - l.y) * k;
     l.x = e.clientX;
     l.y = e.clientY;
   }

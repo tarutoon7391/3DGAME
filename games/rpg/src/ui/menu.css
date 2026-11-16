@@ -261,3 +261,33 @@ body .g3-btns{gap:14px}
   .rpg-chat-lobby .rpg-chat-log{height:64px}
   .rpg-chat-lobby .rpg-chat-quick button{font-size:11px;padding:3px 6px}
 }
+
+/* ---- 設定（右上の ⚙。どの画面でもずっと出ている。src/ui/settings.js） ---- */
+.rpg-gear{position:fixed;top:12px;right:calc(12px + env(safe-area-inset-right));z-index:40;width:44px;height:44px;padding:0;border:0;border-radius:0;cursor:pointer;
+  font:22px/44px var(--ui-font);color:var(--cream);background:#1a0e06c0;box-shadow:0 0 0 2px var(--line),inset 0 -3px 0 #0006;pointer-events:auto}
+.rpg-gear:hover{background:var(--brick)}
+.rpg-gear.muted{background:#5e2b16d0}
+@media (min-height:521px){.rpg-chat-btn{top:64px}}
+.rpg-party{right:64px !important}
+.rpg-settings{position:fixed;inset:0;z-index:41;display:flex;align-items:center;justify-content:center;background:#0008;font-family:var(--ui-font)}
+.rpg-settings[hidden]{display:none}
+.rpg-set-box{width:min(440px,92vw);max-height:92vh;overflow:auto;background:var(--paper,#f3e3bd);color:var(--ink,#2a170c);box-shadow:0 0 0 3px var(--line),0 0 0 6px var(--brick-lo),0 10px 30px #000a;padding:14px 18px 16px}
+.rpg-set-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.rpg-set-head b{font-size:20px;color:var(--brick-lo)}
+.rpg-set-x{border:0;background:none;font-size:20px;cursor:pointer;color:var(--brick-lo)}
+.rpg-set-sec{margin:12px 0 4px;font-size:13px;color:var(--brick-lo);border-bottom:2px solid var(--line);padding-bottom:2px}
+.rpg-set-row{display:grid;grid-template-columns:5.5em 1fr 3.4em;align-items:center;gap:10px;padding:6px 0;font-size:15px}
+.rpg-set-row b{text-align:right;font-size:14px}
+.rpg-set-row input[type=range]{width:100%;accent-color:var(--brick);height:22px}
+.rpg-set-row input:disabled{opacity:.4}
+.rpg-set-mute{grid-template-columns:5.5em 1fr}
+.rpg-toggle{font:inherit;font-size:14px;cursor:pointer;border:0;padding:6px 10px;background:var(--paper2,#e8d3a3);box-shadow:0 0 0 2px var(--line);color:var(--ink,#2a170c)}
+.rpg-toggle.on{background:var(--brick);color:var(--cream)}
+.rpg-set-foot{display:flex;justify-content:space-between;gap:10px;margin-top:14px}
+@media (max-height:500px){
+  .rpg-gear{top:8px;width:40px;height:40px;font-size:20px;line-height:40px}
+  .rpg-set-box{padding:10px 14px 12px}
+  .rpg-set-row{padding:3px 0;font-size:13px}
+  .rpg-set-sec{margin-top:6px}
+  .rpg-set-foot{margin-top:8px}
+}

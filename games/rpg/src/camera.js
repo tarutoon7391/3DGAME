@@ -33,12 +33,13 @@ export function createCameraRig(camera) {
     input({ dx = 0, dy = 0, wheel = 0 }) {
       rig.lastDx = dx;
       rig.lastDy = dy;
+      const k = VIEW.sensMul ?? 1; // 設定画面の感度（ui/settings.js）
       if (rig.fps) {
-        rig.yaw -= dx * VIEW.sens;
-        rig.look = clamp(rig.look - dy * VIEW.sens, -VIEW.pitchLimit, VIEW.pitchLimit);
+        rig.yaw -= dx * VIEW.sens * k;
+        rig.look = clamp(rig.look - dy * VIEW.sens * k, -VIEW.pitchLimit, VIEW.pitchLimit);
       } else {
-        rig.yaw -= dx * VIEW.tpsSens;
-        rig.tps.pitch = clamp(rig.tps.pitch + dy * VIEW.tpsSens, 0.08, 1.2);
+        rig.yaw -= dx * VIEW.tpsSens * k;
+        rig.tps.pitch = clamp(rig.tps.pitch + dy * VIEW.tpsSens * k, 0.08, 1.2);
         rig.tps.dist = clamp(rig.tps.dist + wheel * 0.8, 4, 14);
       }
     },
