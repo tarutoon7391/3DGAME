@@ -120,6 +120,16 @@ export function createBoss(game, key, x, z, idx = 0, { puppet = false, scale = 1
       else if (name === 'pull') game.hazards?.startPull(d);
       else if (name === 'vfx') game.bossVfx?.play(d.type, d);
     },
+    /** 止まらないようにする保険（src/guard.js）：エラーが出たら今の技をやめて休みに戻す */
+    recover() {
+      cancelAll();
+      b.state = 'rest';
+      b.t = 0;
+      b.hidden = false;
+      m.group.visible = true;
+      m.root.position.y = 0;
+      m.root.rotation.set(0, 0, 0);
+    },
     dispose() {
       cancelAll();
       for (const n of b.novas) {

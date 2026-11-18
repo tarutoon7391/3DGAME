@@ -19,6 +19,7 @@ import { createBossVfx } from './bossvfx.js';
 import { createEffects } from './effects.js';
 import { createSound } from './sound.js';
 import { createSettings } from './ui/settings.js';
+import { guard, guardLog } from './guard.js';
 import { createCameraRig } from './camera.js';
 import { createViewModel } from './viewmodel.js';
 import { VIEW } from './data/view.js';
@@ -925,40 +926,43 @@ export function createGame() {
     const fighting = game.bosses.some((b) => b.active && b.alive);
     if (fighting && !game.wasFighting && me) me.fight = { d: 0, h: 0 };
     game.wasFighting = fighting;
-    game.players.forEach((p) => p.update(dt, p === me ? intent : idleIntent));
-    game.world.update(dt, time);
+    // 部品ごとに保険（src/guard.js）をかける：どこかでエラーが出ても、ほかは止めない
+    for (const p of game.players) guard(`プレイヤー ${p.name || p.jobId}`, () => p.update(dt, p === me ? intent : idleIntent));
+    guard('ステージ', () => game.world.update(dt, time));
+    /** ボス1体ずつ。エラーが出たボスは今の技をやめて休みに戻す */
+    const bossStep = (b) => guard(`ボス ${b.key || ''}`, () => b.update(dt, time), () => b.recover?.());
     if (game.isClient) {
       // 参加者：ボス・雑魚・召喚物は見た目だけ
-      game.enemies.update(dt, time);
-      for (const b of game.bosses) b.update(dt, time);
-      game.allies.update(dt, time);
+      guard('雑魚', () => game.enemies.update(dt, time));
+      for (const b of game.bosses) bossStep(b);
+      guard('召喚', () => game.allies.update(dt, time));
     } else {
       const sim = () => {
-        game.enemies.update(dt, time);
-        for (const b of game.bosses) b.update(dt, time);
-        separateBosses();
-        game.allies.update(dt, time);
-        if (!game.down) updateAreaLogic(game, intent);
+        guard('雑魚', () => game.enemies.update(dt, time));
+        for (const b of game.bosses) bossStep(b);
+        guard('ボスの押し合い', separateBosses);
+        guard('召喚', () => game.allies.update(dt, time));
+        if (!game.down) guard('エリア', () => updateAreaLogic(game, intent));
       };
       if (game.withMirror && game.raid) game.withMirror(sim);
       else sim();
     }
-    if (game.isClient && !game.down) updateAreaLogic(game, intent); // 看板だけ
-    game.projectiles.update(dt);
-    game.auras.update(dt);
-    game.enemyFx.update(dt);
-    game.skillFx.update(dt);
-    game.hazards.update(dt);
-    game.bossVfx.update(dt);
-    updateJobZones(game, dt);
-    game.eraser.update(dt);
+    if (game.isClient && !game.down) guard('エリア', () => updateAreaLogic(game, intent)); // 看板だけ
+    guard('弾', () => game.projectiles.update(dt));
+    guard('オーラ', () => game.auras.update(dt));
+    guard('敵の見た目', () => game.enemyFx.update(dt));
+    guard('スキルの見た目', () => game.skillFx.update(dt));
+    guard('炎の壁・渦', () => game.hazards.update(dt));
+    guard('ボスの技の見た目', () => game.bossVfx.update(dt));
+    guard('設置スキル', () => updateJobZones(game, dt));
+    guard('攻撃を消す範囲', () => game.eraser.update(dt));
     if (game.raid) {
-      updateRevive(dt, me);
-      checkWipe();
-      game.raid.update(dt);
+      guard('蘇生', () => updateRevive(dt, me));
+      guard('全滅判定', checkWipe);
+      guard('通信', () => game.raid.update(dt));
     }
-    priestAura(dt, me);
-    updateShift(dt);
+    guard('祈り', () => priestAura(dt, me));
+    guard('変身', () => updateShift(dt));
     // 祈祷師の近くにいると必殺ゲージが少しずつ溜まる
     if (me.alive && game.players.some((o) => o !== me && o.alive && o.jobId === 'shaman' && Math.hypot(o.pos.x - me.pos.x, o.pos.z - me.pos.z) <= 8)) me.addGauge(1.5 * dt);
     saveTimer += dt;
@@ -969,6 +973,13 @@ export function createGame() {
   }
 
   start((dt, time) => {
+    // 1フレームまるごとにも保険をかける（入力の締め・タッチの締めは必ず通す）
+    guard('フレーム', () => frame(dt, time));
+    input.endFrame();
+    touch?.endFrame();
+  });
+
+  function frame(dt, time) {
     const ui = game.hudView;
     if (game.playing && !game.modal.open && !game.down && !game.trans && input.wasPressed('Escape')) {
       if (isPaused()) {
@@ -1027,18 +1038,18 @@ export function createGame() {
     }
 
     if (game.playing) {
-      if (active || game.raid) game.fx.update(dt);
+      if (active || game.raid) guard('エフェクト', () => game.fx.update(dt));
       const me = game.me();
       game.lights.follow(me.pos);
-      game.cam.update(dt, me, game.world, game.fx.shakeOffset);
-      game.vm.setVisible(game.cam.fps && me.alive);
-      game.vm.update(dt, me, game.cam);
-      ui.update(dt);
-      game.plates.update();
+      guard('カメラ', () => game.cam.update(dt, me, game.world, game.fx.shakeOffset));
+      guard('手元の武器', () => {
+        game.vm.setVisible(game.cam.fps && me.alive);
+        game.vm.update(dt, me, game.cam);
+      });
+      guard('画面の表示', () => ui.update(dt));
+      guard('名前の表示', () => game.plates.update());
     }
-    input.endFrame();
-    touch?.endFrame();
-  });
+  }
 
   // タイトル背景用に村を表示しておく
   loadArea(game, AREA_ORDER[0]);
@@ -1064,7 +1075,7 @@ export function createGame() {
     // stepWith：入力を指定して1フレーム進める（自動テスト用）
     let dbgT = 0;
     game.debug = {
-      startRaid, startSolo, lobby, title, newProgress, applyTeamEffect,
+      startRaid, startSolo, lobby, title, newProgress, applyTeamEffect, guardLog,
       stepWith(it, dt = 1 / 60) {
         dbgT += dt;
         step(dt, dbgT, false, Object.assign(emptyIntent({}), it));
