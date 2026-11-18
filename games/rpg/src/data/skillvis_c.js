@@ -9,6 +9,8 @@ const wall = (color, dur = 2) => ['shieldwall', { color, dur }];
 const blink = (color, dist = 6) => [flashAt('self', color, 5), flashAt('front', color, 5, { dist, at: 0.05 }), ['burst', { color, n: 30 }], ['streak', { where: 'front', color, w: 0.6 }]];
 
 /** C の技の名前（試作の画像のラベル用） */
+import { C_SKILLS_E } from './jobs_e.js';
+
 export const C_NAMES = {
   swordsman: '受け流し', knight: '鉄壁', mage: '瞬間移動', priest: '清めの光', archer: '足止め矢', ninja: '変わり身', bard: '子守唄', summoner: '精霊強化',
   lancer: '棒高跳び', monk: '追撃', alchemist: '回復薬の瓶', berserker: '狂化', chrono: '加速', gunner: '反動跳び', warlock: '身代わり人形', reaper: '首狩りの構え',
@@ -23,6 +25,7 @@ export const C_NAMES = {
   absorber: '吸収の膜', reflector: '反射板', drummer: '拍子取り', charger: '溜め移し', thornknight: '茨の罠', splitter: '分裂の盾', boomeranger: '受け止め', shredder: '亀裂の印',
   exorcist: '聖水', stickybomber: '一斉起爆', bellringer: '鐘の中', gardener: '水やり', echomage: '反響壁', vanguard: '突撃号令', conductor: 'フェルマータ', sacrifice: '身代わり',
 };
+for (const [id, c] of Object.entries(C_SKILLS_E)) C_NAMES[id] = c.name; // 職業 97〜114
 
 const R = {
   swordsman: [vm('raise', 0.6), wall(0xffffff, 0.6), flashAt('front', 0xffd54f, 4, { dist: 1.2 }), ['burst', { where: 'front', dist: 1.2, color: 0xffffff, n: 24, speed: 9 }]],

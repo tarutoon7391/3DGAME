@@ -15,10 +15,11 @@ import { WEAPONS_A } from './data/weapons_a.js';
 import { WEAPONS_B } from './data/weapons_b.js';
 import { WEAPONS_C } from './data/weapons_c.js';
 import { WEAPONS_D } from './data/weapons_d.js';
+import { WEAPONS_E } from './data/weapons_e.js';
 import { LAST_VERTICAL, GUN_JOBS } from './data/skillvis.js';
 
-/** 職業 id → 武器の形（全96職。足りない職は剣士の剣） */
-export const WEAPONS = { ...WEAPONS_A, ...WEAPONS_B, ...WEAPONS_C, ...WEAPONS_D };
+/** 職業 id → 武器の形（全114職。足りない職は剣士の剣） */
+export const WEAPONS = { ...WEAPONS_A, ...WEAPONS_B, ...WEAPONS_C, ...WEAPONS_D, ...WEAPONS_E };
 
 const NAMED = {
   g: 0x4e342e, w: 0x8d6e63, W: 0x6d4c41, d: 0x37474f, s: 0xb0bec5, au: 0xffc107,

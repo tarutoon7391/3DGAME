@@ -3,6 +3,8 @@
 //   after.dodge：'move'（動いている向き。止まっていれば後ろ）/ 'back'（後ろ）へ回避と同じ移動
 //   after.invuln：無敵の秒 / after.cdCut：{ q: 秒, e: 秒 } クールダウンを縮める / after.gauge：必殺ゲージ / after.hpCost：HP の割合を払う
 //   after.unseen：敵に気づかれない秒
+import { C_SKILLS_E } from './jobs_e.js';
+
 const sb = (id, name, desc, cd, color, buff, dur, vals, extra = {}) => ({ id, kind: 'selfbuff', name, desc, cd, color, buff, dur, vals, ...extra });
 const tb = (id, name, desc, cd, color, buff, dur, vals, radius, extra = {}) => ({ id, kind: 'teambuff', name, desc, cd, color, buff, dur, vals, radius, ...extra });
 
@@ -10,14 +12,14 @@ export const C_SKILLS = {
   swordsman: { id: 'c_swordsman', kind: 'counter', name: '受け流し', desc: '0.6秒 構え、受けたら会心の反撃（2倍）', cd: 12, dur: 0.6, mult: 2, range: 4, color: 0xffd54f },
   knight: sb('c_knight', '鉄壁', '3秒間 被ダメ -60%（足が遅くなる）', 15, 0x90a4ae, 'ironwall', 3, { dmgMul: 0.4, speedMul: 0.6 }),
   mage: { id: 'c_mage', kind: 'blink', name: '瞬間移動', desc: '向いている方へ6m ワープ', cd: 10, dist: 6, color: 0x64b5f6 },
-  priest: { id: 'c_priest', kind: 'teamheal', name: '清めの光', desc: '周りの味方を少し回復（15%）', cd: 14, radius: 8, amount: 0.15, color: 0xfff9c4 },
+  priest: { id: 'c_priest', kind: 'teamheal', name: '清めの光', desc: '周りの味方を少し回復（12%）', cd: 14, radius: 8, amount: 0.1158, color: 0xfff9c4 },
   archer: { id: 'c_archer', kind: 'debuff', name: '足止め矢', desc: 'ボスの足を射抜き、1.5秒 ほとんど動けなくする', cd: 12, color: 0x8bc34a, debuffs: [{ name: 'slow', dur: 1.5, mul: 0.2 }] },
   ninja: { id: 'c_ninja', kind: 'blinkbehind', name: '変わり身', desc: '丸太を残して一番近いボスの背後へ（0.8秒 無敵）', cd: 16, color: 0xbdbdbd, after: { invuln: 0.8 } },
   bard: { id: 'c_bard', kind: 'debuff', name: '子守唄', desc: '4秒間 ボスの動きをゆっくりに', cd: 16, color: 0xb3e5fc, debuffs: [{ name: 'slow', dur: 4, mul: 0.55 }] },
   summoner: sb('c_summoner', '精霊強化', '8秒間、自分の精霊（癒しの精霊も）の攻撃・回復の速さが 1.5倍', 14, 0x81d4fa, 'spiritboost', 8, { spiritRate: 1.5 }),
   lancer: { id: 'c_lancer', kind: 'leap', name: '棒高跳び', desc: '槍を突いて後ろへ14m 大きく跳ぶ（無敵）', cd: 10, back: true, dist: 14, time: 0.65, height: 4.5, color: 0xffe0b2 },
   monk: { id: 'c_monk', kind: 'followup', name: '追撃', desc: 'Q・E・R の技が終わる前に押すと、その技から派生した追撃が出る（気功波→突進して一撃／昇龍拳→かかと落とし／百烈拳→大きな気功波3連）。単体では出せない', cd: 6, color: 0xffab40 },
-  alchemist: { id: 'c_alchemist', kind: 'teamheal', name: '回復薬の瓶', desc: '回復薬を割って周りの味方を回復（20%）', cd: 14, radius: 5, amount: 0.2, color: 0x69f0ae },
+  alchemist: { id: 'c_alchemist', kind: 'teamheal', name: '回復薬の瓶', desc: '回復薬を割って周りの味方を回復（13%）', cd: 14, radius: 5, amount: 0.2, color: 0x69f0ae },
   berserker: sb('c_berserker', '狂化', '5秒間 攻撃 +30%・被ダメ +20%', 18, 0xd50000, 'frenzy', 5, { atkMul: 1.3, dmgMul: 1.2 }),
   chrono: tb('c_chrono', '加速', '4秒間 周りの味方の移動 +25%・攻撃 +10%', 16, 0xb388ff, 'haste', 4, { speedMul: 1.25, atkMul: 1.1 }, 8),
   gunner: { id: 'c_gunner', kind: 'recoil', name: '反動跳び', desc: '前へ砲弾を撃ち、反動で後ろへ9m 跳ぶ（跳ぶ間は無敵）', cd: 10, mult: 2.5, size: 0.55, explode: 2.5, speed: 30, dist: 9, time: 0.45, height: 2.2, color: 0xff7043 },
@@ -83,7 +85,7 @@ export const C_SKILLS = {
   elementalist: { id: 'c_elementalist', kind: 'cycleSkip', name: '属性選び', desc: '次の属性を1つ飛ばす', cd: 12, color: 0x80cbc4 },
   werewolf: tb('c_werewolf', '遠吠え', '5秒間 周りの味方の攻撃 +15%', 18, 0xa1887f, 'howl', 5, { atkMul: 1.15 }, 9),
   fortress: sb('c_fortress', '撤収', '2秒間 移動 +60%', 10, 0x90a4ae, 'packup', 2, { speedMul: 1.6 }),
-  healfist: { id: 'c_healfist', kind: 'teamheal', name: '気の巡り', desc: 'HP を10% 払って、周りの味方を大きく回復（25%。自分は回復しない）', cd: 15, radius: 7, amount: 0.25, selfMul: 0, color: 0x69f0ae, after: { hpCost: 0.1 } },
+  healfist: { id: 'c_healfist', kind: 'teamheal', name: '気の巡り', desc: 'HP を10% 払って、周りの味方を大きく回復（24%。自分は回復しない）', cd: 15, radius: 7, amount: 0.1247, selfMul: 0, color: 0x69f0ae, after: { hpCost: 0.1 } },
   sage: sb('c_sage', '時短の書', 'Q と E の待ち時間を2秒縮める', 20, 0xfff59d, 'shortcut', 0.5, {}, { after: { cdCut: { q: 2, e: 2 } } }),
   acrobat: { id: 'c_acrobat', kind: 'leap', name: '綱渡り', desc: '攻撃を跳び越えて7m 先へ（無敵）', cd: 10, dist: 7, time: 0.55, height: 4, color: 0xffd54f },
   driller: sb('c_driller', '地中潜り', '地面に潜り、2秒間 無敵・移動 +30%', 14, 0x8d6e63, 'burrow', 2, { speedMul: 1.3 }, { invuln: 2 }),
@@ -104,3 +106,4 @@ export const C_SKILLS = {
   conductor: { id: 'c_conductor', kind: 'bell', name: 'フェルマータ', desc: '2秒間 敵弾がほとんど止まる', cd: 20, mul: 0.05, dur: 2, color: 0xce93d8 },
   sacrifice: tb('c_sacrifice', '身代わり', '5秒間 周りの味方の被ダメ -40%（自分の HP を5% 払う）', 20, 0xe57373, 'proxy', 5, { dmgMul: 0.6 }, 6, { after: { hpCost: 0.05 } }),
 };
+Object.assign(C_SKILLS, C_SKILLS_E); // 職業 97〜114（data/jobs_e.js）

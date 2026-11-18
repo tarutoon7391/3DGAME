@@ -15,6 +15,7 @@
 
 import { ROLES, roleStats } from './roles.js';
 import { C_SKILLS } from './jobs_c.js';
+import { JOBS_E, ORDER_E } from './jobs_e.js';
 
 export const GAUGE = {
   max: 100,
@@ -80,12 +81,12 @@ export const JOBS = {
     healer: true, // 回復ができる：ピンチの味方が赤く光って見える
     power: 1.95, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.55, speed: 18, mult: 0.75, color: 0xfff59d, size: 0.28, range: 22 },
-    q: { id: 'heal', name: '癒しの光', desc: '周囲8mの味方（自分も）の HP を最大の 40% 回復', cd: 10, radius: 8, amount: 0.4 },
+    q: { id: 'heal', name: '癒しの光', desc: '周囲8mの味方（自分も）の HP を最大の 31% 回復', cd: 10, radius: 8, amount: 0.3089 },
     e: { id: 'sanctuary', name: '聖なる守り', desc: '周囲8mの味方（自分も）の被ダメージ -30%（6秒）', cd: 16, radius: 8, dur: 6, mul: 0.7 },
     // 蘇生できる必殺技は強すぎるので、1回の挑戦（進行）で1度だけ。全滅してやり直しても戻らない
     r: { id: 'prayer', name: '女神の祈り', desc: '全員を全回復し、倒れた味方を蘇生。3秒間 無敵（1回の挑戦で1度だけ）', invuln: 3, oncePerRun: true },
     trait: '周囲6mの味方は毎秒 HP 1% 回復',
-    auraRegen: 0.01, auraRadius: 6, breakMul: 1,
+    auraRegen: 0.0078, auraRadius: 6, breakMul: 1,
     look: { armorColor: 0xeceff1, swordColor: 0xffe082, swordLen: 0.9, cape: 0xffd54f, weapon: 'staff', hat: 0xeceff1 },
   },
   archer: {
@@ -117,7 +118,7 @@ export const JOBS = {
     basic: { type: 'shot', cd: 0.5, speed: 16, mult: 0.75, color: 0xf48fb1, size: 0.3, range: 20, wobble: true },
     q: { id: 'courage', name: '勇気の歌', desc: '周囲10mの味方の攻撃力 +30%（10秒）', cd: 15, radius: 10, dur: 10, atkMul: 1.3 },
     e: { id: 'dissonance', name: '不協和音', desc: '前方6mの扇に音の衝撃。ブレイク値が大きく溜まる', cd: 8, mult: 1.4, range: 6, arc: 1.6, brkMul: 3 },
-    r: { id: 'gale', name: '疾風の旋律', desc: '全員 10秒間 スタミナ無限・移動 +25%・毎秒 HP 2% 回復', dur: 10, speedMul: 1.25, regen: 0.02 },
+    r: { id: 'gale', name: '疾風の旋律', desc: '全員 10秒間 スタミナ無限・移動 +25%・毎秒 HP 5% 回復', dur: 10, speedMul: 1.25, regen: 0.0676 },
     trait: '周囲8mの味方の Q スキルのクールダウンが 1.3倍速で戻る',
     auraCd: 1.3, auraRadius: 8, breakMul: 1,
     look: { armorColor: 0xad1457, swordColor: 0xffcc80, swordLen: 0.7, cape: 0xf8bbd0, weapon: 'lute', hat: 0x880e4f },
@@ -219,7 +220,7 @@ export const JOBS = {
     basic: { type: 'shot', cd: 0.55, speed: 18, mult: 0.6, color: 0xce93d8, size: 0.3, range: 22, dot: { mult: 0.15, every: 0.5, dur: 3 } },
     q: { id: 'hex', name: '呪いの刻印', desc: '当てた敵に8秒間の強い呪い（0.5秒ごとにダメージ）', cd: 9, speed: 20, dot: { mult: 0.4, every: 0.5, dur: 8 } },
     e: { id: 'cursespread', name: '呪いの拡散', desc: '自分の呪いがかかった敵すべてに追加ダメージを与え、呪いを延長する', cd: 9, mult: 1.6, extend: 3 },
-    r: { id: 'drain', name: '生命吸収', desc: '2秒間 前方の敵から命を吸い取り、周り10mの味方を少しずつ回復（合計 最大16%）', dur: 2, every: 0.25, mult: 1.3, range: 14, heal: 0.02, healRadius: 10 },
+    r: { id: 'drain', name: '生命吸収', desc: '2秒間 前方の敵から命を吸い取り、周り10mの味方を少しずつ回復（合計 最大80%）', dur: 2, every: 0.25, mult: 1.3, range: 14, heal: 0.0366, healRadius: 10 },
     trait: '与えたダメージの 3% だけ HP 回復（1回の回復は最大 HP の 1.5% まで）',
     lifesteal: 0.03, lifestealCap: 0.015, breakMul: 1,
     look: { armorColor: 0x311b92, swordColor: 0xce93d8, swordLen: 0.9, cape: 0x1a0026, weapon: 'staff', hat: 0x1a0026 },
@@ -370,7 +371,7 @@ export const JOBS = {
     power: 1.47, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.4, hit: 0.14, mult: 1.1 }, { dur: 0.4, hit: 0.14, mult: 1.15 }, { dur: 0.55, hit: 0.22, mult: 1.8 }], range: 2.7, arc: 2.3, heavyBonus: 0.3 },
     q: { id: 'holysmite', kind: 'burst', name: '聖撃', desc: '剣を振りかぶり、聖なる力をまとった縦斬りで周りを打つ', cd: 6, windup: 0.15, anim: 'cast', mult: 1.8, radius: 3.8, color: 0xffe082 },
-    e: { id: 'consecrate', kind: 'zone', zone: 'field', name: '聖別', desc: '足元を6秒間 聖地にする（敵に継続ダメージ・中の味方は毎秒少し回復）', cd: 12, radius: 5, dur: 6, every: 0.5, mult: 0.5, heal: 0.01, color: 0xffe082 },
+    e: { id: 'consecrate', kind: 'zone', zone: 'field', name: '聖別', desc: '足元を6秒間 聖地にする（敵に継続ダメージ・中の味方は毎秒少し回復）', cd: 12, radius: 5, dur: 6, every: 0.5, mult: 0.5, heal: 0.0295, color: 0xffe082 },
     r: { id: 'divineshield', kind: 'teambuff', name: '神の盾', desc: '周囲12mの味方の被ダメージ -50%（6秒）', radius: 12, buff: 'divine', dur: 6, vals: { dmgMul: 0.5 }, color: 0xffd54f, msg: '神の盾！ 被ダメージ半減' },
     trait: '周囲6mの味方の被ダメージ -10%',
     breakMul: 1.3,
@@ -417,7 +418,7 @@ export const JOBS = {
     power: 1.93, support: 0.43, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.55, speed: 18, mult: 0.75, color: 0xaed581, size: 0.3, range: 22 },
     q: { id: 'wartotem', kind: 'zone', zone: 'totem', name: '戦いのトーテム', desc: 'そばの味方の攻撃力 +20% のトーテムを12秒置く', cd: 13, radius: 7, dur: 12, color: 0xff7043, buff: { name: 'wartotem', vals: { atkMul: 1.2 } } },
-    e: { id: 'healtotem', kind: 'zone', zone: 'totem', name: '癒しのトーテム', desc: 'そばの味方が毎秒 HP 3% 回復するトーテムを10秒置く', cd: 14, radius: 7, dur: 10, color: 0x69f0ae, buff: { name: 'healtotem', vals: { regen: 0.03 } } },
+    e: { id: 'healtotem', kind: 'zone', zone: 'totem', name: '癒しのトーテム', desc: 'そばの味方が毎秒 HP 5% 回復するトーテムを10秒置く', cd: 14, radius: 7, dur: 10, color: 0x69f0ae, buff: { name: 'healtotem', vals: { regen: 0.1157 } } },
     r: { id: 'spirittotem', kind: 'zone', zone: 'totem', name: '祖霊のトーテム', desc: 'そばの味方の攻撃力 +30%・被ダメ -30%・移動 +15% のトーテムを12秒置く', radius: 8, dur: 12, color: 0xffd54f, buff: { name: 'spirittotem', vals: { atkMul: 1.3, dmgMul: 0.7, speedMul: 1.15 } } },
     trait: '周囲8mの仲間の必殺ゲージが少しずつ溜まる',
     breakMul: 1,
@@ -560,9 +561,9 @@ export const JOBS = {
     name: '料理人', role: 'ごはんで支援', color: '#ffcc80',
     power: 1.4, support: 1.66, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.5, speed: 18, mult: 0.75, color: 0xffcc80, size: 0.3, range: 20, wobble: true },
-    q: { id: 'picnic', kind: 'zone', zone: 'field', name: 'お弁当', desc: '足元に8秒間の食事の場。中の味方は毎秒 HP 3% 回復', cd: 14, radius: 5, dur: 8, every: 0.5, heal: 0.015, mult: 0, color: 0xffcc80 },
+    q: { id: 'picnic', kind: 'zone', zone: 'field', name: 'お弁当', desc: '足元に8秒間の食事の場。中の味方は毎秒 HP 5% 回復', cd: 14, radius: 5, dur: 8, every: 0.5, heal: 0.015, mult: 0, color: 0xffcc80 },
     e: { id: 'spicy', kind: 'teambuff', name: '激辛カレー', desc: '周囲9mの味方の攻撃力 +25%・移動 +10%（10秒）', cd: 16, radius: 9, buff: 'spicy', dur: 10, vals: { atkMul: 1.25, speedMul: 1.1 }, color: 0xff7043, msg: '激辛カレー！ 攻撃力アップ' },
-    r: { id: 'feast', kind: 'teambuff', name: 'ごちそう', desc: '全員 12秒間 毎秒 HP 4% 回復・被ダメ -20%', buff: 'feast', dur: 12, vals: { regen: 0.04, dmgMul: 0.8 }, color: 0xffcc80, msg: 'ごちそう！ 回復し続ける' },
+    r: { id: 'feast', kind: 'teambuff', name: 'ごちそう', desc: '全員 12秒間 毎秒 HP 6.5% 回復・被ダメ -20%', buff: 'feast', dur: 12, vals: { regen: 0.04, dmgMul: 0.8 }, color: 0xffcc80, msg: 'ごちそう！ 回復し続ける' },
     trait: 'つまみ食い：自分は毎秒 HP 0.5% 回復',
     selfRegen: 0.005, breakMul: 1,
     look: { armorColor: 0xfafafa, swordColor: 0x9e9e9e, swordLen: 0.6, cape: 0xffffff, weapon: 'dagger', hat: 0xfafafa },
@@ -680,9 +681,9 @@ export const JOBS = {
     name: '衛生兵', role: '回復（素早い）', color: '#ef9a9a',
     power: 1.87, support: 0.76, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.4, speed: 30, mult: 0.7, color: 0xffffff, size: 0.2, range: 24 },
-    q: { id: 'firstaid', kind: 'teamheal', name: '救急キット', desc: '周囲6mの味方の HP を 30% 回復', cd: 7, radius: 6, amount: 0.3, color: 0xef9a9a },
-    e: { id: 'stimpack', kind: 'teambuff', name: '興奮剤', desc: '周囲8mの味方を 6秒間 移動 +25%・毎秒 HP 2% 回復', cd: 12, radius: 8, buff: 'stim', dur: 6, vals: { speedMul: 1.25, regen: 0.02 }, color: 0xef9a9a, msg: '興奮剤：足が速くなり回復' },
-    r: { id: 'fieldhospital', kind: 'zone', zone: 'field', name: '野戦病院', desc: '足元を10秒間 回復の場にする（毎秒 HP 6% 回復）', radius: 6, dur: 10, every: 0.5, heal: 0.03, mult: 0, color: 0xef9a9a },
+    q: { id: 'firstaid', kind: 'teamheal', name: '救急キット', desc: '周囲6mの味方の HP を 21% 回復', cd: 7, radius: 6, amount: 0.273, color: 0xef9a9a },
+    e: { id: 'stimpack', kind: 'teambuff', name: '興奮剤', desc: '周囲8mの味方を 6秒間 移動 +25%・毎秒 HP 1.5% 回復', cd: 12, radius: 8, buff: 'stim', dur: 6, vals: { speedMul: 1.25, regen: 0.0182 }, color: 0xef9a9a, msg: '興奮剤：足が速くなり回復' },
+    r: { id: 'fieldhospital', kind: 'zone', zone: 'field', name: '野戦病院', desc: '足元を10秒間 回復の場にする（毎秒 HP 4% 回復）', radius: 6, dur: 10, every: 0.5, heal: 0.0273, mult: 0, color: 0xef9a9a },
     trait: '足が速い衛生兵',
     breakMul: 1,
     look: { armorColor: 0xeceff1, swordColor: 0xef5350, swordLen: 0.6, cape: 0xc62828, weapon: 'gun', hat: 0xeceff1 },
@@ -814,7 +815,7 @@ export const JOBS = {
     power: 1.39, support: 1.33, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.45, speed: 24, mult: 0.75, color: 0xf8bbd0, size: 0.26, range: 22 },
     q: { id: 'sweepup', kind: 'cleanse', name: 'お掃除', desc: '周り6mの敵の攻撃を一瞬で消して、近くの敵を叩く', cd: 6, radius: 6, mult: 1.2, color: 0xf8bbd0 },
-    e: { id: 'teatime', kind: 'teamheal', name: 'お茶の時間', desc: '周囲8mの味方の HP を 20% 回復', cd: 12, radius: 8, amount: 0.2, color: 0xf8bbd0 },
+    e: { id: 'teatime', kind: 'teamheal', name: 'お茶の時間', desc: '周囲8mの味方の HP を 43% 回復', cd: 12, radius: 8, amount: 0.3207, color: 0xf8bbd0 },
     r: { id: 'springclean', kind: 'cleanse', name: '大掃除', desc: '周り14mの敵の攻撃をすべて消し、周りの味方に8秒のバリア', radius: 14, mult: 9, color: 0xff80ab, team: { name: 'barrier', dur: 8, vals: { shield: 0.3 }, msg: 'メイドの大掃除！ バリアが張られた' } },
     trait: '身のこなし：回避の無敵時間 +0.1秒',
     dodgeInvulnBonus: 0.1, breakMul: 1,
@@ -849,7 +850,7 @@ export const JOBS = {
     power: 0.7, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.5, speed: 22, mult: 0.85, color: 0x90caf9, size: 0.3, range: 22 },
     q: { id: 'thunderstorm', kind: 'zone', zone: 'field', name: '雷雨', desc: '狙った場所に5秒間 雷雨を降らせる', cd: 9, at: 'aim', dist: 8, radius: 5, dur: 5, every: 0.35, mult: 0.6, color: 0x90caf9 },
-    e: { id: 'sunshine', kind: 'teambuff', name: '晴れ間', desc: '周囲10mの味方 8秒間 毎秒 HP 2% 回復・移動 +15%', cd: 15, radius: 10, buff: 'sunshine', dur: 8, vals: { regen: 0.02, speedMul: 1.15 }, color: 0xffee58, msg: '晴れ間がさした' },
+    e: { id: 'sunshine', kind: 'teambuff', name: '晴れ間', desc: '周囲10mの味方 8秒間 毎秒 HP 6.5% 回復・移動 +15%', cd: 15, radius: 10, buff: 'sunshine', dur: 8, vals: { regen: 0.0666, speedMul: 1.15 }, color: 0xffee58, msg: '晴れ間がさした' },
     r: { id: 'hurricane', kind: 'zone', zone: 'field', name: '大嵐', desc: '一番近いボスの周りに8秒間 大嵐（強い継続ダメージ）', at: 'boss', dist: 8, radius: 7, dur: 8, every: 0.3, mult: 0.8, color: 0x42a5f5 },
     trait: 'ブレイク値 1.1倍',
     healer: true, breakMul: 1.1,
@@ -964,10 +965,10 @@ export const JOBS = {
     power: 0.95, support: 1.92, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'melee', combo: [{ dur: 0.24, hit: 0.08, mult: 0.8 }, { dur: 0.24, hit: 0.08, mult: 0.85 }, { dur: 0.24, hit: 0.08, mult: 0.85 }, { dur: 0.4, hit: 0.15, mult: 1.4 }], range: 2.4, arc: 2.2, heavyBonus: 0.2 },
     q: { id: 'chipalm', kind: 'cone', name: '気功掌', desc: '前方を打つ（与えたダメージも仲間の回復に回る）', cd: 5, mult: 2.0, range: 3.4, arc: 1.4, color: 0xa5d6a7 },
-    e: { id: 'chiwave', kind: 'teamheal', name: '気の波', desc: '周囲8mの味方の HP を 12% 回復（自分は半分）', cd: 12, radius: 8, amount: 0.12, selfMul: 0.5, color: 0xa5d6a7 },
+    e: { id: 'chiwave', kind: 'teamheal', name: '気の波', desc: '周囲8mの味方の HP を 12% 回復（自分は半分）', cd: 12, radius: 8, amount: 0.0599, selfMul: 0.5, color: 0xa5d6a7 },
     r: { id: 'chiburst', kind: 'burst', name: '気功乱打', desc: '周りを8回 打つ（すべて仲間の回復に回る）', ticks: 8, every: 0.12, mult: 1.1, radius: 3.8, color: 0x69f0ae },
     trait: '近接で与えたダメージの一部が、1.2秒ごとに周り8mの仲間の回復になる（自分への回復は 3割）',
-    healPool: { rate: 0.0004, max: 0.025, radius: 8, selfMul: 0.3 }, // 1.2秒ごとに最大 2.5%（僧侶を上回らない） breakMul: 1,
+    healPool: { rate: 0.0002, max: 0.0125, radius: 8, selfMul: 0.3 }, // 1.2秒ごとに最大 2.5%（僧侶を上回らない） breakMul: 1,
     look: { armorColor: 0x2e7d32, swordColor: 0xa5d6a7, swordLen: 0.5, cape: 0x1b5e20, weapon: 'fist' },
   },
   sage: {
@@ -1195,6 +1196,9 @@ export const JOB_ORDER = ['swordsman', 'knight', 'mage', 'priest', 'archer', 'ni
   'gladiator', 'elementalist', 'werewolf', 'fortress', 'healfist', 'sage', 'acrobat', 'driller',
   'absorber', 'reflector', 'drummer', 'charger', 'thornknight', 'splitter', 'boomeranger', 'shredder',
   'exorcist', 'stickybomber', 'bellringer', 'gardener', 'echomage', 'vanguard', 'conductor', 'sacrifice'];
+// 職業 97〜114（タンク・ヒーラー・バッファー・デバッファー・ユニークを各12職に。data/jobs_e.js）
+Object.assign(JOBS, JOBS_E);
+JOB_ORDER.push(...ORDER_E);
 
 /**
  * 基本ステータスはロールごとに共通（data/roles.js・docs/balance/policy.md）。

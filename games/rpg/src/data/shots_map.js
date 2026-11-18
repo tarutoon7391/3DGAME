@@ -3,6 +3,8 @@
 //   basic … 通常攻撃（左クリック）の弾
 //   skill … Q・E・R で撃つ弾。キーは技の color（data/jobs.js・jobs.js に書いてある色）
 //   書いていない技の弾 … 職業の basic → それもなければ「爆発する弾は blast／貫通する弾は lance／それ以外は orb」
+import { SHOTS_E } from './jobs_e.js';
+
 export const JOB_SHOTS = {
   mage: { basic: 'magic', skill: { 0xff7043: 'fireball', 0x80deea: 'ice' } },
   priest: { basic: 'light' },
@@ -67,6 +69,7 @@ export const JOB_SHOTS = {
   conductor: { basic: 'note2' },
   sacrifice: { basic: 'drop' },
 };
+Object.assign(JOB_SHOTS, SHOTS_E); // 職業 97〜114（data/jobs_e.js）
 
 /** 弾の形の名前を決める。o は playerShot に渡す設定（basic・color・explode・pierce） */
 export function pickShotLook(jobId, o) {

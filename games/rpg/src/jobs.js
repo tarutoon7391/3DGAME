@@ -1290,6 +1290,8 @@ const GENERIC = {
     const n = game.eraser.erase(p.pos.x, p.pos.z, sk.radius).shots; // はね返す威力は今までどおり敵弾の数
     ringFx(game, p.pos.x, p.pos.z, sk.radius, sk.color);
     if (!local) return;
+    // 甲羅闘士・天邪鬼：はね返すと同時に、周りの味方に強化（team）
+    if (sk.team) game.teamEffect({ kind: 'buff', name: sk.team.name, dur: sk.team.dur, vals: sk.team.vals, x: p.pos.x, z: p.pos.z, r: sk.radius, msg: sk.team.msg });
     let best = null;
     let bd = 40;
     forEachTarget(game, (e) => {
