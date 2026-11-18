@@ -312,7 +312,7 @@ export const AREAS = {
     signs: [{ x: 3.5, z: 42, key: 'space' }],
   }),
 
-  // ステージ10〜12：全部屋が縦横2倍。各部屋ボス2体、最後の部屋は3体。ボスは体4倍・範囲3倍・弾2倍（data/bosskit.js の HUGE）
+  // ステージ10〜12：全部屋が縦横2倍。各部屋ボス2体、最後の部屋は3体。ボスは体3倍・範囲2.4倍・弾2倍（data/bosskit.js の HUGE）
   // ステージ10：天空の城（雲の上の屋外）
   sky: bossHall({
     name: 'ステージ10　天空の城', stage: 12, bgm: 'field', outdoor: true, room: 2,

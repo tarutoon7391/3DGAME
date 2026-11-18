@@ -690,7 +690,7 @@ for (const [k, v] of Object.entries(S5_MOVES)) {
 Object.assign(BOSSES, S6_BOSSES);
 // ステージ7〜9（海・溶岩・宇宙。data/bossmoves_s7〜s9.js）
 Object.assign(BOSSES, S7_BOSSES, S8_BOSSES, S9_BOSSES);
-// ステージ10〜12（天空・機械・冥界。data/bossmoves_s10〜s12.js。全員 体4倍・範囲3倍・弾2倍）
+// ステージ10〜12（天空・機械・冥界。data/bossmoves_s10〜s12.js。全員 体3倍・範囲2.4倍・弾2倍）
 Object.assign(BOSSES, S10_BOSSES, S11_BOSSES, S12_BOSSES);
 
 /** 1-3のボス（旧コードとの互換用） */

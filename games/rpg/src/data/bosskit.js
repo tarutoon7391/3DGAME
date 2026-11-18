@@ -9,7 +9,7 @@ const PI = Math.PI;
  * ステージ10〜12 のボスの大きさ（ここを変えると全員まとめて変わる）
  * size：体の大きさ、range：攻撃範囲・距離、shot：弾・光球の数。部屋は縦横2倍・ボスは2〜3体同時なので範囲は3倍にしている
  */
-export const HUGE = { size: 4, range: 3, shot: 2 };
+export const HUGE = { size: 3, range: 2.4, shot: 2 };
 /** 部品で書いたボスを HUGE の大きさにする */
 export const huge = (def, over = {}) => giant(def, HUGE.range, over, { size: HUGE.size, shot: HUGE.shot });
 
