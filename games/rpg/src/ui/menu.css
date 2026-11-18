@@ -291,3 +291,7 @@ body .g3-btns{gap:14px}
   .rpg-set-sec{margin-top:6px}
   .rpg-set-foot{margin-top:8px}
 }
+
+/* 保険のエラー表示（src/guard.js） */
+.rpg-errnote{position:fixed;left:12px;bottom:12px;z-index:45;max-width:70vw;padding:6px 10px;font:12px/1.4 var(--ui-font);color:#fff;background:#8b1a1ad0;box-shadow:0 0 0 2px #000;pointer-events:none}
+.rpg-errnote[hidden]{display:none}
