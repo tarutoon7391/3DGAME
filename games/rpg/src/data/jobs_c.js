@@ -12,7 +12,7 @@ export const C_SKILLS = {
   swordsman: { id: 'c_swordsman', kind: 'counter', name: '受け流し', desc: '0.6秒 構え、受けたら会心の反撃（2倍）', cd: 12, dur: 0.6, mult: 2, range: 4, color: 0xffd54f },
   knight: sb('c_knight', '鉄壁', '3秒間 被ダメ -60%（足が遅くなる）', 15, 0x90a4ae, 'ironwall', 3, { dmgMul: 0.4, speedMul: 0.6 }),
   mage: { id: 'c_mage', kind: 'blink', name: '瞬間移動', desc: '向いている方へ6m ワープ', cd: 10, dist: 6, color: 0x64b5f6 },
-  priest: { id: 'c_priest', kind: 'teamheal', name: '清めの光', desc: '周りの味方を少し回復（12%）', cd: 14, radius: 8, amount: 0.1158, color: 0xfff9c4 },
+  priest: { id: 'c_priest', kind: 'teamheal', name: '清めの光', desc: '周りの味方を少し回復（14%）', cd: 14, radius: 8, amount: 0.1381, color: 0xfff9c4 },
   archer: { id: 'c_archer', kind: 'debuff', name: '足止め矢', desc: 'ボスの足を射抜き、1.5秒 ほとんど動けなくする', cd: 12, color: 0x8bc34a, debuffs: [{ name: 'slow', dur: 1.5, mul: 0.2 }] },
   ninja: { id: 'c_ninja', kind: 'blinkbehind', name: '変わり身', desc: '丸太を残して一番近いボスの背後へ（0.8秒 無敵）', cd: 16, color: 0xbdbdbd, after: { invuln: 0.8 } },
   bard: { id: 'c_bard', kind: 'debuff', name: '子守唄', desc: '4秒間 ボスの動きをゆっくりに', cd: 16, color: 0xb3e5fc, debuffs: [{ name: 'slow', dur: 4, mul: 0.55 }] },

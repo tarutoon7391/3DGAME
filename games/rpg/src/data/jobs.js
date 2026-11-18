@@ -81,12 +81,12 @@ export const JOBS = {
     healer: true, // 回復ができる：ピンチの味方が赤く光って見える
     power: 1.95, support: 1, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.55, speed: 18, mult: 0.75, color: 0xfff59d, size: 0.28, range: 22 },
-    q: { id: 'heal', name: '癒しの光', desc: '周囲8mの味方（自分も）の HP を最大の 31% 回復', cd: 10, radius: 8, amount: 0.3089 },
+    q: { id: 'heal', name: '癒しの光', desc: '周囲8mの味方（自分も）の HP を最大の 37% 回復', cd: 10, radius: 8, amount: 0.3684 },
     e: { id: 'sanctuary', name: '聖なる守り', desc: '周囲8mの味方（自分も）の被ダメージ -30%（6秒）', cd: 16, radius: 8, dur: 6, mul: 0.7 },
     // 蘇生できる必殺技は強すぎるので、1回の挑戦（進行）で1度だけ。全滅してやり直しても戻らない
     r: { id: 'prayer', name: '女神の祈り', desc: '全員を全回復し、倒れた味方を蘇生。3秒間 無敵（1回の挑戦で1度だけ）', invuln: 3, oncePerRun: true },
     trait: '周囲6mの味方は毎秒 HP 1% 回復',
-    auraRegen: 0.0078, auraRadius: 6, breakMul: 1,
+    auraRegen: 0.0093, auraRadius: 6, breakMul: 1,
     look: { armorColor: 0xeceff1, swordColor: 0xffe082, swordLen: 0.9, cape: 0xffd54f, weapon: 'staff', hat: 0xeceff1 },
   },
   archer: {
@@ -681,9 +681,9 @@ export const JOBS = {
     name: '衛生兵', role: '回復（素早い）', color: '#ef9a9a',
     power: 1.87, support: 0.76, // 火力係数・支援係数（全技に一律で掛かる。docs/balance で調整）
     basic: { type: 'shot', cd: 0.4, speed: 30, mult: 0.7, color: 0xffffff, size: 0.2, range: 24 },
-    q: { id: 'firstaid', kind: 'teamheal', name: '救急キット', desc: '周囲6mの味方の HP を 21% 回復', cd: 7, radius: 6, amount: 0.273, color: 0xef9a9a },
-    e: { id: 'stimpack', kind: 'teambuff', name: '興奮剤', desc: '周囲8mの味方を 6秒間 移動 +25%・毎秒 HP 1.5% 回復', cd: 12, radius: 8, buff: 'stim', dur: 6, vals: { speedMul: 1.25, regen: 0.0182 }, color: 0xef9a9a, msg: '興奮剤：足が速くなり回復' },
-    r: { id: 'fieldhospital', kind: 'zone', zone: 'field', name: '野戦病院', desc: '足元を10秒間 回復の場にする（毎秒 HP 4% 回復）', radius: 6, dur: 10, every: 0.5, heal: 0.0273, mult: 0, color: 0xef9a9a },
+    q: { id: 'firstaid', kind: 'teamheal', name: '救急キット', desc: '周囲6mの味方の HP を 25% 回復', cd: 7, radius: 6, amount: 0.3258, color: 0xef9a9a },
+    e: { id: 'stimpack', kind: 'teambuff', name: '興奮剤', desc: '周囲8mの味方を 6秒間 移動 +25%・毎秒 HP 1.5% 回復', cd: 12, radius: 8, buff: 'stim', dur: 6, vals: { speedMul: 1.25, regen: 0.0217 }, color: 0xef9a9a, msg: '興奮剤：足が速くなり回復' },
+    r: { id: 'fieldhospital', kind: 'zone', zone: 'field', name: '野戦病院', desc: '足元を10秒間 回復の場にする（毎秒 HP 5% 回復）', radius: 6, dur: 10, every: 0.5, heal: 0.0326, mult: 0, color: 0xef9a9a },
     trait: '足が速い衛生兵',
     breakMul: 1,
     look: { armorColor: 0xeceff1, swordColor: 0xef5350, swordLen: 0.6, cape: 0xc62828, weapon: 'gun', hat: 0xeceff1 },
