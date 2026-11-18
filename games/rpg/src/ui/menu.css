@@ -71,7 +71,7 @@ body.rpg-menu-on .g3-home{display:none}
 .rpg-help .rpg-b{width:200px}
 
 /* ================= ステージ選択 ================= */
-.rpg-stage-grid{flex:1;min-height:0;overflow:auto;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;padding:22px max(20px,calc((100vw - 1100px)/2)) 24px;align-content:center}
+.rpg-stage-grid{flex:1;min-height:0;overflow:auto;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;padding:18px max(20px,calc((100vw - 1200px)/2)) 20px;align-content:center}
 .rpg-stage{min-height:200px;font:inherit;color:var(--ink);text-align:left;cursor:pointer;border:0;border-radius:0;padding:0;display:flex;flex-direction:column;min-height:0;
   background:var(--paper);box-shadow:0 0 0 3px var(--line),inset 0 0 0 3px var(--paper2),6px 6px 0 #0006;transition:transform .08s}
 .rpg-stage:hover{transform:translateY(-3px);box-shadow:0 0 0 3px var(--gold),0 0 0 6px var(--line),6px 9px 0 #0006}
@@ -173,7 +173,7 @@ body .g3-btns{gap:14px}
   .rpg-title-menu{width:min(280px,38vw);gap:12px}
   .rpg-help-text{font-size:12px;line-height:1.6}
   /* ステージ：3列×3段を1画面に */
-  .rpg-stage-grid{gap:8px;padding:8px 16px 10px;align-content:stretch;grid-template-rows:repeat(3,minmax(0,1fr))}
+  .rpg-stage-grid{gap:8px;padding:8px 16px 10px;align-content:stretch;grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:repeat(3,minmax(0,1fr))}
   .rpg-stage-band{padding:4px 10px}
   .rpg-stage-band i{font-size:15px}
   .rpg-stage{min-height:0}

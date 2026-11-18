@@ -26,21 +26,24 @@ function mazeArea(o) {
  */
 function bossHall(o) {
   const f = o.big || 1;
-  const hw = 22 * f;
-  const lastZ = -114;
-  const minZ = lastZ - 50 * f;
-  const bz = (lastZ + minZ) / 2 - 4; // 最後の部屋の真ん中より少し奥
+  const s = o.room || 1; // 全部屋の倍率（ステージ10〜は縦横2倍）。入口（z=50）を起点に z を伸ばす
+  const Z = (z) => 50 - (50 - z) * s;
+  const w = 22 * s; // ふつうの部屋の半幅
+  const hw = w * f;
+  const lastZ = Z(-114);
+  const minZ = lastZ - 50 * s * f;
+  const bz = (lastZ + minZ) / 2 - 4 * s; // 最後の部屋の真ん中より少し奥
   const solids = [
-    { minX: -22, maxX: -5, minZ: 30, maxZ: 50 },
-    { minX: 5, maxX: 22, minZ: 30, maxZ: 50 },
+    { minX: -w, maxX: -5, minZ: Z(30), maxZ: 50 },
+    { minX: 5, maxX: w, minZ: Z(30), maxZ: 50 },
   ];
-  if (f > 1) solids.push({ minX: -hw, maxX: -22, minZ: lastZ, maxZ: 50 }, { minX: 22, maxX: hw, minZ: lastZ, maxZ: 50 });
+  if (f > 1) solids.push({ minX: -hw, maxX: -w, minZ: lastZ, maxZ: 50 }, { minX: w, maxX: hw, minZ: lastZ, maxZ: 50 });
   const rooms = [
-    { x: 0, z: 12, triggerZ: 25, door: 0, respawn: { x: 0, z: 44 } },
-    { x: 0, z: -22, triggerZ: -9, door: 1, respawn: { x: 0, z: -0.5 } },
-    { x: 0, z: -56, triggerZ: -43, door: 2, respawn: { x: 0, z: -34.5 } },
-    { x: 0, z: -94, triggerZ: -77, door: 3, respawn: { x: 0, z: -68.5 } },
-    { x: 0, z: bz, triggerZ: -120, door: 4, respawn: { x: 0, z: -110.5 } },
+    { x: 0, z: Z(12), triggerZ: Z(25), door: 0, respawn: { x: 0, z: 44 } },
+    { x: 0, z: Z(-22), triggerZ: Z(-9), door: 1, respawn: { x: 0, z: Z(-0.5) } },
+    { x: 0, z: Z(-56), triggerZ: Z(-43), door: 2, respawn: { x: 0, z: Z(-34.5) } },
+    { x: 0, z: Z(-94), triggerZ: Z(-77), door: 3, respawn: { x: 0, z: Z(-68.5) } },
+    { x: 0, z: bz, triggerZ: lastZ - 6 * s, door: 4, respawn: { x: 0, z: lastZ + 3.5 } },
   ];
   return {
     castle: true, wallH: 3.2, gates: [], pillars: [], torches: [], carpet: false,
@@ -48,7 +51,7 @@ function bossHall(o) {
     bounds: { minX: -hw, maxX: hw, minZ, maxZ: 50 },
     spawn: { x: 0, z: 44 },
     solids,
-    doors: [{ z: 30, gap: 3 }, { z: -4, gap: 3 }, { z: -38, gap: 3 }, { z: -72, gap: 3.5 }, { z: lastZ, gap: 3.5 }],
+    doors: [{ z: Z(30), gap: 3 * s }, { z: Z(-4), gap: 3 * s }, { z: Z(-38), gap: 3 * s }, { z: Z(-72), gap: 3.5 * s }, { z: lastZ, gap: 3.5 * s }],
     bosses: o.bosses.map((bd, i) => {
       const r = { ...rooms[i], ...bd };
       // pair の位置は部屋の中心からのずれ（dx, dz）で書く
@@ -57,6 +60,9 @@ function bossHall(o) {
     }),
   };
 }
+
+/** 縦横2倍の回廊のたいまつ（壁ぞいに並べる） */
+const TORCH2 = [[-4.6, 40], [4.6, 40], ...[10, -30, -70, -110, -150, -190, -230, -270, -310, -350].flatMap((z) => [[-43.5, z], [43.5, z]])];
 
 export const AREAS = {
   forest: mazeArea({
@@ -305,11 +311,63 @@ export const AREAS = {
     ],
     signs: [{ x: 3.5, z: 42, key: 'space' }],
   }),
+
+  // ステージ10〜12：全部屋が縦横2倍。各部屋ボス2体、最後の部屋は3体。ボスは体4倍・範囲3倍・弾2倍（data/bosskit.js の HUGE）
+  // ステージ10：天空の城（雲の上の屋外）
+  sky: bossHall({
+    name: 'ステージ10　天空の城', stage: 12, bgm: 'field', outdoor: true, room: 2,
+    sky: 0x8fd3ff, fog: [90, 380], ground: 0xeceff1,
+    sun: { color: 0xffffff, intensity: 2.6, hemi: 1.1, sky: 0xb3e5fc, ground: 0xffffff, offset: { x: 30, y: 45, z: 20 } },
+    palette: { wall: 0xf5f5f5, trim: 0xffd54f, rock: 0xe0e0e0, pillar: 0xfafafa, tileA: 0xf5f5f5, tileB: 0xe3f2fd, flame: 0xfff59d, flameGlow: 0xffd54f, light: 0xfff8e1, carpet: 0x90caf9 },
+    deco: 'sky',
+    bosses: [
+      { circle: 0xb2ff59, label: '嵐の間（2体）', pair: [{ key: 'gale', dx: -14 }, { key: 'vortex', dx: 14, dz: -6 }] },
+      { circle: 0xffd54f, label: '騎士団の間（2体）', pair: [{ key: 'seraph', dx: -12 }, { key: 'azure', dx: 14, dz: -8 }] },
+      { circle: 0x81d4fa, label: '雲の間（2体）', pair: [{ key: 'nimbus', dx: -14 }, { key: 'sylph', dx: 14, dz: -6 }] },
+      { circle: 0xffee58, label: '雷の間（2体）', pair: [{ key: 'pegasus', dx: -14 }, { key: 'thor', dx: 14, dz: -4 }] },
+      { circle: 0xfff8e1, label: '天の玉座（3体）', pair: [{ key: 'michael', dx: -20, dz: 4 }, { key: 'gabriel', dx: 0, dz: -12 }, { key: 'bahamut', dx: 20, dz: 4 }] },
+    ],
+    signs: [{ x: 3.5, z: 42, key: 'sky' }],
+  }),
+
+  // ステージ11：機械要塞（金属の屋内）
+  machine: bossHall({
+    name: 'ステージ11　機械要塞', stage: 13, bgm: 'castle', dark: true, wallH: 9, room: 2,
+    sky: 0x0b1015, fog: [40, 220], ground: 0x263238,
+    sun: { color: 0xb3e5fc, intensity: 0.9, hemi: 0.7, sky: 0x80deea, ground: 0x263238 },
+    palette: { wall: 0x37474f, trim: 0x18ffff, rock: 0x263238, pillar: 0x455a64, tileA: 0x37474f, tileB: 0x2b373d, flame: 0x18ffff, flameGlow: 0x00b8d4, light: 0x80deea, carpet: 0xff6f00 },
+    torches: TORCH2,
+    bosses: [
+      { circle: 0xff1744, label: '迎撃区画（2体）', pair: [{ key: 'turret', dx: -14 }, { key: 'hornet', dx: 14, dz: -6 }] },
+      { circle: 0xff8f00, label: '整備区画（2体）', pair: [{ key: 'cerbmk', dx: -14 }, { key: 'rivet', dx: 14, dz: -6 }] },
+      { circle: 0xffab00, label: '採掘区画（2体）', pair: [{ key: 'driller', dx: -14 }, { key: 'aegis', dx: 14, dz: -8 }] },
+      { circle: 0x18ffff, label: '兵器区画（2体）', pair: [{ key: 'gearknight', dx: -12 }, { key: 'buster', dx: 14, dz: -8 }] },
+      { circle: 0xd500f9, label: '要塞の心臓（3体）', pair: [{ key: 'juggernaut', dx: 0, dz: -10 }, { key: 'omega', dx: -20, dz: 4 }, { key: 'mechadragon', dx: 20, dz: 4 }] },
+    ],
+    signs: [{ x: 3.5, z: 42, key: 'machine' }],
+  }),
+
+  // ステージ12：冥界（暗い地下の宮殿）
+  hell: bossHall({
+    name: 'ステージ12　冥界', stage: 14, bgm: 'castle', dark: true, wallH: 9, room: 2,
+    sky: 0x0a0004, fog: [30, 200], ground: 0x1a0a10,
+    sun: { color: 0xff8a80, intensity: 0.7, hemi: 0.55, sky: 0x880e4f, ground: 0x1a0a10 },
+    palette: { wall: 0x2a1018, trim: 0x76ff03, rock: 0x1a0a10, pillar: 0x3e1a24, tileA: 0x2a1018, tileB: 0x1e0a12, flame: 0x76ff03, flameGlow: 0x64dd17, light: 0xccff90, carpet: 0x4a0000 },
+    torches: TORCH2,
+    bosses: [
+      { circle: 0xff3d00, label: '冥府の門（2体）', pair: [{ key: 'hellhound', dx: -14 }, { key: 'necro', dx: 14, dz: -8 }] },
+      { circle: 0x76ff03, label: '処刑場（2体）', pair: [{ key: 'thanatos', dx: -12 }, { key: 'dullahan', dx: 14, dz: -6 }] },
+      { circle: 0xd50000, label: '骨の谷（2体）', pair: [{ key: 'bonedragon', dx: -14 }, { key: 'gehenna', dx: 14, dz: -8 }] },
+      { circle: 0x6200ea, label: '魂の淵（2体）', pair: [{ key: 'souleater', dx: -14 }, { key: 'hecate', dx: 14, dz: -8 }] },
+      { circle: 0xff3d00, label: '冥王の玉座（3体）', pair: [{ key: 'hades', dx: 0, dz: -10 }, { key: 'persephone', dx: -20, dz: 4 }, { key: 'nidhogg', dx: 20, dz: 4 }] },
+    ],
+    signs: [{ x: 3.5, z: 42, key: 'hell' }],
+  }),
 };
 
 
 /** ステージの順番（つづきから・移行用） */
-export const AREA_ORDER = ['forest', 'canyon', 'dungeon', 'castle', 'abyss', 'wilds', 'dusk', 'frost', 'sea', 'lava', 'space'];
+export const AREA_ORDER = ['forest', 'canyon', 'dungeon', 'castle', 'abyss', 'wilds', 'dusk', 'frost', 'sea', 'lava', 'space', 'sky', 'machine', 'hell'];
 
 /** 古いセーブ（version 1）のエリア id → 新しい id */
 export const OLD_AREA_MAP = { village: 'forest', field: 'canyon', dungeon: 'dungeon' };
@@ -347,6 +405,15 @@ export const COURSES = [
   },  {
     key: 'space', label: 'ステージ9', name: '星海の果て', start: 'space', areas: ['space'], recKey: 'records9',
     desc: '宇宙で5連戦。4戦目は3体同時、最後は9倍の宙域で宇宙怪獣ギャラクトス', clearMsg: '宇宙怪獣ギャラクトスを打ち倒した！',
+  },  {
+    key: 'sky', label: 'ステージ10', name: '天空の城', start: 'sky', areas: ['sky'], recKey: 'records10',
+    desc: '雲の上の城。どの部屋も巨大なボスが2体、最後は天使2体と天空竜の3体同時', clearMsg: '天の玉座を制した！',
+  },  {
+    key: 'machine', label: 'ステージ11', name: '機械要塞', start: 'machine', areas: ['machine'], recKey: 'records11',
+    desc: '巨大兵器だらけの要塞。どの部屋も2体、最後は主砲・指揮官・機械竜の3体同時', clearMsg: '要塞の心臓を止めた！',
+  },  {
+    key: 'hell', label: 'ステージ12', name: '冥界', start: 'hell', areas: ['hell'], recKey: 'records12',
+    desc: '死者の国。どの部屋も2体、最後は冥王・冥妃・冥界竜の3体同時', clearMsg: '冥王ハデスを打ち倒した！',
   },
 
 

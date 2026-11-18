@@ -52,6 +52,7 @@ export function buildCastle(ctx) {
   }
   if (def.deco === 'lava') buildLavaDeco(ctx, b);
   else if (def.deco === 'space') buildSpaceDeco(ctx, b);
+  else if (def.deco === 'sky') buildSkyDeco(ctx, b);
   else if (def.outdoor) buildOutdoorDeco(ctx, b);
 
   // ボスの魔法陣（ボスごとの色）
@@ -208,4 +209,29 @@ function buildSpaceDeco(ctx, b) {
   const planet = new THREE.Mesh(new THREE.SphereGeometry(40, 24, 16), ctx.mat(0x5e35b1, { emissive: 0x311b92, emissiveIntensity: 0.6, fog: false }));
   planet.position.set(-120, 70, b.minZ - 120);
   ctx.group.add(planet);
+}
+
+/** 天空：囲いの外に雲の塊（白い球の集まり）と、遠くに浮かぶ島 */
+function buildSkyDeco(ctx, b) {
+  let seed = 9090;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const puffs = [];
+  for (let z = b.minZ - 20; z < b.maxZ + 20; z += 9) {
+    for (const side of [-1, 1]) {
+      const cx = side * (b.maxX + 8 + rnd() * 30);
+      const cy = -2 + rnd() * 6;
+      for (let i = 0; i < 4; i++) puffs.push({ x: cx + (rnd() - 0.5) * 10, y: cy + rnd() * 2, z: z + (rnd() - 0.5) * 8, s: 3 + rnd() * 4, sy: 0.6, ry: 0 });
+    }
+  }
+  ctx.instanced(new THREE.IcosahedronGeometry(1, 1), ctx.mat(0xffffff, { emissive: 0xffffff, emissiveIntensity: 0.25 }), puffs, { cast: false });
+  // 遠くに浮かぶ島（逆さの円すい＋草の上面）
+  const isles = [[-140, 30, b.minZ - 60, 22], [150, 20, (b.minZ + b.maxZ) / 2, 18], [-120, 10, b.maxZ - 40, 14]];
+  for (const [x, y, z, r] of isles) {
+    const rock = new THREE.Mesh(new THREE.ConeGeometry(r, r * 1.6, 8), ctx.mat(0x8d6e63));
+    rock.rotation.x = Math.PI;
+    rock.position.set(x, y - r * 0.8, z);
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 1.2, 8), ctx.mat(0x7cb342));
+    top.position.set(x, y, z);
+    ctx.group.add(rock, top);
+  }
 }
