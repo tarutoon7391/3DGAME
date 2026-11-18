@@ -33,6 +33,8 @@ export const ROLE_EXCEPTIONS = {
 };
 
 /** 職業 → ロール（仕分けの理由は docs/balance/roles.md） */
+import { ROLES_E } from './jobs_e.js';
+
 export const ROLES = {
   // アタッカー（近接火力）
   swordsman: 'attacker', ninja: 'attacker', lancer: 'attacker', monk: 'attacker', berserker: 'attacker',
@@ -64,6 +66,7 @@ export const ROLES = {
   jester: 'unique', shifter: 'unique', gambler: 'unique', mimic: 'unique', ghost: 'unique',
   phoenix: 'unique', absorber: 'unique', reflector: 'unique', desperado: 'unique',
 };
+Object.assign(ROLES, ROLES_E); // 職業 97〜114（data/jobs_e.js）
 
 /** その職の基本ステータス（ロールの値＋例外の倍率） */
 export function roleStats(jobId, basicType) {

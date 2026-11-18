@@ -19,6 +19,7 @@ const xTick = (color, r) => (n) => [diag(n % 2 === 1, { color, r, dur: 0.22 }), 
 const smashTick = (color, r, big = false) => () => [vm('bigchop', 0.32), ['slam', { color, r, at: 0.1 }], ['explode', { color, r: r * 0.7, big, at: 0.1 }], shake(big ? 0.7 : 0.45)];
 
 import { SKILL_VIS_C, C_FRAMES } from './skillvis_c.js';
+import { SKILLVIS_E, SKILLVIS_C_E, C_FRAMES_E, GUN_JOBS_E } from './jobs_e.js';
 
 export const SKILL_VIS = {
   // ---- 剣士 ----
@@ -298,6 +299,8 @@ export const SKILL_VIS = {
 };
 
 Object.assign(SKILL_VIS, SKILL_VIS_C); // C キーの技（data/skillvis_c.js）
+// 職業 97〜114（data/jobs_e.js）の Q・E・R と C
+Object.assign(SKILL_VIS, SKILLVIS_E, Object.fromEntries(Object.entries(SKILLVIS_C_E).map(([k, cast]) => ['c_' + k, { cast }])));
 
 /** バフ中の画面の縁の色（"r,g,b"）。キーはバフの名前 */
 export const BUFF_FRAMES = {
@@ -312,5 +315,11 @@ export const BUFF_FRAMES = {
 /** 3段目を真上からの縦斬りにする近接職（鎖鎌使いより後） */
 export const LAST_VERTICAL = ['darkknight', 'cursed', 'desperado', 'oni', 'hammer', 'gunblade', 'gladiator', 'charger', 'thornknight', 'shredder', 'drummer', 'bellringer'];
 /** 撃つと銃口が光る職業（銃口の位置は武器の形から自動で求める） */
-export const GUN_JOBS = ['gambler', 'sniper', 'twins', 'machinegunner', 'flamer', 'rocketeer', 'medic', 'fortress', 'splitter'];
+export const GUN_JOBS = ['gambler', 'sniper', 'twins', 'machinegunner', 'flamer', 'rocketeer', 'medic', 'fortress', 'splitter', ...GUN_JOBS_E];
 Object.assign(BUFF_FRAMES, C_FRAMES); // C キーの技のバフ
+// 職業 97〜114 のバフ（data/jobs_e.js）
+Object.assign(BUFF_FRAMES, C_FRAMES_E, {
+  impregnable: '141,110,99', shell: '102,187,106', shellback: '67,160,71', fudo: '255,152,0', kongo: '255,167,38', chainoath: '120,144,156',
+  panacea: '124,179,66', wingguard: '255,253,231', formation: '121,134,203', allout: '57,73,171', sharpen: '255,138,101', reforge: '255,87,34',
+  fightsong: '255,202,40', bigcheer: '255,160,0', dragonvein: '0,137,123', abekobe: '213,0,0',
+});

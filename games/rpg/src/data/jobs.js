@@ -15,6 +15,7 @@
 
 import { ROLES, roleStats } from './roles.js';
 import { C_SKILLS } from './jobs_c.js';
+import { JOBS_E, ORDER_E } from './jobs_e.js';
 
 export const GAUGE = {
   max: 100,
@@ -1195,6 +1196,9 @@ export const JOB_ORDER = ['swordsman', 'knight', 'mage', 'priest', 'archer', 'ni
   'gladiator', 'elementalist', 'werewolf', 'fortress', 'healfist', 'sage', 'acrobat', 'driller',
   'absorber', 'reflector', 'drummer', 'charger', 'thornknight', 'splitter', 'boomeranger', 'shredder',
   'exorcist', 'stickybomber', 'bellringer', 'gardener', 'echomage', 'vanguard', 'conductor', 'sacrifice'];
+// 職業 97〜114（タンク・ヒーラー・バッファー・デバッファー・ユニークを各12職に。data/jobs_e.js）
+Object.assign(JOBS, JOBS_E);
+JOB_ORDER.push(...ORDER_E);
 
 /**
  * 基本ステータスはロールごとに共通（data/roles.js・docs/balance/policy.md）。

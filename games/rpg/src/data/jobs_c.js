@@ -3,6 +3,8 @@
 //   after.dodge：'move'（動いている向き。止まっていれば後ろ）/ 'back'（後ろ）へ回避と同じ移動
 //   after.invuln：無敵の秒 / after.cdCut：{ q: 秒, e: 秒 } クールダウンを縮める / after.gauge：必殺ゲージ / after.hpCost：HP の割合を払う
 //   after.unseen：敵に気づかれない秒
+import { C_SKILLS_E } from './jobs_e.js';
+
 const sb = (id, name, desc, cd, color, buff, dur, vals, extra = {}) => ({ id, kind: 'selfbuff', name, desc, cd, color, buff, dur, vals, ...extra });
 const tb = (id, name, desc, cd, color, buff, dur, vals, radius, extra = {}) => ({ id, kind: 'teambuff', name, desc, cd, color, buff, dur, vals, radius, ...extra });
 
@@ -104,3 +106,4 @@ export const C_SKILLS = {
   conductor: { id: 'c_conductor', kind: 'bell', name: 'フェルマータ', desc: '2秒間 敵弾がほとんど止まる', cd: 20, mul: 0.05, dur: 2, color: 0xce93d8 },
   sacrifice: tb('c_sacrifice', '身代わり', '5秒間 周りの味方の被ダメ -40%（自分の HP を5% 払う）', 20, 0xe57373, 'proxy', 5, { dmgMul: 0.6 }, 6, { after: { hpCost: 0.05 } }),
 };
+Object.assign(C_SKILLS, C_SKILLS_E); // 職業 97〜114（data/jobs_e.js）
