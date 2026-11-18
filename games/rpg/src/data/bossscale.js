@@ -1,5 +1,8 @@
 // 巨大ボス：体と攻撃範囲をまとめて k 倍にする（ステージ7・8 の最後は 2倍、ステージ9 の最後は 3倍）
-// 長さ・半径・距離は k 倍、動く技の速さも k 倍（同じ時間で広い範囲を動く）。弾の速さ・角度・時間はそのまま
+// 長さ・半径・距離は k 倍。巨体なので動きはゆっくりめ：歩きは元の 0.8 倍、突進などの速さは k×0.6 倍（MOVE_SLOW）
+// 弾の速さ・角度・時間はそのまま
+/** 巨大ボスの動きの遅さ（walk：歩きの速さ倍率、dash：突進・広がる輪などの速さに k と一緒に掛ける） */
+export const MOVE_SLOW = { walk: 0.8, dash: 0.6 };
 const LEN_KEYS = ['r', 'rIn', 'rOut', 'len', 'w', 'dist', 'rr', 'rr0', 'rr1', 'max', 'h', 'gapW', 'gapRange', 'thick', 'fxDist', 'back', 'step'];
 
 /** 弾・光球の数を shot 倍にする（do: 'shots' / 'cluster' / 'orbs'） */
@@ -23,7 +26,7 @@ function scaleStep(s, k, shot = 1) {
   if (o.o === 'rand' && typeof o.spread === 'number') o.spread = +(o.spread * k).toFixed(2); // rand の spread は距離
   if (typeof o.hitR === 'number' && o.hitR > 0) o.hitR *= k;
   if ((o.do === 'move' && (o.m === 'dash' || o.m === 'orbit')) || o.do === 'mover' || o.do === 'nova' || o.do === 'wall') {
-    if (typeof o.speed === 'number' && o.m !== 'orbit') o.speed = +(o.speed * k).toFixed(2);
+    if (typeof o.speed === 'number' && o.m !== 'orbit') o.speed = +(o.speed * k * MOVE_SLOW.dash).toFixed(2);
   }
   if (o.fxd) {
     o.fxd = { ...o.fxd };
@@ -51,7 +54,7 @@ export function giant(def, k, over = {}, opt = {}) {
     ...def,
     radius: def.radius * size,
     hpY: def.hpY * size,
-    speed: def.speed * Math.sqrt(k),
+    speed: def.speed * MOVE_SLOW.walk,
     nearRange: Math.max(def.nearRange * k, def.radius * size + 4),
     keep: def.keep ? def.keep * k : def.keep,
     look: { ...def.look, scale: def.look.scale * size },
