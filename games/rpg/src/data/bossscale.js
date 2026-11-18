@@ -2,8 +2,23 @@
 // 長さ・半径・距離は k 倍、動く技の速さも k 倍（同じ時間で広い範囲を動く）。弾の速さ・角度・時間はそのまま
 const LEN_KEYS = ['r', 'rIn', 'rOut', 'len', 'w', 'dist', 'rr', 'rr0', 'rr1', 'max', 'h', 'gapW', 'gapRange', 'thick', 'fxDist', 'back', 'step'];
 
-function scaleStep(s, k) {
+/** 弾・光球の数を shot 倍にする（do: 'shots' / 'cluster' / 'orbs'） */
+function scaleCount(o, shot) {
+  if (shot === 1) return;
+  const m = (v) => Math.max(1, Math.round(v * shot));
+  if (o.do === 'shots') {
+    if (typeof o.n === 'number') o.n = m(o.n);
+    if (typeof o.arms === 'number') o.arms = m(o.arms);
+    if (o.pat === 'fan' && typeof o.spread === 'number') o.spread = +(o.spread / Math.sqrt(shot)).toFixed(3); // 扇は少し詰める
+  } else if (o.do === 'cluster') {
+    if (typeof o.ring === 'number') o.ring = m(o.ring);
+    if (typeof o.n === 'number') o.n = m(o.n);
+  } else if (o.do === 'orbs' && typeof o.n === 'number') o.n = m(o.n);
+}
+
+function scaleStep(s, k, shot = 1) {
   const o = { ...s };
+  scaleCount(o, shot);
   for (const key of LEN_KEYS) if (typeof o[key] === 'number') o[key] = +(o[key] * k).toFixed(2);
   if (o.o === 'rand' && typeof o.spread === 'number') o.spread = +(o.spread * k).toFixed(2); // rand の spread は距離
   if (typeof o.hitR === 'number' && o.hitR > 0) o.hitR *= k;
@@ -24,18 +39,22 @@ function scaleStep(s, k) {
   return o;
 }
 
-/** def を k 倍の巨大ボスにした写しを返す（over で上書き） */
-export function giant(def, k, over = {}) {
+/**
+ * def を巨大ボスにした写しを返す（over で上書き）
+ * k：攻撃範囲・距離の倍率。opt.size：体の大きさの倍率（省略で k）。opt.shot：弾・光球の数の倍率（省略で 1）
+ */
+export function giant(def, k, over = {}, opt = {}) {
   const patterns = {};
-  for (const [name, p] of Object.entries(def.patterns)) patterns[name] = { ...p, steps: p.steps.map((s) => scaleStep(s, k)) };
+  for (const [name, p] of Object.entries(def.patterns)) patterns[name] = { ...p, steps: p.steps.map((s) => scaleStep(s, k, opt.shot ?? 1)) };
+  const size = opt.size ?? k; // 体の大きさ（範囲 k とは別に決められる）
   return {
     ...def,
-    radius: def.radius * k,
-    hpY: def.hpY * k,
+    radius: def.radius * size,
+    hpY: def.hpY * size,
     speed: def.speed * Math.sqrt(k),
-    nearRange: def.nearRange * k,
+    nearRange: Math.max(def.nearRange * k, def.radius * size + 4),
     keep: def.keep ? def.keep * k : def.keep,
-    look: { ...def.look, scale: def.look.scale * k },
+    look: { ...def.look, scale: def.look.scale * size },
     patterns,
     giant: k,
     ...over,

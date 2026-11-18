@@ -11,6 +11,9 @@ export const BOSS_THEME = {
   fenrir: 'ice', celsia: 'ice', volt: 'arcane', jotun: 'ice', nox: 'dark', astral: 'arcane',
   siren: 'water', kingcrab: 'water', leviath: 'water', triton: 'water', gazer: 'dark', kraken: 'water',
   salamander: 'fire', lavaworm: 'fire', ifrit: 'fire', vulcan: 'earth', blaze: 'fire', muspel: 'fire',
+  gale: 'feather', vortex: 'arcane', seraph: 'arcane', azure: 'arrow', nimbus: 'ice', sylph: 'wind', pegasus: 'feather', thor: 'arcane', michael: 'fire', gabriel: 'feather', bahamut: 'arcane',
+  turret: 'iron', hornet: 'iron', cerbmk: 'fire', rivet: 'iron', driller: 'earth', aegis: 'arcane', gearknight: 'iron', buster: 'iron', juggernaut: 'arcane', omega: 'arcane', mechadragon: 'ice',
+  hellhound: 'fire', necro: 'dark', thanatos: 'dark', dullahan: 'dark', bonedragon: 'dark', gehenna: 'blood', souleater: 'dark', hecate: 'arcane', hades: 'demon', persephone: 'poison', nidhogg: 'poison',
   xeno: 'arcane', oculus: 'arcane', orion: 'arcane', luna: 'arcane', sol: 'fire', nova: 'arcane', galactos: 'arcane',
 };
 

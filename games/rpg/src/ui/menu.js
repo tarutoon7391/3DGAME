@@ -15,6 +15,9 @@ const THEME = {
   sea: { band: '#0f6e8c', icon: '🌊' },
   lava: { band: '#b5361b', icon: '🌋' },
   space: { band: '#4a2a8f', icon: '🌌' },
+  sky: { band: '#3d8fc4', icon: '☁️' },
+  machine: { band: '#4a5a64', icon: '⚙️' },
+  hell: { band: '#6a1030', icon: '💀' },
 };
 
 let current = null;

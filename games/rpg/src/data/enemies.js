@@ -7,6 +7,9 @@ import { S6_BOSSES } from './bossmoves_s6.js';
 import { S7_BOSSES } from './bossmoves_s7.js';
 import { S8_BOSSES } from './bossmoves_s8.js';
 import { S9_BOSSES } from './bossmoves_s9.js';
+import { S10_BOSSES } from './bossmoves_s10.js';
+import { S11_BOSSES } from './bossmoves_s11.js';
+import { S12_BOSSES } from './bossmoves_s12.js';
 
 /** ボスの HP にかける倍率（調整中の一時的なもの。1 で元どおり） */
 export const BOSS_HP_MUL = 0.5;
@@ -687,6 +690,8 @@ for (const [k, v] of Object.entries(S5_MOVES)) {
 Object.assign(BOSSES, S6_BOSSES);
 // ステージ7〜9（海・溶岩・宇宙。data/bossmoves_s7〜s9.js）
 Object.assign(BOSSES, S7_BOSSES, S8_BOSSES, S9_BOSSES);
+// ステージ10〜12（天空・機械・冥界。data/bossmoves_s10〜s12.js。全員 体4倍・範囲3倍・弾2倍）
+Object.assign(BOSSES, S10_BOSSES, S11_BOSSES, S12_BOSSES);
 
 /** 1-3のボス（旧コードとの互換用） */
 export const BOSS = BOSSES.galdra;
