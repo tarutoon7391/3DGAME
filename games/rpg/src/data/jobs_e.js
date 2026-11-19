@@ -257,7 +257,7 @@ export const C_SKILLS_E = {
   poisoner: { id: 'c_poisoner', kind: 'blink', name: '煙玉', desc: '毒の煙にまぎれて向いている方へ6m 移る', cd: 10, dist: 6, color: 0x76ff03 },
   binder: { id: 'c_binder', kind: 'blinkbehind', name: '影移し', desc: '影を渡って一番近いボスの背後へ（0.6秒 無敵）', cd: 12, color: 0x455a64, after: { invuln: 0.6 } },
   puppeteer: sb('c_puppeteer', '身代わり人形', '人形を置き、3秒間 敵に気づかれない', 18, 0xf06292, 'pdoll', 3, {}, { after: { unseen: 3 } }),
-  contrarian: sb('c_contrarian', '開き直り', '3秒間 攻撃 +40%・被ダメ +20%', 14, 0xe53935, 'hirakinaori', 3, { atkMul: 1.4, dmgMul: 1.2 }),
+  contrarian: { id: 'c_contrarian', kind: 'hpflip', name: '逆転', desc: '自分の今の HP 割合を反転させる（HP 20% → 80%、90% → 10%）', cd: 30, color: 0xe53935 },
   bounty: { id: 'c_bounty', kind: 'recoil', name: '早抜き跳び', desc: '前へ一発撃ち、反動で後ろへ8m 跳ぶ（跳ぶ間は無敵）', cd: 10, mult: 2.0, size: 0.35, speed: 34, dist: 8, time: 0.4, height: 2, color: 0xffab40 },
 };
 
