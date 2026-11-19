@@ -100,7 +100,8 @@ body.rpg-menu-on .g3-home{display:none}
 .rpg-join input{width:0}
 .rpg-join .rpg-b{flex:none;padding:8px 18px}
 .rpg-lobby-msg{margin:0;background:#fff3c4;color:#7a3b00;font-weight:bold;padding:8px 12px;box-shadow:0 0 0 3px var(--line)}
-.rpg-room-head{font-weight:bold}
+.rpg-room-head{font-weight:bold;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.rpg-scr .rpg-copy{font-size:13px;padding:4px 10px;min-height:32px;letter-spacing:0}
 .rpg-scr .rpg-room-code{font-size:26px;letter-spacing:.2em;color:#9a3b12}
 .rpg-scr .rpg-members{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0}
 .rpg-scr .rpg-small{color:#6b4a2a;font-size:12px;line-height:1.5}

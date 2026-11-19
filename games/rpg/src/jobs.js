@@ -954,6 +954,16 @@ export function playRemoteSkill(game, p, id, d) {
  *   debuff ボスを弱体化 / counter 見切りの構え / random 候補からランダムに1つ（道化師）
  */
 const GENERIC = {
+  // 天邪鬼の逆転：自分の HP 割合を反転（20% → 80%）。0 にはしない
+  hpflip(game, p, d, local, sk) {
+    startAction(p, 'raise', 0.4);
+    game.sound.se('spin');
+    const up = p.hp / p.maxHp < 0.5; // 回復する側か、削れる側か
+    game.fx.burst(p.pos.x, 1.2, p.pos.z, up ? 0x66bb6a : sk.color, 36, { speed: 6, up: 4, life: 0.6, size: 0.18, grav: 1 });
+    if (!local) return;
+    const rate = 1 - p.hp / p.maxHp;
+    p.hp = Math.min(p.maxHp, Math.max(1, Math.round(p.maxHp * rate)));
+  },
   dash(game, p, d, local, sk) {
     let dd = d;
     // 双子の入れ替わり：前に使った場所（d.sw）があれば、そこまで斬り抜ける。色は青・ピンクで交互（d.sc）
