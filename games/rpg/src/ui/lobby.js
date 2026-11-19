@@ -87,7 +87,7 @@ export function openLobby({ settings, save, onSolo, onStart, onBack, area = 'cas
       const prob = roomProblem();
       const canGo = allReady() && !prob;
       side = `<div class="rpg-sheet rpg-side-act">
-          <div class="rpg-room-head">合言葉 <b class="rpg-room-code">${esc(net.room.code)}</b></div>
+          <div class="rpg-room-head">合言葉 <b class="rpg-room-code">${esc(net.room.code)}</b><button type="button" class="rpg-b rpg-b-plain rpg-copy" data-copy="${esc(net.room.code)}" title="合言葉をコピー">📋 コピー</button></div>
           <div class="rpg-small">${net.players.length}/${MAX_PLAYERS} 人・ボス HP ×${RAID_SCALE(net.players.length).toFixed(2)}・準備完了 ${nReady}/${net.players.length}</div>
           <div class="rpg-members">${members}</div>
           ${mine ? `<div class="rpg-lobby-msg">いまの職業は選べません（${esc(mine)}）。別の職業にしてください</div>` : ''}
@@ -144,6 +144,14 @@ export function openLobby({ settings, save, onSolo, onStart, onBack, area = 'cas
       save();
       if (net?.room) announce();
       render();
+      return;
+    }
+    const cp = e.target.closest('[data-copy]');
+    if (cp) {
+      const ok = await copyText(cp.dataset.copy);
+      cp.textContent = ok ? '✔ コピーした' : 'コピーできませんでした';
+      clearTimeout(cp._t);
+      cp._t = setTimeout(() => { cp.textContent = '📋 コピー'; }, 1500);
       return;
     }
     const act = e.target.closest('[data-act]')?.dataset.act;
@@ -265,4 +273,23 @@ export function openLobby({ settings, save, onSolo, onStart, onBack, area = 'cas
 
   render();
   return { close };
+}
+
+/** 文字をクリップボードへ（http でも動くよう、だめなら昔の方法で） */
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;left:-9999px;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch { ok = false; }
+    ta.remove();
+    return ok;
+  }
 }
